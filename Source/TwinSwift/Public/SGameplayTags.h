@@ -9,13 +9,14 @@
  */
 namespace SGameplayTags
 {
-	// ---------- 입력 (키 → 능력 연결). E·R은 마법사 스킬이자 교체 ----------
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_LMB);
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Q);
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_W);
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_E);
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_R);
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Space);
+	// ---------- 입력 (역할 기준 이름. 실제 키는 IMC_Default에서 정함 → 키를 바꿔도 코드는 그대로) ----------
+	// 지금 키: 기본 공격 좌클릭, 전사 1·2, 마법사 3·4, 회피 Space. 상대 캐릭터 스킬을 누르면 교체
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Attack);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Warrior_Skill1);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Warrior_Skill2);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Mage_Skill1);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Mage_Skill2);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Dodge);
 
 	// ---------- 능력 이름표 (서로 막기·취소에 사용) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Warrior_Combo);

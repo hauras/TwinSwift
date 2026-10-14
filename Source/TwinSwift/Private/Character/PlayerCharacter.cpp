@@ -1,10 +1,13 @@
 ﻿#include "Character/PlayerCharacter.h"
 
+#include "Ability/SAbilitySystemComponent.h"
+#include "Ability/SAttributeSet.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/SCameraConfig.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "State/SPlayerState.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -46,6 +49,62 @@ void APlayerCharacter::BeginPlay()
 
 	// BP에서 RunSpeed를 바꿨을 수 있으니 시작할 때 다시 적용
 	ApplyWalkSpeed(false);
+}
+
+void APlayerCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	InitAbilityActorInfo();
+	GiveStartupAbilitiesAndAttributes();
+}
+
+void APlayerCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	InitAbilityActorInfo();
+}
+
+void APlayerCharacter::InitAbilityActorInfo()
+{
+	ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
+	if (!SPlayerState)
+	{
+		return;
+	}
+
+	// 주인 = PlayerState(능력·스탯 보관), 몸 = 이 캐릭터(애니·위치)
+	// 서버는 PossessedBy, 클라는 OnRep_PlayerState에서 각각 한 번씩만 불림
+	// 1차와 달리 여기서 Loose 태그를 붙이거나 위젯을 만들지 않음 (불릴 때마다 쌓였음)
+	USAbilitySystemComponent* SASC = SPlayerState->GetSAbilitySystemComponent();
+	SASC->InitAbilityActorInfo(SPlayerState, this);
+
+	AbilitySystemComponent = SASC;
+	AttributeSet = SPlayerState->GetAttributeSet();
+}
+
+void APlayerCharacter::GiveStartupAbilitiesAndAttributes()
+{
+	USAbilitySystemComponent* SASC = Cast<USAbilitySystemComponent>(AbilitySystemComponent);
+	if (!HasAuthority() || !SASC || SASC->HasGivenStartupAbilities())
+	{
+		return;
+	}
+
+	if (DefaultAttributesEffect)
+	{
+		FGameplayEffectContextHandle Context = SASC->MakeEffectContext();
+		Context.AddSourceObject(this);
+
+		const FGameplayEffectSpecHandle Spec = SASC->MakeOutgoingSpec(DefaultAttributesEffect, 1.f, Context);
+		if (Spec.IsValid())
+		{
+			SASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		}
+	}
+
+	SASC->AddStartupAbilities(StartupAbilities);
 }
 
 void APlayerCharacter::ApplyCameraConfig(const USCameraConfig* Config)

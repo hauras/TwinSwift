@@ -2,11 +2,14 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "GameplayTagContainer.h"
 #include "SPlayerController.generated.h"
 
 class UInputAction;
 class UInputMappingContext;
 class USCameraConfig;
+class USInputConfig;
+class USAbilitySystemComponent;
 struct FInputActionValue;
 
 UCLASS()
@@ -54,11 +57,25 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> CycleCameraAction;
 
+	// 능력 입력 목록 (IA_Attack → InputTag.Attack ...)
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<USInputConfig> AbilityInputConfig;
+
 private:
 	void Move_Input(const FInputActionValue& InputValue);
 	void Look_Input(const FInputActionValue& InputValue);
 	void WalkStarted_Input();
 	void WalkCompleted_Input();
+
+	// 능력 키 → 입력 태그 → ASC
+	void AbilityInputTagPressed(FGameplayTag InputTag);
+	void AbilityInputTagReleased(FGameplayTag InputTag);
+
+	// 내 PlayerState의 ASC (PlayerState가 아직 복제 안 됐으면 null)
+	USAbilitySystemComponent* GetSAbilitySystemComponent() const;
+
+	// 공격·경직·사망 중에는 이동 입력을 받지 않음 (멈추게 하지 않고 입력만 막아 자연 감속)
+	bool IsMoveInputBlocked() const;
 
 	// 현재 시점 설정을 캐릭터·커서·시야 제한에 적용
 	void ApplyCurrentCameraConfig();

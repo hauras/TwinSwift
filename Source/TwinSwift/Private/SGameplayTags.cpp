@@ -3,12 +3,12 @@
 namespace SGameplayTags
 {
 	// 입력
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_LMB, "InputTag.LMB", "좌클릭: 기본 공격");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Q, "InputTag.Q", "전사 스킬 1: 돌진 베기");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_W, "InputTag.W", "전사 스킬 2: 내려찍기");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_E, "InputTag.E", "마법사 스킬 1 (전사일 때 누르면 교체)");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_R, "InputTag.R", "마법사 스킬 2 (전사일 때 누르면 교체)");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Space, "InputTag.Space", "회피");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Attack, "InputTag.Attack", "기본 공격 (지금 키: 좌클릭)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Skill1, "InputTag.Warrior.Skill1", "전사 돌진 베기 (지금 키: 1)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Skill2, "InputTag.Warrior.Skill2", "전사 내려찍기 (지금 키: 2)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill1, "InputTag.Mage.Skill1", "마법사 냉기탄 (지금 키: 3, 전사일 때 누르면 교체)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill2, "InputTag.Mage.Skill2", "마법사 낙뢰 (지금 키: 4, 전사일 때 누르면 교체)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Dodge, "InputTag.Dodge", "회피 (지금 키: Space)");
 
 	// 능력
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Warrior_Combo, "Ability.Warrior.Combo", "전사 3타 콤보");

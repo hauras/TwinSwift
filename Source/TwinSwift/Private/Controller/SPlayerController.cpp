@@ -5,6 +5,10 @@
 #include "EnhancedInputSubsystems.h"
 #include "Camera/SCameraConfig.h"
 #include "Character/PlayerCharacter.h"
+#include "SGameplayTags.h"
+#include "Ability/SAbilitySystemComponent.h"
+#include "Input/SInputConfig.h"
+#include "State/SPlayerState.h"
 
 ASPlayerController::ASPlayerController()
 {
@@ -44,6 +48,21 @@ void ASPlayerController::SetupInputComponent()
 	EnhancedInput->BindAction(WalkAction, ETriggerEvent::Started, this, &ThisClass::WalkStarted_Input);
 	EnhancedInput->BindAction(WalkAction, ETriggerEvent::Completed, this, &ThisClass::WalkCompleted_Input);
 	EnhancedInput->BindAction(CycleCameraAction, ETriggerEvent::Started, this, &ThisClass::CycleCameraConfig);
+
+	// 능력 입력: 키마다 입력 태그를 함께 넘겨서, 어떤 키인지 태그로 구분
+	if (AbilityInputConfig)
+	{
+		for (const FSInputActionConfig& Action : AbilityInputConfig->AbilityInputActions)
+		{
+			if (!Action.InputAction || !Action.InputTag.IsValid())
+			{
+				continue;
+			}
+
+			EnhancedInput->BindAction(Action.InputAction, ETriggerEvent::Started, this, &ThisClass::AbilityInputTagPressed, Action.InputTag);
+			EnhancedInput->BindAction(Action.InputAction, ETriggerEvent::Completed, this, &ThisClass::AbilityInputTagReleased, Action.InputTag);
+		}
+	}
 }
 
 void ASPlayerController::AcknowledgePossession(APawn* P)
@@ -72,7 +91,7 @@ void ASPlayerController::PlayerTick(float DeltaTime)
 void ASPlayerController::Move_Input(const FInputActionValue& InputValue)
 {
 	APawn* ControlledPawn = GetPawn();
-	if (!ControlledPawn || !PlayerCameraManager)
+	if (!ControlledPawn || !PlayerCameraManager || IsMoveInputBlocked())
 	{
 		return;
 	}
@@ -115,6 +134,43 @@ void ASPlayerController::WalkCompleted_Input()
 	{
 		PlayerCharacter->SetWalking(false);
 	}
+}
+
+void ASPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	if (USAbilitySystemComponent* SASC = GetSAbilitySystemComponent())
+	{
+		SASC->AbilityInputTagPressed(InputTag);
+	}
+}
+
+void ASPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	if (USAbilitySystemComponent* SASC = GetSAbilitySystemComponent())
+	{
+		SASC->AbilityInputTagReleased(InputTag);
+	}
+}
+
+USAbilitySystemComponent* ASPlayerController::GetSAbilitySystemComponent() const
+{
+	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
+	return SPlayerState ? SPlayerState->GetSAbilitySystemComponent() : nullptr;
+}
+
+bool ASPlayerController::IsMoveInputBlocked() const
+{
+	const USAbilitySystemComponent* SASC = GetSAbilitySystemComponent();
+	if (!SASC)
+	{
+		return false;
+	}
+
+	FGameplayTagContainer BlockTags;
+	BlockTags.AddTag(SGameplayTags::State_Attacking);
+	BlockTags.AddTag(SGameplayTags::State_Stun);
+	BlockTags.AddTag(SGameplayTags::State_Dead);
+	return SASC->HasAnyMatchingGameplayTags(BlockTags);
 }
 
 void ASPlayerController::CycleCameraConfig()
