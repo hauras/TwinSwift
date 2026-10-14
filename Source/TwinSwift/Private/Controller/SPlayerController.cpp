@@ -9,6 +9,7 @@
 #include "Ability/SAbilitySystemComponent.h"
 #include "Input/SInputConfig.h"
 #include "State/SPlayerState.h"
+#include "UI/DamageTextActor.h"
 
 ASPlayerController::ASPlayerController()
 {
@@ -69,7 +70,7 @@ void ASPlayerController::AcknowledgePossession(APawn* P)
 {
 	Super::AcknowledgePossession(P);
 
-	// 내 화면을 가진 쪽(클라, 리슨 서버 호스트)에서만 불림 → 카메라 설정은 여기서
+	// 캐릭터를 잡은 직후 불림 → 카메라 설정은 여기서
 	ApplyCurrentCameraConfig();
 }
 
@@ -133,6 +134,27 @@ void ASPlayerController::WalkCompleted_Input()
 	if (APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>())
 	{
 		PlayerCharacter->SetWalking(false);
+	}
+}
+
+void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target)
+{
+	if (!IsValid(Target))
+	{
+		return;
+	}
+
+	// 머리 위, 여러 번 맞아도 숫자가 겹치지 않게 조금씩 흩뿌림
+	const FVector Location = Target->GetActorLocation() + FVector(
+		FMath::RandRange(-30.f, 30.f),
+		FMath::RandRange(-30.f, 30.f),
+		120.f);
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	if (ADamageTextActor* DamageText = GetWorld()->SpawnActor<ADamageTextActor>(Location, FRotator::ZeroRotator, Params))
+	{
+		DamageText->SetDamage(Damage);
 	}
 }
 

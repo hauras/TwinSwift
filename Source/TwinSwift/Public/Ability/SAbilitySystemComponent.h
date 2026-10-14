@@ -14,7 +14,7 @@ class TWINSWIFT_API USAbilitySystemComponent : public UAbilitySystemComponent
 	GENERATED_BODY()
 
 public:
-	// 시작 능력 지급 (서버에서 한 번만). 두 번 불려도 중복 지급하지 않음
+	// 시작 능력 지급. 두 번 불려도 중복 지급하지 않음
 	void AddStartupAbilities(const TArray<TSubclassOf<UGameplayAbility>>& StartupAbilities);
 
 	bool HasGivenStartupAbilities() const { return bStartupAbilitiesGiven; }

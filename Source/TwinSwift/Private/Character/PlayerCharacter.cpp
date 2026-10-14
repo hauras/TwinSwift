@@ -59,13 +59,6 @@ void APlayerCharacter::PossessedBy(AController* NewController)
 	GiveStartupAbilitiesAndAttributes();
 }
 
-void APlayerCharacter::OnRep_PlayerState()
-{
-	Super::OnRep_PlayerState();
-
-	InitAbilityActorInfo();
-}
-
 void APlayerCharacter::InitAbilityActorInfo()
 {
 	ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
@@ -75,7 +68,7 @@ void APlayerCharacter::InitAbilityActorInfo()
 	}
 
 	// 주인 = PlayerState(능력·스탯 보관), 몸 = 이 캐릭터(애니·위치)
-	// 서버는 PossessedBy, 클라는 OnRep_PlayerState에서 각각 한 번씩만 불림
+	// PossessedBy에서 한 번만 불림
 	// 1차와 달리 여기서 Loose 태그를 붙이거나 위젯을 만들지 않음 (불릴 때마다 쌓였음)
 	USAbilitySystemComponent* SASC = SPlayerState->GetSAbilitySystemComponent();
 	SASC->InitAbilityActorInfo(SPlayerState, this);
@@ -87,7 +80,7 @@ void APlayerCharacter::InitAbilityActorInfo()
 void APlayerCharacter::GiveStartupAbilitiesAndAttributes()
 {
 	USAbilitySystemComponent* SASC = Cast<USAbilitySystemComponent>(AbilitySystemComponent);
-	if (!HasAuthority() || !SASC || SASC->HasGivenStartupAbilities())
+	if (!SASC || SASC->HasGivenStartupAbilities())
 	{
 		return;
 	}
@@ -132,17 +125,6 @@ void APlayerCharacter::ApplyCameraConfig(const USCameraConfig* Config)
 }
 
 void APlayerCharacter::SetWalking(bool bNewWalking)
-{
-	// 내 쪽은 바로 바꿔서 입력 반응이 늦지 않게
-	ApplyWalkSpeed(bNewWalking);
-
-	if (!HasAuthority())
-	{
-		Server_SetWalking(bNewWalking);
-	}
-}
-
-void APlayerCharacter::Server_SetWalking_Implementation(bool bNewWalking)
 {
 	ApplyWalkSpeed(bNewWalking);
 }

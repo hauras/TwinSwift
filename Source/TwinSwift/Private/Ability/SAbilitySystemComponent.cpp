@@ -4,8 +4,7 @@
 
 void USAbilitySystemComponent::AddStartupAbilities(const TArray<TSubclassOf<UGameplayAbility>>& StartupAbilities)
 {
-	// 능력 지급은 서버만. 클라는 복제로 받음
-	if (!IsOwnerActorAuthoritative() || bStartupAbilitiesGiven)
+	if (bStartupAbilitiesGiven)
 	{
 		return;
 	}

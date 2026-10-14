@@ -28,6 +28,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Camera")
 	void CycleCameraConfig();
 
+	// 내가 때린 데미지 숫자를 대상 머리 위에 띄움
+	void ShowDamageNumber(float Damage, AActor* Target);
+
 	// [디버그] 겨냥 위치를 구로 표시 (콘솔: ShowAim)
 	UFUNCTION(Exec)
 	void ShowAim();

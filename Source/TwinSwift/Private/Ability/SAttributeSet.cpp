@@ -1,7 +1,9 @@
 #include "Ability/SAttributeSet.h"
 
 #include "GameplayEffectExtension.h"
-#include "Net/UnrealNetwork.h"
+#include "Controller/SPlayerController.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerState.h"
 
 USAttributeSet::USAttributeSet()
 {
@@ -9,15 +11,6 @@ USAttributeSet::USAttributeSet()
 	InitMaxHealth(100.f);
 	InitHealth(100.f);
 	InitAttackPower(10.f);
-}
-
-void USAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME_CONDITION_NOTIFY(USAttributeSet, Health, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(USAttributeSet, MaxHealth, COND_None, REPNOTIFY_Always);
-	DOREPLIFETIME_CONDITION_NOTIFY(USAttributeSet, AttackPower, COND_None, REPNOTIFY_Always);
 }
 
 void USAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -43,7 +36,9 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 		{
 			SetHealth(FMath::Clamp(GetHealth() - Damage, 0.f, GetMaxHealth()));
 
-			// 사망·피격 반응·데미지 숫자는 조각 3에서 추가
+			ShowDamageNumber(Data, Damage);
+
+			// 사망·피격 반응은 이후 조각에서
 		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
@@ -53,17 +48,27 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 	}
 }
 
-void USAttributeSet::OnRep_Health(const FGameplayAttributeData& OldHealth) const
+void USAttributeSet::ShowDamageNumber(const FGameplayEffectModCallbackData& Data, float Damage) const
 {
-	GAMEPLAYATTRIBUTE_REPNOTIFY(USAttributeSet, Health, OldHealth);
-}
+	// 때린 플레이어 찾기: 능력이 만든 GE는 Causer = 캐릭터, Instigator = PlayerState
+	const FGameplayEffectContextHandle& Context = Data.EffectSpec.GetContext();
 
-void USAttributeSet::OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth) const
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(USAttributeSet, MaxHealth, OldMaxHealth);
-}
+	ASPlayerController* SourceController = nullptr;
+	if (const APawn* CauserPawn = Cast<APawn>(Context.GetEffectCauser()))
+	{
+		SourceController = Cast<ASPlayerController>(CauserPawn->GetController());
+	}
+	if (!SourceController)
+	{
+		if (const APlayerState* InstigatorState = Cast<APlayerState>(Context.GetInstigator()))
+		{
+			SourceController = Cast<ASPlayerController>(InstigatorState->GetPlayerController());
+		}
+	}
 
-void USAttributeSet::OnRep_AttackPower(const FGameplayAttributeData& OldAttackPower) const
-{
-	GAMEPLAYATTRIBUTE_REPNOTIFY(USAttributeSet, AttackPower, OldAttackPower);
+	AActor* TargetAvatar = Data.Target.GetAvatarActor();
+	if (SourceController && TargetAvatar)
+	{
+		SourceController->ShowDamageNumber(Damage, TargetAvatar);
+	}
 }
