@@ -6,6 +6,7 @@ import unreal
 ANIMS = [
     "/Game/Asset/Knight_Free/Animations/A_Knight_Slash_02",
     "/Game/Asset/Knight_Free/Animations/A_Knight_Slash",
+    "/Game/Asset/Knight_Free/Animations/A_Knight_Roll",
 ]
 PELVIS = "spine"
 ROOT = "Knight_metarig_01"

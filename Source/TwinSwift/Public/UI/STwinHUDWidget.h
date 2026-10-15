@@ -29,6 +29,7 @@ struct FOnAttributeChangeData;
  *   WarriorSwapCooldownText / MageSwapCooldownText : 남은 시간 "1.2" (Text)
  *   WarriorDownText / MageDownText                 : "쓰러짐" (Text)
  *   DefeatText                                     : "패배" (Text, 화면 가운데)
+ *   PerfectEvadeText                               : "완벽 회피!" (Text, 슬로 동안만 보임)
  */
 UCLASS(Abstract)
 class TWINSWIFT_API USTwinHUDWidget : public UUserWidget
@@ -93,6 +94,9 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> DefeatText;
 
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> PerfectEvadeText;
+
 	// 쓰러진 카드 투명도
 	UPROPERTY(EditDefaultsOnly, Category = "HUD", meta = (ClampMin = "0", ClampMax = "1"))
 	float DownOpacity = 0.35f;
@@ -145,6 +149,10 @@ private:
 
 	void OnSlotDown(ETwinSlot DownSlot);
 	void OnDefeated();
+
+	// 완벽 회피 슬로 시작·끝 → 글자 보이기·숨기기
+	void OnPerfectEvade(bool bStarted);
+	FDelegateHandle PerfectEvadeHandle;
 
 	FTimerHandle SwapCooldownTimer;
 	FDelegateHandle SlotDownHandle;

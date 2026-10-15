@@ -23,6 +23,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnSlotDown, ETwinSlot);
 // 둘 다 쓰러졌을 때 (패배)
 DECLARE_MULTICAST_DELEGATE(FOnDefeated);
 
+// 완벽 회피 슬로가 시작(true)·끝(false)될 때
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPerfectEvade, bool);
+
 /**
  * 플레이어 캐릭터. 액터 하나에 몸(메시) 둘이 상주하는 태그 캐릭터 (전사·마법사)
  * 캡슐·이동·카메라는 둘이 같이 쓰고, 교체하면 보이는 몸과 "지금 ASC"만 바뀜
@@ -86,6 +89,19 @@ public:
 	FOnSlotDown OnSlotDown;
 	FOnDefeated OnDefeated;
 
+	// ---------- 완벽 회피 (타이밍 교체) ----------
+
+	// 완벽 회피 판정 열기: PerfectWindowTime 동안 이 ASC에 State.PerfectWindow (교체·회피 직후)
+	void OpenPerfectWindow(UAbilitySystemComponent* TargetASC);
+
+	// 판정 중에 공격을 받으면 AttributeSet이 부름 → 데미지는 이미 무시됨, 여기서 슬로 시작
+	void TriggerPerfectEvade();
+
+	float GetPerfectWindowTime() const { return PerfectWindowTime; }
+
+	// 완벽 회피 슬로 시작·끝 알림 (HUD가 글자 표시)
+	FOnPerfectEvade OnPerfectEvade;
+
 protected:
 	// 에디터에서 BP를 고칠 때도 불림 → 마법사 몸 위치를 전사 몸에 맞춤
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -93,6 +109,9 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void InitAbilityActorInfo() override;
+
+	// 슬로 중에 PIE를 끄면 세상 속도가 느린 채로 남지 않게 되돌림
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// 교체가 성공한 위치에 한 번 재생. 비우면 해당 방향의 연출을 끌 수 있다.
 	UPROPERTY(EditDefaultsOnly, Category = "Twin|VFX")
@@ -108,6 +127,17 @@ protected:
 	// 교체 후 다시 교체할 수 있을 때까지(초). 강제 교체(쓰러짐)는 무시
 	UPROPERTY(EditDefaultsOnly, Category = "Twin", meta = (ClampMin = "0"))
 	float SwapCooldown = 2.f;
+
+	// 교체·회피 직후 완벽 회피 판정 시간(초). 교체는 이 시간 동안 무적이기도 함
+	UPROPERTY(EditDefaultsOnly, Category = "Twin|Perfect Evade", meta = (ClampMin = "0"))
+	float PerfectWindowTime = 0.25f;
+
+	// 완벽 회피 슬로: 세상 속도 배율, 실제 시간(초). 플레이어는 정상 속도로 움직임
+	UPROPERTY(EditDefaultsOnly, Category = "Twin|Perfect Evade", meta = (ClampMin = "0.05", ClampMax = "1"))
+	float PerfectSlowDilation = 0.3f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Twin|Perfect Evade", meta = (ClampMin = "0"))
+	float PerfectSlowDuration = 0.5f;
 
 	// 전사 시작 능력·스탯
 	UPROPERTY(EditDefaultsOnly, Category = "GAS")
@@ -157,6 +187,20 @@ private:
 	void HandleSlotDown(ETwinSlot Slot);
 
 	static ETwinSlot GetOtherSlot(ETwinSlot Slot) { return Slot == ETwinSlot::Warrior ? ETwinSlot::Mage : ETwinSlot::Warrior; }
+
+	// 완벽 회피 판정 닫기 / 교체 무적 끝 / 슬로 끝
+	void ClosePerfectWindow();
+	void EndSwapInvincible();
+	void EndPerfectSlow();
+
+	// 판정·무적을 붙인 ASC (붙인 만큼만 정확히 떼려고 보관 → Loose 태그가 쌓이지 않음)
+	TWeakObjectPtr<UAbilitySystemComponent> PerfectWindowASC;
+	TWeakObjectPtr<UAbilitySystemComponent> SwapInvincibleASC;
+
+	FTimerHandle PerfectWindowTimer;
+	FTimerHandle SwapInvincibleTimer;
+	FTimerHandle PerfectSlowTimer;
+	bool bPerfectSlow = false;
 
 	// 마지막으로 교체한 시각 (게임 시간, 초). 처음에는 쿨다운 없이 교체 가능하게 아주 옛날
 	double LastSwapTime = -1000.0;

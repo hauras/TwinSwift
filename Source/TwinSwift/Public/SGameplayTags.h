@@ -44,6 +44,7 @@ namespace SGameplayTags
 	// ---------- 상태 ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Attacking);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invincible);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PerfectWindow);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Stun);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
 
@@ -58,4 +59,5 @@ namespace SGameplayTags
 
 	// ---------- 데미지 (스킬마다 배율을 GE에 넘김) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_DamageMultiplier);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Duration);
 }

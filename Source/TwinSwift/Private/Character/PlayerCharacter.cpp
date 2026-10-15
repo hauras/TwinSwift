@@ -15,6 +15,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -214,6 +215,94 @@ void APlayerCharacter::SwapTo(ETwinSlot NewSlot)
 	}
 
 	PerformSwap(NewSlot);
+
+	// 타이밍 교체: 직접 교체했을 때만(강제 교체 제외) 들어온 캐릭터가 잠깐 무적 + 완벽 회피 판정
+	if (AbilitySystemComponent && PerfectWindowTime > 0.f)
+	{
+		EndSwapInvincible();
+		AbilitySystemComponent->AddLooseGameplayTag(SGameplayTags::State_Invincible);
+		SwapInvincibleASC = AbilitySystemComponent;
+		GetWorldTimerManager().SetTimer(SwapInvincibleTimer, this, &ThisClass::EndSwapInvincible, PerfectWindowTime, false);
+
+		OpenPerfectWindow(AbilitySystemComponent);
+	}
+}
+
+void APlayerCharacter::EndSwapInvincible()
+{
+	GetWorldTimerManager().ClearTimer(SwapInvincibleTimer);
+	if (UAbilitySystemComponent* ASC = SwapInvincibleASC.Get())
+	{
+		ASC->RemoveLooseGameplayTag(SGameplayTags::State_Invincible);
+	}
+	SwapInvincibleASC.Reset();
+}
+
+void APlayerCharacter::OpenPerfectWindow(UAbilitySystemComponent* TargetASC)
+{
+	if (!TargetASC || PerfectWindowTime <= 0.f)
+	{
+		return;
+	}
+
+	// 이전 판정이 남아 있으면 닫고 새로 (한 번에 하나만)
+	ClosePerfectWindow();
+	TargetASC->AddLooseGameplayTag(SGameplayTags::State_PerfectWindow);
+	PerfectWindowASC = TargetASC;
+	GetWorldTimerManager().SetTimer(PerfectWindowTimer, this, &ThisClass::ClosePerfectWindow, PerfectWindowTime, false);
+}
+
+void APlayerCharacter::ClosePerfectWindow()
+{
+	GetWorldTimerManager().ClearTimer(PerfectWindowTimer);
+	if (UAbilitySystemComponent* ASC = PerfectWindowASC.Get())
+	{
+		ASC->RemoveLooseGameplayTag(SGameplayTags::State_PerfectWindow);
+	}
+	PerfectWindowASC.Reset();
+}
+
+void APlayerCharacter::TriggerPerfectEvade()
+{
+	// 한 번의 판정에서 한 번만
+	ClosePerfectWindow();
+	if (bPerfectSlow)
+	{
+		return;
+	}
+
+	// 세상만 느리게, 플레이어는 정상 속도 (배율의 역수로 상쇄)
+	bPerfectSlow = true;
+	UGameplayStatics::SetGlobalTimeDilation(this, PerfectSlowDilation);
+	CustomTimeDilation = 1.f / PerfectSlowDilation;
+
+	// 타이머도 느려진 세상 시간으로 흐르므로, 실제 시간 PerfectSlowDuration에 맞춰 줄여서 걸어 둠
+	GetWorldTimerManager().SetTimer(PerfectSlowTimer, this, &ThisClass::EndPerfectSlow, PerfectSlowDuration * PerfectSlowDilation, false);
+
+	OnPerfectEvade.Broadcast(true);
+}
+
+void APlayerCharacter::EndPerfectSlow()
+{
+	GetWorldTimerManager().ClearTimer(PerfectSlowTimer);
+	if (!bPerfectSlow)
+	{
+		return;
+	}
+	bPerfectSlow = false;
+	UGameplayStatics::SetGlobalTimeDilation(this, 1.f);
+	CustomTimeDilation = 1.f;
+
+	OnPerfectEvade.Broadcast(false);
+}
+
+void APlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	EndPerfectSlow();
+	ClosePerfectWindow();
+	EndSwapInvincible();
+
+	Super::EndPlay(EndPlayReason);
 }
 
 bool APlayerCharacter::CanSwapTo(ETwinSlot NewSlot) const

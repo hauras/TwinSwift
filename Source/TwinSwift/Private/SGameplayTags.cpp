@@ -31,6 +31,7 @@ namespace SGameplayTags
 	// 상태
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Attacking, "State.Attacking", "공격 중 (이동 입력 막기)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invincible, "State.Invincible", "무적 (회피, 타이밍 교체)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PerfectWindow, "State.PerfectWindow", "완벽 회피 판정 중 (교체·회피 직후 짧게). 이때 맞으면 데미지 없음 + 슬로");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Stun, "State.Stun", "경직·기절");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망");
 
@@ -45,4 +46,5 @@ namespace SGameplayTags
 
 	// 데미지
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_DamageMultiplier, "SetByCaller.DamageMultiplier", "스킬 데미지 배율 (공격력 × 배율)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Duration, "SetByCaller.Duration", "지속 시간(초): 공통 쿨다운 GE(USGE_Cooldown)에 능력이 넣음");
 }

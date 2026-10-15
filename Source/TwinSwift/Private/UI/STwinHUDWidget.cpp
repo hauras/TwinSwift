@@ -56,6 +56,8 @@ void USTwinHUDWidget::BindToCharacter(APlayerCharacter* InCharacter)
 	ActiveSlotChangedHandle = InCharacter->OnActiveSlotChanged.AddUObject(this, &ThisClass::OnActiveSlotChanged);
 	SlotDownHandle = InCharacter->OnSlotDown.AddUObject(this, &ThisClass::OnSlotDown);
 	DefeatedHandle = InCharacter->OnDefeated.AddUObject(this, &ThisClass::OnDefeated);
+	PerfectEvadeHandle = InCharacter->OnPerfectEvade.AddUObject(this, &ThisClass::OnPerfectEvade);
+	OnPerfectEvade(false);
 	// UI 전용 아이콘 머티리얼은 한 번 로드하고 GC 참조를 보관한다.
 	for (const TCHAR* Name : { TEXT("WarriorAttack"), TEXT("DashSlash"), TEXT("GroundSlam"), TEXT("Roll"),
 		TEXT("MagicBolt"), TEXT("FrostBolt"), TEXT("Thunder"), TEXT("Blink") })
@@ -89,11 +91,13 @@ void USTwinHUDWidget::Unbind()
 		Character->OnActiveSlotChanged.Remove(ActiveSlotChangedHandle);
 		Character->OnSlotDown.Remove(SlotDownHandle);
 		Character->OnDefeated.Remove(DefeatedHandle);
+		Character->OnPerfectEvade.Remove(PerfectEvadeHandle);
 	}
 	BoundCharacter.Reset();
 	ActiveSlotChangedHandle.Reset();
 	SlotDownHandle.Reset();
 	DefeatedHandle.Reset();
+	PerfectEvadeHandle.Reset();
 }
 
 void USTwinHUDWidget::OnHealthChanged(const FOnAttributeChangeData& Data, ETwinSlot CharSlot)
@@ -244,6 +248,14 @@ void USTwinHUDWidget::OnSlotDown(ETwinSlot DownSlot)
 void USTwinHUDWidget::OnDefeated()
 {
 	RefreshDownStates();
+}
+
+void USTwinHUDWidget::OnPerfectEvade(bool bStarted)
+{
+	if (PerfectEvadeText)
+	{
+		PerfectEvadeText->SetVisibility(bStarted ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
 }
 
 UWidget* USTwinHUDWidget::GetCardWidget(ETwinSlot CharSlot) const

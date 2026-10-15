@@ -13,6 +13,7 @@ ANIMS = [
     ("Great Sword Slash (1).fbx", "A_Knight_Slash_01"),
     ("Great Sword Slash (2).fbx", "A_Knight_Slash_02"),
     ("Great Sword Slash (3).fbx", "A_Knight_Slash_03"),
+    ("Stand To Roll.fbx", "A_Knight_Roll"),
 ]
 
 tasks = []

@@ -4,6 +4,8 @@
 #include "Controller/SPlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerState.h"
+#include "SGameplayTags.h"
+#include "Character/PlayerCharacter.h"
 
 USAttributeSet::USAttributeSet()
 {
@@ -35,6 +37,19 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 	{
 		const float Damage = GetIncomingDamage();
 		TargetASC.SetNumericAttributeBase(GetIncomingDamageAttribute(), 0.f);
+
+		// 무적(회피 중 등)이면 데미지를 버림. 그중 완벽 회피 판정 중이었으면 슬로 연출
+		if (TargetASC.HasMatchingGameplayTag(SGameplayTags::State_Invincible))
+		{
+			if (TargetASC.HasMatchingGameplayTag(SGameplayTags::State_PerfectWindow))
+			{
+				if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(TargetASC.GetAvatarActor()))
+				{
+					PlayerCharacter->TriggerPerfectEvade();
+				}
+			}
+			return;
+		}
 
 		if (Damage > 0.f)
 		{
