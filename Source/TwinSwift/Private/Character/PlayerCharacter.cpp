@@ -35,8 +35,9 @@ APlayerCharacter::APlayerCharacter()
 	Camera->bUsePawnControlRotation = false;
 
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>("WeaponMesh");
-	// 오른손 뼈에 붙임. 손 안에서의 위치·각도·크기는 BP의 WeaponMesh 기본값으로 맞춤
-	WeaponMesh->SetupAttachment(GetMesh(), TEXT("hand_R"));
+	// 스켈레톤의 WeaponSocket(hand_R 아래)에 붙임. 손 안 위치·각도·크기는 소켓이 정함
+	// → 애니 에디터 미리보기 무기도 같은 소켓에 붙여서, 미리보기와 게임이 똑같이 보이게
+	WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
 
 	// 타격 판정은 나중에 트레이스로 함. 무기 자체는 충돌 없음 (캐릭터 이동을 막지 않게)
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);

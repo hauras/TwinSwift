@@ -67,7 +67,7 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;
 
-	// 무기 (전사 대검). 메시·손 안 위치는 BP에서 지정, hand_R 뼈에 붙음
+	// 무기 (전사 대검). 메시는 BP에서 지정, 위치·각도·크기는 스켈레톤의 WeaponSocket
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
 };

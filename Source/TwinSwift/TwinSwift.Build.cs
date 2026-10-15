@@ -32,5 +32,9 @@ public class TwinSwift : ModuleRules
 			"Niagara",
 			"MotionWarping"
 		});
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(new string[] { "NiagaraEditor", "UnrealEd" });
+		}
 	}
 }

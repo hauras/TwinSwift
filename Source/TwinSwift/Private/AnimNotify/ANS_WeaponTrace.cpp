@@ -6,6 +6,7 @@
 #include "Character/PlayerCharacter.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 
 void UANS_WeaponTrace::NotifyBegin(
 	USkeletalMeshComponent* MeshComp,
@@ -43,11 +44,13 @@ void UANS_WeaponTrace::NotifyTick(
 		return;
 	}
 
-	// 무기 메시는 피벗(손잡이 끝)에서 +Z 방향으로 뻗음 → 칼날 시작~끝을 월드 위치로
-	const float BladeLength = Weapon->GetStaticMesh()->GetBoundingBox().Max.Z;
+	// 칼날 시작~끝을 월드 위치로 (칼 메시의 소켓 두 개)
+	FVector BladeStartLocal;
+	FVector BladeEndLocal;
+	GetBladeLocal(Weapon, BladeStartLocal, BladeEndLocal);
 	const FTransform& WeaponTransform = Weapon->GetComponentTransform();
-	const FVector BladeStart = WeaponTransform.TransformPosition(FVector(0.f, 0.f, BladeLength * BladeStartRatio));
-	const FVector BladeEnd = WeaponTransform.TransformPosition(FVector(0.f, 0.f, BladeLength));
+	const FVector BladeStart = WeaponTransform.TransformPosition(BladeStartLocal);
+	const FVector BladeEnd = WeaponTransform.TransformPosition(BladeEndLocal);
 
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(WeaponTrace), false, Owner);
 	TArray<FHitResult> Hits;
@@ -99,6 +102,24 @@ void UANS_WeaponTrace::NotifyEnd(
 	HitActorsByMesh.Remove(MeshComp);
 
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
+}
+
+void UANS_WeaponTrace::GetBladeLocal(const UStaticMeshComponent* Weapon, FVector& OutStart, FVector& OutEnd) const
+{
+	const UStaticMesh* WeaponMesh = Weapon->GetStaticMesh();
+	const UStaticMeshSocket* StartSocket = WeaponMesh->FindSocket(BladeStartSocket);
+	const UStaticMeshSocket* EndSocket = WeaponMesh->FindSocket(BladeEndSocket);
+	if (StartSocket && EndSocket)
+	{
+		OutStart = StartSocket->RelativeLocation;
+		OutEnd = EndSocket->RelativeLocation;
+		return;
+	}
+
+	// 소켓이 없는 무기: 피벗(손잡이 끝)에서 +Z로 뻗는다고 보고 비율로 계산
+	const float WeaponLength = WeaponMesh->GetBoundingBox().Max.Z;
+	OutStart = FVector(0.f, 0.f, WeaponLength * BladeStartRatio);
+	OutEnd = FVector(0.f, 0.f, WeaponLength);
 }
 
 FString UANS_WeaponTrace::GetNotifyName_Implementation() const

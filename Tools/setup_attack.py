@@ -1,4 +1,4 @@
-# 조각 3 에셋: 공격 몽타주 + 칼날 판정 구간, 능력 BP, BP_Player에 능력 지급, 허수아비 BP + 맵 배치
+# 조각 3 에셋: 능력 BP, BP_Player에 능력 지급, 허수아비 BP + 맵 배치 (몽타주·콤보는 setup_combo.py)
 # 조건: GA_AttackBase·ANS_WeaponTrace·EnemyCharacter가 들어간 C++이 빌드돼 있어야 함
 import unreal
 
@@ -11,26 +11,7 @@ def load(path):
     return unreal.load_asset(path + "." + path.split("/")[-1])
 
 
-# ---------- 1. 몽타주: A_Knight_Slash_03 (1.27초, 휘두름 0.47~0.80초, 피크 0.57초) ----------
-# A_Knight_Attack은 0.33초에 멈칫하는 준비 동작이 있어 기본 공격으로는 느려서 교체 (2026-10-14)
-montage_path = "/Game/Asset/Knight_Free/Montages/AM_Warrior_Attack"
-if eal.does_asset_exist(montage_path):
-    montage = load(montage_path)
-else:
-    factory = unreal.AnimMontageFactory()
-    factory.set_editor_property("source_animation", load("/Game/Asset/Knight_Free/Animations/A_Knight_Slash_03"))
-    montage = tools.create_asset("AM_Warrior_Attack", "/Game/Asset/Knight_Free/Montages", unreal.AnimMontage, factory)
-    print("만듦:", montage_path)
-
-# 칼날 판정 구간: 손 속도 500 이상인 구간
-anim_lib.remove_animation_notify_events_by_track(montage, "Hit")
-if "Hit" not in [str(n) for n in anim_lib.get_animation_notify_track_names(montage)]:
-    anim_lib.add_animation_notify_track(montage, "Hit")
-anim_lib.add_animation_notify_state_event(montage, "Hit", 0.45, 0.35, unreal.ANS_WeaponTrace)
-eal.save_loaded_asset(montage, only_if_is_dirty=False)
-
-# 예전 몽타주(A_Knight_Attack 기반) 정리
-OLD_MONTAGE = "/Game/Asset/Knight_Free/Montages/AM_Warrior_Attack1"
+# ---------- 1. 몽타주·콤보 단계는 setup_combo.py에서 ----------
 
 # ---------- 2. 능력 BP: GA_Warrior_Attack (부모 C++ GA_AttackBase) ----------
 ga_path = "/Game/Abilities/Warrior/GA_Warrior_Attack"
@@ -41,14 +22,8 @@ else:
     factory.set_editor_property("parent_class", unreal.GA_AttackBase)
     ga_bp = tools.create_asset("GA_Warrior_Attack", "/Game/Abilities/Warrior", unreal.Blueprint, factory)
     print("만듦:", ga_path)
-ga_cdo = unreal.get_default_object(ga_bp.generated_class())
-ga_cdo.set_editor_property("attack_montage", montage)
-ga_cdo.set_editor_property("damage_multiplier", 1.0)
 unreal.BlueprintEditorLibrary.compile_blueprint(ga_bp)
 eal.save_loaded_asset(ga_bp, only_if_is_dirty=False)
-
-if eal.does_asset_exist(OLD_MONTAGE):
-    print("예전 몽타주 삭제:", eal.delete_asset(OLD_MONTAGE))
 
 # ---------- 3. BP_Player 시작 능력 ----------
 player_bp = load("/Game/Blueprints/BP_Player")
@@ -90,4 +65,4 @@ if not existing:
     unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()
     print("L_Dev에 Dummy 배치")
 
-print("완료: 몽타주, GA_Warrior_Attack, BP_Player 능력, BP_Dummy")
+print("완료: GA_Warrior_Attack, BP_Player 능력, BP_Dummy")
