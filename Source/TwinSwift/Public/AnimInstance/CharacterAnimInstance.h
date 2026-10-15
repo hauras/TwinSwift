@@ -18,7 +18,7 @@ class TWINSWIFT_API UCharacterAnimInstance : public UAnimInstance
 public:
 	virtual void NativeInitializeAnimation() override;
 
-	// 워커 스레드: 이동 값만 계산 (UObject 상태 읽기는 조각 2에서 NativeUpdateAnimation에 추가)
+	// 워커 스레드: 이동 값만 계산 (UObject 상태 읽기는 단계 2에서 NativeUpdateAnimation에 추가)
 	virtual void NativeThreadSafeUpdateAnimation(float DeltaSeconds) override;
 
 protected:

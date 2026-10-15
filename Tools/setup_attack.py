@@ -1,4 +1,4 @@
-# 조각 3 에셋: 능력 BP, BP_Player에 능력 지급, 허수아비 BP + 맵 배치 (몽타주·콤보는 setup_combo.py)
+# 단계 3 에셋: 능력 BP, BP_Player에 능력 지급, 허수아비 BP + 맵 배치 (몽타주·콤보는 setup_combo.py)
 # 조건: GA_AttackBase·ANS_WeaponTrace·EnemyCharacter가 들어간 C++이 빌드돼 있어야 함
 import unreal
 

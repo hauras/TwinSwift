@@ -3,13 +3,32 @@
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "Ability/SAbilitySystemComponent.h"
+#include "Ability/SAttributeSet.h"
 #include "Camera/SCameraConfig.h"
 #include "Character/PlayerCharacter.h"
-#include "SGameplayTags.h"
-#include "Ability/SAbilitySystemComponent.h"
 #include "Input/SInputConfig.h"
+#include "SGameplayTags.h"
 #include "State/SPlayerState.h"
 #include "UI/DamageTextActor.h"
+#include "UI/STwinHUDWidget.h"
+
+namespace
+{
+	// 입력을 받을 캐릭터: 캐릭터 전용 스킬 키면 그 캐릭터, 아니면(공격·회피) 지금 캐릭터
+	ETwinSlot GetSlotForInput(const FGameplayTag& InputTag, ETwinSlot ActiveSlot)
+	{
+		if (InputTag == SGameplayTags::InputTag_Warrior_Skill1 || InputTag == SGameplayTags::InputTag_Warrior_Skill2)
+		{
+			return ETwinSlot::Warrior;
+		}
+		if (InputTag == SGameplayTags::InputTag_Mage_Skill1 || InputTag == SGameplayTags::InputTag_Mage_Skill2)
+		{
+			return ETwinSlot::Mage;
+		}
+		return ActiveSlot;
+	}
+}
 
 ASPlayerController::ASPlayerController()
 {
@@ -49,6 +68,7 @@ void ASPlayerController::SetupInputComponent()
 	EnhancedInput->BindAction(WalkAction, ETriggerEvent::Started, this, &ThisClass::WalkStarted_Input);
 	EnhancedInput->BindAction(WalkAction, ETriggerEvent::Completed, this, &ThisClass::WalkCompleted_Input);
 	EnhancedInput->BindAction(CycleCameraAction, ETriggerEvent::Started, this, &ThisClass::CycleCameraConfig);
+	EnhancedInput->BindAction(SwapAction, ETriggerEvent::Started, this, &ThisClass::Swap_Input);
 
 	// 능력 입력: 키마다 입력 태그를 함께 넘겨서, 어떤 키인지 태그로 구분
 	if (AbilityInputConfig)
@@ -70,8 +90,36 @@ void ASPlayerController::AcknowledgePossession(APawn* P)
 {
 	Super::AcknowledgePossession(P);
 
-	// 캐릭터를 잡은 직후 불림 → 카메라 설정은 여기서
+	// 캐릭터를 잡은 직후 불림 → 카메라 설정·HUD 연결은 여기서
 	ApplyCurrentCameraConfig();
+	SetupHUD();
+}
+
+void ASPlayerController::SetupHUD()
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+
+	if (!HUDWidget)
+	{
+		// 화면 배치는 WBP에 있으므로 BP_PlayerController의 HUDWidgetClass에 WBP_TwinHUD를 넣어야 함
+		if (!HUDWidgetClass)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("HUDWidgetClass가 비어 있음 (BP_PlayerController에 WBP_TwinHUD 지정)"));
+			return;
+		}
+
+		HUDWidget = CreateWidget<USTwinHUDWidget>(this, HUDWidgetClass);
+		if (!HUDWidget)
+		{
+			return;
+		}
+		HUDWidget->AddToViewport();
+	}
+
+	HUDWidget->BindToCharacter(GetPawn<APlayerCharacter>());
 }
 
 void ASPlayerController::PlayerTick(float DeltaTime)
@@ -137,6 +185,74 @@ void ASPlayerController::WalkCompleted_Input()
 	}
 }
 
+void ASPlayerController::Swap_Input()
+{
+	if (APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>())
+	{
+		PlayerCharacter->SwapCharacter();
+	}
+}
+
+void ASPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
+{
+	APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>();
+	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
+	if (!PlayerCharacter || !SPlayerState || PlayerCharacter->IsDefeated())
+	{
+		return;
+	}
+
+	// 스킬 입력 = 교체: 상대 캐릭터의 스킬 키면 먼저 교체
+	// 교체가 막히면(공격 중 등) 그 입력은 버림
+	const ETwinSlot Slot = GetSlotForInput(InputTag, PlayerCharacter->GetActiveSlot());
+	if (Slot != PlayerCharacter->GetActiveSlot())
+	{
+		PlayerCharacter->SwapTo(Slot);
+		if (PlayerCharacter->GetActiveSlot() != Slot)
+		{
+			return;
+		}
+	}
+
+	SPlayerState->GetSAbilitySystemComponent(Slot)->AbilityInputTagPressed(InputTag);
+}
+
+void ASPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
+{
+	const APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>();
+	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
+	if (!PlayerCharacter || !SPlayerState)
+	{
+		return;
+	}
+
+	// 뗀 키는 교체 없이 그 키의 캐릭터에게만 알림
+	const ETwinSlot Slot = GetSlotForInput(InputTag, PlayerCharacter->GetActiveSlot());
+	SPlayerState->GetSAbilitySystemComponent(Slot)->AbilityInputTagReleased(InputTag);
+}
+
+USAbilitySystemComponent* ASPlayerController::GetSAbilitySystemComponent() const
+{
+	// PlayerState의 GetAbilitySystemComponent는 지금 나와 있는 캐릭터 것을 돌려줌
+	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
+	return SPlayerState ? Cast<USAbilitySystemComponent>(SPlayerState->GetAbilitySystemComponent()) : nullptr;
+}
+
+bool ASPlayerController::IsMoveInputBlocked() const
+{
+	const USAbilitySystemComponent* SASC = GetSAbilitySystemComponent();
+	if (!SASC)
+	{
+		return false;
+	}
+
+	FGameplayTagContainer BlockTags;
+	BlockTags.AddTag(SGameplayTags::State_Attacking);
+	BlockTags.AddTag(SGameplayTags::State_Stun);
+	BlockTags.AddTag(SGameplayTags::State_Dead);
+	return SASC->HasAnyMatchingGameplayTags(BlockTags);
+}
+
 void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target)
 {
 	if (!IsValid(Target))
@@ -158,43 +274,6 @@ void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target)
 	}
 }
 
-void ASPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
-{
-	if (USAbilitySystemComponent* SASC = GetSAbilitySystemComponent())
-	{
-		SASC->AbilityInputTagPressed(InputTag);
-	}
-}
-
-void ASPlayerController::AbilityInputTagReleased(FGameplayTag InputTag)
-{
-	if (USAbilitySystemComponent* SASC = GetSAbilitySystemComponent())
-	{
-		SASC->AbilityInputTagReleased(InputTag);
-	}
-}
-
-USAbilitySystemComponent* ASPlayerController::GetSAbilitySystemComponent() const
-{
-	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
-	return SPlayerState ? SPlayerState->GetSAbilitySystemComponent() : nullptr;
-}
-
-bool ASPlayerController::IsMoveInputBlocked() const
-{
-	const USAbilitySystemComponent* SASC = GetSAbilitySystemComponent();
-	if (!SASC)
-	{
-		return false;
-	}
-
-	FGameplayTagContainer BlockTags;
-	BlockTags.AddTag(SGameplayTags::State_Attacking);
-	BlockTags.AddTag(SGameplayTags::State_Stun);
-	BlockTags.AddTag(SGameplayTags::State_Dead);
-	return SASC->HasAnyMatchingGameplayTags(BlockTags);
-}
-
 void ASPlayerController::CycleCameraConfig()
 {
 	if (CameraConfigs.Num() < 2)
@@ -209,6 +288,21 @@ void ASPlayerController::CycleCameraConfig()
 void ASPlayerController::ShowAim()
 {
 	bDrawAimPoint = !bDrawAimPoint;
+}
+
+void ASPlayerController::DebugDamage(float Amount)
+{
+	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
+	UAbilitySystemComponent* ASC = SPlayerState ? SPlayerState->GetAbilitySystemComponent() : nullptr;
+	if (!ASC || Amount <= 0.f)
+	{
+		return;
+	}
+
+	// 체력을 직접 깎음 (0 아래로는 안 내려가게). 체력 변경 알림이 나가서 HUD·쓰러짐 처리가 실제 피격과 같이 동작
+	// ApplyModToAttribute는 GE 실행 콜백(PostGameplayEffectExecute)을 거치지 않아 IncomingDamage로는 체력이 안 줄어듦
+	const float Health = ASC->GetNumericAttribute(USAttributeSet::GetHealthAttribute());
+	ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, FMath::Max(0.f, Health - Amount));
 }
 
 void ASPlayerController::ApplyCurrentCameraConfig()

@@ -1,4 +1,4 @@
-# 조각 1 에셋 만들기 (입력, 카메라 설정, 컨트롤러·게임모드 BP, 테스트 맵)
+# 단계 1 에셋 만들기 (입력, 카메라 설정, 컨트롤러·게임모드 BP, 테스트 맵)
 # 실행: 엔진 python -I -X utf8 Tools/ue_exec.py Tools/setup_piece1.py
 import unreal
 

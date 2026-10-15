@@ -27,24 +27,28 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 {
 	Super::PostGameplayEffectExecute(Data);
 
+	// 값은 이 GE를 실행한 ASC(Data.Target)에 씀
+	// SetHealth 같은 자동 setter는 주인 액터(PlayerState)의 "지금 ASC"에 써서, 캐릭터가 둘이면 다른 캐릭터 값을 덮어씀
+	UAbilitySystemComponent& TargetASC = Data.Target;
+
 	if (Data.EvaluatedData.Attribute == GetIncomingDamageAttribute())
 	{
 		const float Damage = GetIncomingDamage();
-		SetIncomingDamage(0.f);
+		TargetASC.SetNumericAttributeBase(GetIncomingDamageAttribute(), 0.f);
 
 		if (Damage > 0.f)
 		{
-			SetHealth(FMath::Clamp(GetHealth() - Damage, 0.f, GetMaxHealth()));
+			TargetASC.SetNumericAttributeBase(GetHealthAttribute(), FMath::Clamp(GetHealth() - Damage, 0.f, GetMaxHealth()));
 
 			ShowDamageNumber(Data, Damage);
 
-			// 사망·피격 반응은 이후 조각에서
+			// 사망·피격 반응은 이후 단계에서
 		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
 	{
 		// 회복 GE 등으로 직접 바뀐 경우에도 범위 유지
-		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
+		TargetASC.SetNumericAttributeBase(GetHealthAttribute(), FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
 	}
 }
 

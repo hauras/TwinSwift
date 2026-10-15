@@ -34,7 +34,7 @@ public class TwinSwift : ModuleRules
 		});
 		if (Target.bBuildEditor)
 		{
-			PrivateDependencyModuleNames.AddRange(new string[] { "NiagaraEditor", "UnrealEd" });
+			PrivateDependencyModuleNames.AddRange(new string[] { "NiagaraEditor", "UnrealEd", "UMGEditor" });
 		}
 	}
 }
