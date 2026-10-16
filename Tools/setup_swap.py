@@ -42,8 +42,8 @@ eal.save_loaded_asset(pc_bp, only_if_is_dirty=False)
 print("교체 키:", SWAP_KEY, "→", ia.get_path_name())
 
 # ---------- 2. 임시 마법사 재질 ----------
-knight_mat_path = "/Game/Asset/Knight_Free/M_TS_Knight"
-mage_mat_path = "/Game/Asset/Knight_Free/M_TS_MageTemp"
+knight_mat_path = "/Game/Assets/Characters/Warrior/M_TS_Knight"
+mage_mat_path = "/Game/Assets/Characters/Mage/M_TS_MageTemp"
 if eal.does_asset_exist(mage_mat_path):
     eal.delete_asset(mage_mat_path)
 mage_mat = eal.duplicate_asset(knight_mat_path, mage_mat_path)

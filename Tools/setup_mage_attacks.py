@@ -14,11 +14,11 @@ eal = unreal.EditorAssetLibrary
 anim_lib = unreal.AnimationLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-ANIM_DIR = "/Game/Asset/Wizard_Free/Animations"
-MONTAGE_DIR = "/Game/Asset/Wizard_Free/Montages"
+ANIM_DIR = "/Game/Assets/External/Characters/Wizard_Free/Animations"
+MONTAGE_DIR = "/Game/Assets/Characters/Mage/Montages"
 PROJECTILE_DIR = "/Game/Blueprints/Projectile"
 ABILITY_DIR = "/Game/Abilities/Mage"
-FX = "/Game/VFX/Mage"
+FX = "/Game/Assets/VFX/Mage"
 
 
 def load(path):
@@ -120,7 +120,7 @@ fire_montage = montage("AM_Mage_FireBolt", "A_Wizard_1HMagicAttack_02", 0.53)
 frost_montage = montage("AM_Mage_FrostBolt", "A_Wizard_1HMagicAttack_01", 0.80)
 
 # ---------- 투사체 ----------
-FIRE_FX = "/Game/Assets/Effects/Projectiles"
+FIRE_FX = "/Game/Assets/External/VFX/Effects/Projectiles"
 fire_projectile = projectile("BP_Projectile_FireBolt", 1800.0, 12.0, 0.5,
                              f"{FIRE_FX}/FireBolt/NS_Fireball", f"{FIRE_FX}/FireExplosion/NS_FireExplosion")
 
@@ -155,7 +155,7 @@ abilities = [
         recovery_time=0.25,
         montage_play_rate=1.3,
         montage_start_time=0.3,
-    ), frost_montage, None, dict(torrent_effect=load("/Game/Mixed_Magic_VFX_Pack/VFX/NS_Crystal_Torrent"))),
+    ), frost_montage, None, dict(torrent_effect=load("/Game/Assets/External/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Crystal_Torrent"))),
 ]
 
 # ---------- 마법사 시작 능력에 추가 (이미 있으면 그대로) ----------

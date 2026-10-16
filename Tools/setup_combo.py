@@ -9,8 +9,8 @@ tools = unreal.AssetToolsHelpers.get_asset_tools()
 anim_lib = unreal.AnimationLibrary
 ev = unreal.AnimPoseEvaluationOptions()
 
-ANIM_DIR = "/Game/Asset/Knight_Free/Animations"
-MONTAGE_DIR = "/Game/Asset/Knight_Free/Montages"
+ANIM_DIR = "/Game/Assets/External/Characters/Knight_Free/Animations"
+MONTAGE_DIR = "/Game/Assets/Characters/Warrior/Montages"
 
 # (몽타주 이름, 애니, 배율)
 # 2타 콤보: 대각선 내려치기 → 가로 베기(마무리)

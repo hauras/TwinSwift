@@ -1,7 +1,7 @@
 import unreal as u
 from pathlib import Path
 for name in ['ToMage','ToWarrior']:
-    path='/Game/VFX/Tag/NS_TagSwap_'+name
+    path='/Game/Assets/VFX/Tag/NS_TagSwap_'+name
     backup='/Game/Backups/TagSwap_BeforeColorFix/NS_TagSwap_'+name
     if u.EditorAssetLibrary.does_asset_exist(path):
         if not u.EditorAssetLibrary.does_asset_exist(backup):

@@ -1,8 +1,8 @@
 # 태그 교체 이펙트
 
 ## 에셋
-- `/Game/VFX/Tag/NS_TagSwap_ToMage`: 주황 수렴광 → 파란 파동과 작은 입자.
-- `/Game/VFX/Tag/NS_TagSwap_ToWarrior`: 파란 수렴광 → 주황 파동과 작은 입자.
+- `/Game/Assets/VFX/Tag/NS_TagSwap_ToMage`: 주황 수렴광 → 파란 파동과 작은 입자.
+- `/Game/Assets/VFX/Tag/NS_TagSwap_ToWarrior`: 파란 수렴광 → 주황 파동과 작은 입자.
 - 공통 머티리얼: `M_TagSwap_Ring`, `M_TagSwap_Gather`, `M_TagSwap_Spark`.
 
 수렴광 0.1초, 파동은 0.04초 뒤 시작해서 0.22초 유지.

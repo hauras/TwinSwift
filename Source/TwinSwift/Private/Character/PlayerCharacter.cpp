@@ -19,10 +19,6 @@
 
 APlayerCharacter::APlayerCharacter()
 {
-	SwapToMageEffect = TSoftObjectPtr<UNiagaraSystem>(
-		FSoftObjectPath(TEXT("/Game/VFX/Tag/NS_TagSwap_ToMage.NS_TagSwap_ToMage")));
-	SwapToWarriorEffect = TSoftObjectPtr<UNiagaraSystem>(
-		FSoftObjectPath(TEXT("/Game/VFX/Tag/NS_TagSwap_ToWarrior.NS_TagSwap_ToWarrior")));
 	// 몸은 컨트롤러 방향이 아니라 이동 방향을 바라봄
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;

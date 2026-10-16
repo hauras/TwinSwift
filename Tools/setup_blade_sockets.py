@@ -10,7 +10,7 @@ SOCKETS = {
     "TrailEnd": unreal.Vector(0, 0, 188),    # 칼끝
 }
 
-sword = unreal.load_asset("/Game/Asset/Knight_Free/base_basic_shaded.base_basic_shaded")
+sword = unreal.load_asset("/Game/Assets/Characters/Warrior/base_basic_shaded.base_basic_shaded")
 for name, location in SOCKETS.items():
     socket = sword.find_socket(name)
     if not socket:

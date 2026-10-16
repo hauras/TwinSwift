@@ -4,12 +4,12 @@
 import unreal
 
 ANIMS = [
-    "/Game/Asset/Knight_Free/Animations/A_Knight_Slash_02",
-    "/Game/Asset/Knight_Free/Animations/A_Knight_Slash",
-    "/Game/Asset/Knight_Free/Animations/A_Knight_Roll",
-    "/Game/Asset/Knight_Free/Animations/A_Knight_SlideAttack",
-    "/Game/Asset/Knight_Free/Animations/A_Knight_JumpAttack",
-    "/Game/Asset/Knight_Free/Animations/A_Knight_SpinAttack",
+    "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_Slash_02",
+    "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_Slash",
+    "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_Roll",
+    "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_SlideAttack",
+    "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_JumpAttack",
+    "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_SpinAttack",
 ]
 PELVIS = "spine"
 ROOT = "Knight_metarig_01"

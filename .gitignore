@@ -33,16 +33,12 @@ Thumbs.db
 .DS_Store
 
 # 외부 에셋: 라이선스상 공개 저장소에 원본을 올리지 않음 (받는 곳은 Docs/에셋.md)
-Content/SwordTrailVFX/
+Content/Assets/External/
+# 폴더 정리(2026-10-16) 전 옛 위치에 남은 파일
+Content/Asset/
 Content/Knife_light/
-Content/Asset/Knight_Free/FBX/
-Content/Asset/Knight_Free/Texture/
-Content/Asset/Knight_Free/Animations/
-Content/Asset/Wizard_Free/FBX/
-Content/Asset/Wizard_Free/Animations/
-Content/Assets/
 Content/Mixed_Magic_VFX_Pack/
 
 # 작업용 백업·실험 (에디터 스크립트가 고치기 전 원본을 복사해 두는 곳, 쓰지 않는 칼 궤적 실험)
 Content/Backups/
-Content/VFX/Warrior/
+Content/Assets/VFX/Warrior/

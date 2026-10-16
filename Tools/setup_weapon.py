@@ -31,7 +31,7 @@ UP = unreal.Vector(0, 0, 1)
 RIGHT = unreal.Vector(-1, 0, 0)
 
 ev = unreal.AnimPoseEvaluationOptions()
-idle = unreal.load_asset("/Game/Asset/Knight_Free/Animations/A_Knight_Idle.A_Knight_Idle")
+idle = unreal.load_asset("/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_Idle.A_Knight_Idle")
 pose = unreal.AnimPoseExtensions.get_anim_pose_at_time(idle, 0.0, ev)
 hand = unreal.AnimPoseExtensions.get_bone_pose(pose, "hand_R", unreal.AnimPoseSpaces.WORLD)
 
@@ -48,7 +48,7 @@ rotation = unreal.MathLibrary.make_rot_from_zx(z_local, x_local)
 location = z_local * (-GRIP * LENGTH / BONE_SCALE)
 
 # ---------- 1. 스켈레톤 소켓 ----------
-knight = unreal.load_asset("/Game/Asset/Knight_Free/FBX/Characters/Knight_01.Knight_01")
+knight = unreal.load_asset("/Game/Assets/External/Characters/Knight_Free/FBX/Characters/Knight_01.Knight_01")
 socket = knight.find_socket("WeaponSocket")
 if not socket:
     raise RuntimeError("WeaponSocket 소켓이 없음: 스켈레톤 에디터에서 hand_R 우클릭 → Add Socket → 이름 WeaponSocket")
@@ -64,7 +64,7 @@ eal.save_loaded_asset(knight.skeleton, only_if_is_dirty=False)
 bp = unreal.load_asset("/Game/Blueprints/BP_Player.BP_Player")
 cdo = unreal.get_default_object(bp.generated_class())
 weapon = cdo.get_editor_property("weapon_mesh")
-weapon.set_static_mesh(unreal.load_asset("/Game/Asset/Knight_Free/base_basic_shaded"))
+weapon.set_static_mesh(unreal.load_asset("/Game/Assets/Characters/Warrior/base_basic_shaded"))
 weapon.set_editor_property("relative_location", unreal.Vector(0, 0, 0))
 weapon.set_editor_property("relative_rotation", unreal.Rotator(0, 0, 0))
 weapon.set_editor_property("relative_scale3d", unreal.Vector(1, 1, 1))

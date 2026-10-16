@@ -5,7 +5,7 @@ fx=u.FXConverterUtilitiesLibrary
 cat=u.ScriptExecutionCategory
 tools=u.AssetToolsHelpers.get_asset_tools()
 eal=u.EditorAssetLibrary
-folder='/Game/VFX/Tag'
+folder='/Game/Assets/VFX/Tag'
 
 RING_CODE=r'''
 float t=saturate(Age);

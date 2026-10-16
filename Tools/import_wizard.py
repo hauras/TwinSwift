@@ -12,11 +12,11 @@ eal = unreal.EditorAssetLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
 MESH_FBX = "C:/Users/HJB/Desktop/Wizard_Free/FBX/Characters/Air_Wizard.fbx"
-MESH_DEST = "/Game/Asset/Wizard_Free/FBX/Characters"
+MESH_DEST = "/Game/Assets/External/Characters/Wizard_Free/FBX/Characters"
 MESH = f"{MESH_DEST}/Air_Wizard"
 ANIM_DIR = "C:/Users/HJB/Downloads"
-ANIM_DEST = "/Game/Asset/Wizard_Free/Animations"
-MATERIAL = "/Game/Asset/Knight_Free/M_TS_Knight"
+ANIM_DEST = "/Game/Assets/External/Characters/Wizard_Free/Animations"
+MATERIAL = "/Game/Assets/Characters/Warrior/M_TS_Knight"
 
 # Pro Magic Pack(56개) 중 쓰는 것만 (앉기·막기·옆/뒤 걷기·점프·돌기 등은 2026-10-16 정리하며 뺌)
 PACK_FILES = [

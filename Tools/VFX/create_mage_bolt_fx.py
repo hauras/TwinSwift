@@ -7,7 +7,7 @@ fx=u.FXConverterUtilitiesLibrary
 cat=u.ScriptExecutionCategory
 tools=u.AssetToolsHelpers.get_asset_tools()
 eal=u.EditorAssetLibrary
-folder='/Game/VFX/Mage'
+folder='/Game/Assets/VFX/Mage'
 # 검증된 제작 도우미만 재사용하며, 교체 이펙트 생성 본문은 실행하지 않는다.
 source=Path('D:/Unreal Projects/TwinSwift/Tools/VFX/create_tag_swap_fx.py').read_text(encoding='utf-8')
 nodes=[n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name in ['material','script','param','add_module','random_velocity']]

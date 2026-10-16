@@ -13,8 +13,8 @@ eal = unreal.EditorAssetLibrary
 anim_lib = unreal.AnimationLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-ANIM = "/Game/Asset/Knight_Free/Animations/A_Knight_JumpAttack"
-MONTAGE = "/Game/Asset/Knight_Free/Montages/AM_Warrior_GroundSlam"
+ANIM = "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_JumpAttack"
+MONTAGE = "/Game/Assets/Characters/Warrior/Montages/AM_Warrior_GroundSlam"
 ABILITY = "/Game/Abilities/Warrior/GA_Warrior_GroundSlam"
 IMPACT_TIME = 1.23
 TRACK = "Event"
@@ -59,7 +59,7 @@ notify.set_editor_property("event_tag", tag)
 # 착지 충격: Knife_light 반달을 바닥에 눕혀 두 개(반대 방향)로 원을 만듦 → 타격 범위(반경 3m)가 보임
 # 반달 이펙트는 XY 평면의 반지름 100 원을 반 바퀴 쓸고 지나감 (setup_slash_fx.py 참고) → 0도 + 180도 = 한 바퀴
 # 캐릭터에 붙이지 않음(attached False) → 그 자리 바닥에 남음. 메시 원점 = 발밑
-IMPACT_FX = "/Game/Knife_light/VFX/NE_attack05"
+IMPACT_FX = "/Game/Assets/External/VFX/Knife_light/VFX/NE_attack05"
 IMPACT_TRACK = "Impact"
 ring_scale = SETTINGS["radius"] / 100.0
 # 반달 하나에 트랙 하나 (같은 트랙에 같은 시간으로 두 개를 넣으면 엔진이 다른 트랙으로 옮겨 버림)

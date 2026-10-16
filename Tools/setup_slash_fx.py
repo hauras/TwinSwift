@@ -22,8 +22,8 @@ ev = unreal.AnimPoseEvaluationOptions()
 PREVIEW = globals().get("PREVIEW", False)
 PREVIEW_DIR = globals().get("PREVIEW_DIR", "")
 
-MONTAGE_DIR = "/Game/Asset/Knight_Free/Montages"
-FX_DIR = "/Game/Knife_light/VFX"
+MONTAGE_DIR = "/Game/Assets/Characters/Warrior/Montages"
+FX_DIR = "/Game/Assets/External/VFX/Knife_light/VFX"
 TRACK = "Slash"
 
 # 이펙트 반달 가운데가 지나가는 시간(초)
@@ -51,15 +51,15 @@ STRIKES = [
 NO_HIT_TRACK = {"AM_Warrior_DashSlash", "AM_Warrior_GroundSlam"}
 
 # 몽타주에 칼날 궤적이 아직 없을 때 쓰는 기본값 (setup_trail_notify.py와 같음)
-DEFAULT_TRAIL = "/Game/SwordTrailVFX/VFX/NS_Trail_16"
+DEFAULT_TRAIL = "/Game/Assets/External/VFX/SwordTrailVFX/VFX/NS_Trail_16"
 DEFAULT_TRAIL_SOCKET = "TrailSocket"
 
-knight = unreal.load_asset("/Game/Asset/Knight_Free/FBX/Characters/Knight_01")
+knight = unreal.load_asset("/Game/Assets/External/Characters/Knight_Free/FBX/Characters/Knight_01")
 weapon_socket = knight.find_socket("WeaponSocket")
 w_loc = weapon_socket.get_editor_property("relative_location")
 w_rot = weapon_socket.get_editor_property("relative_rotation").quaternion()
 w_scale = weapon_socket.get_editor_property("relative_scale")
-sword = unreal.load_asset("/Game/Asset/Knight_Free/base_basic_shaded")
+sword = unreal.load_asset("/Game/Assets/Characters/Warrior/base_basic_shaded")
 tip_z = sword.find_socket("TrailEnd").get_editor_property("relative_location").z
 
 
@@ -127,7 +127,7 @@ def fit_strike(anim, start, end):
 
 results = []
 for montage_name, anim_name, fx_name, windows in STRIKES:
-    anim = load(f"/Game/Asset/Knight_Free/Animations/{anim_name}")
+    anim = load(f"/Game/Assets/External/Characters/Knight_Free/Animations/{anim_name}")
     fx = load(f"{FX_DIR}/{fx_name}")
     fits = [fit_strike(anim, s, e) for s, e in windows]
     for (s, e), (center, rotation, scale, spawn_time) in zip(windows, fits):

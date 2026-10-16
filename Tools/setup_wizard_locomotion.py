@@ -6,24 +6,25 @@
 import unreal
 
 eal = unreal.EditorAssetLibrary
-D = "/Game/Asset/Wizard_Free"
-PATH = f"{D}/BS_Wizard_Locomotion"
+SRC = "/Game/Assets/External/Characters/Wizard_Free"
+DEST = "/Game/Assets/Characters/Mage"
+PATH = f"{DEST}/BS_Wizard_Locomotion"
 
-skeleton = unreal.load_asset(f"{D}/FBX/Characters/Air_Wizard_Skeleton")
+skeleton = unreal.load_asset(f"{SRC}/FBX/Characters/Air_Wizard_Skeleton")
 if eal.does_asset_exist(PATH):
     bs = unreal.load_asset(PATH)
 else:
     factory = unreal.BlendSpaceFactory1D()
     factory.set_editor_property("target_skeleton", skeleton)
-    bs = unreal.AssetToolsHelpers.get_asset_tools().create_asset("BS_Wizard_Locomotion", D, unreal.BlendSpace1D, factory)
+    bs = unreal.AssetToolsHelpers.get_asset_tools().create_asset("BS_Wizard_Locomotion", DEST, unreal.BlendSpace1D, factory)
 
-knight = unreal.load_asset("/Game/Asset/Knight_Free/BS_Knight_Locomotion")
+knight = unreal.load_asset("/Game/Assets/Characters/Warrior/BS_Knight_Locomotion")
 bs.set_editor_property("blend_parameters", knight.get_editor_property("blend_parameters"))
 
 
 def sample(anim, speed, rate=1.0):
     s = unreal.BlendSample()
-    s.set_editor_property("animation", unreal.load_asset(f"{D}/Animations/{anim}"))
+    s.set_editor_property("animation", unreal.load_asset(f"{SRC}/Animations/{anim}"))
     s.set_editor_property("sample_value", unreal.Vector(speed, 0, 0))
     s.set_editor_property("rate_scale", rate)
     return s

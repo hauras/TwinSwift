@@ -7,7 +7,7 @@ floor.set_actor_scale3d(u.Vector(10,10,0.2))
 sun=u.EditorLevelLibrary.spawn_actor_from_class(u.DirectionalLight,u.Vector(0,0,500),u.Rotator(-50,-30,0))
 sun.get_component_by_class(u.DirectionalLightComponent).set_intensity(3)
 for role,x in [('ToMage',-145),('ToWarrior',145)]:
-    system=u.load_asset('/Game/VFX/Tag/NS_TagSwap_'+role)
+    system=u.load_asset('/Game/Assets/VFX/Tag/NS_TagSwap_'+role)
     report=u.TSWeaponTrailLibrary.tune_trail_timing(system,1,1)
     assert 'VALID=1' in report
     assert 'InitializeParticle' not in report, 'Unexpected initializer can overwrite color'

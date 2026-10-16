@@ -4,8 +4,8 @@
 import unreal
 
 SOURCE_DIR = "C:/Users/HJB/Downloads"
-DEST = "/Game/Asset/Knight_Free/Animations"
-SKELETON = unreal.load_asset("/Game/Asset/Knight_Free/FBX/Characters/Knight_01_Skeleton")
+DEST = "/Game/Assets/External/Characters/Knight_Free/Animations"
+SKELETON = unreal.load_asset("/Game/Assets/External/Characters/Knight_Free/FBX/Characters/Knight_01_Skeleton")
 
 ANIMS = [
     ("Great Sword Attack.fbx", "A_Knight_Attack"),

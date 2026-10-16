@@ -7,8 +7,8 @@ import unreal
 eal = unreal.EditorAssetLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-ANIM = "/Game/Asset/Knight_Free/Animations/A_Knight_SlideAttack"
-MONTAGE = "/Game/Asset/Knight_Free/Montages/AM_Warrior_DashSlash"
+ANIM = "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_SlideAttack"
+MONTAGE = "/Game/Assets/Characters/Warrior/Montages/AM_Warrior_DashSlash"
 ABILITY = "/Game/Abilities/Warrior/GA_Warrior_DashSlash"
 SETTINGS = dict(
     dash_distance=600.0,

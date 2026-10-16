@@ -7,8 +7,8 @@ import unreal
 eal = unreal.EditorAssetLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-ROLL_ANIM = "/Game/Asset/Knight_Free/Animations/A_Knight_Roll"
-ROLL_MONTAGE = "/Game/Asset/Knight_Free/Montages/AM_Warrior_Roll"
+ROLL_ANIM = "/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_Roll"
+ROLL_MONTAGE = "/Game/Assets/Characters/Warrior/Montages/AM_Warrior_Roll"
 
 # (블루프린트 경로, 설정값)
 DODGES = {

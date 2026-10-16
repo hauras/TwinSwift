@@ -10,7 +10,7 @@ import unreal
 eal = unreal.EditorAssetLibrary
 anim_lib = unreal.AnimationLibrary
 
-TRAIL = "/Game/SwordTrailVFX/VFX/NS_Trail_16.NS_Trail_16"
+TRAIL = "/Game/Assets/External/VFX/SwordTrailVFX/VFX/NS_Trail_16.NS_Trail_16"
 SOCKET = "TrailSocket"
 TRACK = "Trail"
 
@@ -22,8 +22,8 @@ DEMO_GRIP_TO_TIP = 118.3
 GRIP = 32.0
 
 MONTAGES = [
-    "/Game/Asset/Knight_Free/Montages/AM_Warrior_Combo1",
-    "/Game/Asset/Knight_Free/Montages/AM_Warrior_Combo3",
+    "/Game/Assets/Characters/Warrior/Montages/AM_Warrior_Combo1",
+    "/Game/Assets/Characters/Warrior/Montages/AM_Warrior_Combo3",
 ]
 
 # 판정(Hit) 구간은 setup_slash_fx.py가 칼끝 궤적으로 정함. 여기서는 그 구간에 칼날 궤적만 깜
@@ -34,13 +34,13 @@ def load(path):
 
 
 # ---------- 1. TrailSocket: 칼 소켓(WeaponSocket) 기준으로 계산 ----------
-knight = load("/Game/Asset/Knight_Free/FBX/Characters/Knight_01")
+knight = load("/Game/Assets/External/Characters/Knight_Free/FBX/Characters/Knight_01")
 weapon_socket = knight.find_socket("WeaponSocket")
 trail_socket = knight.find_socket(SOCKET)
 if not trail_socket:
     raise RuntimeError(f"{SOCKET} 소켓이 없음: 스켈레톤 에디터에서 hand_R 우클릭 → Add Socket → 이름 {SOCKET}")
 
-sword = load("/Game/Asset/Knight_Free/base_basic_shaded")
+sword = load("/Game/Assets/Characters/Warrior/base_basic_shaded")
 tip = sword.get_bounding_box().max.z
 scale = (tip - GRIP) / DEMO_GRIP_TO_TIP
 

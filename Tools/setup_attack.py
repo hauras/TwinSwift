@@ -49,7 +49,7 @@ mesh.set_editor_property("relative_location", player_mesh.get_editor_property("r
 mesh.set_editor_property("relative_rotation", player_mesh.get_editor_property("relative_rotation"))
 mesh.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_SINGLE_NODE)
 anim_data = mesh.get_editor_property("animation_data")
-anim_data.set_editor_property("anim_to_play", load("/Game/Asset/Knight_Free/Animations/A_Knight_Idle"))
+anim_data.set_editor_property("anim_to_play", load("/Game/Assets/External/Characters/Knight_Free/Animations/A_Knight_Idle"))
 anim_data.set_editor_property("saved_looping", True)
 anim_data.set_editor_property("saved_playing", True)
 mesh.set_editor_property("animation_data", anim_data)
