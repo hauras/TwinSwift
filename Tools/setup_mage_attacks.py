@@ -3,11 +3,13 @@
 #     0.25초부터 1.5배속 → 누르고 (0.53 - 0.25) / 1.5 = 0.19초에 발사. 쿨 0.45초
 #   냉기탄 (3): A_Wizard_1HMagicAttack_01 — 0.67초 왼손, 0.80초 오른손이 앞으로 (오른손에서 발사)
 #     0.3초부터 1.3배속 → 0.38초에 발사. 관통, 같은 적 0.5배 × 3번, 첫 타에 [빙결] 6초. 쿨 6초
+#   낙뢰 (4): A_Wizard_2HMagicAreaAttack_01 — 1.27초에 두 손을 바닥 쪽으로 내려침 (손 속도 1102로 가장 빠름)
+#     0.6초부터 1.3배속 → 누르고 0.52초에 신호 → 커서 위치에 경고 원 → 0.5초 뒤 번개, 반경 2.5m 2.0배. 쿨 10초
 # 이펙트: 화염탄 = Content/Assets/Effects/Projectiles의 NS_Fireball(비행)·NS_FireExplosion(명중), 발사 이펙트 없음
 #         냉기탄(얼음 쇄도, USGA_CrystalTorrent) = NS_Crystal_Torrent. 투사체 없이, 얼음 앞쪽 끝까지의 띠를 0.05초마다 검사
 #                 (얼음이 처음엔 느리고 점점 빨라져서 일정 속도 투사체로는 판정이 먼저 도착했음 → 잰 커브로 판정을 맞춤)
 #         화염탄은 작고 빠르게, 화상·폭발 범위 없음 (표식 시스템과 겹치지 않게 보기만 불)
-# 조건: USGA_ProjectileAttack, USGA_CrystalTorrent, ASProjectile이 들어간 C++이 빌드돼 있어야 함. 다시 실행해도 같은 결과
+# 조건: USGA_ProjectileAttack, USGA_CrystalTorrent, USGA_ThunderStrike, ASProjectile이 들어간 C++이 빌드돼 있어야 함. 다시 실행해도 같은 결과
 import unreal
 
 eal = unreal.EditorAssetLibrary
@@ -118,6 +120,7 @@ def ability(name, parent, settings, montage_asset, launch_fx, extra):
 # ---------- 몽타주 ----------
 fire_montage = montage("AM_Mage_FireBolt", "A_Wizard_1HMagicAttack_02", 0.53)
 frost_montage = montage("AM_Mage_FrostBolt", "A_Wizard_1HMagicAttack_01", 0.80)
+thunder_montage = montage("AM_Mage_Thunder", "A_Wizard_2HMagicAreaAttack_01", 1.27)
 
 # ---------- 투사체 ----------
 FIRE_FX = "/Game/Assets/External/VFX/Effects/Projectiles"
@@ -156,6 +159,19 @@ abilities = [
         montage_play_rate=1.3,
         montage_start_time=0.3,
     ), frost_montage, None, dict(torrent_effect=load("/Game/Assets/External/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Crystal_Torrent"))),
+    # 낙뢰: 입력·이름표·쿨·배율은 C++ 생성자 기본값. 경고 원은 지금 디버그 원 (WarningEffect 비움)
+    ability("GA_Mage_Thunder", unreal.SGA_ThunderStrike, dict(
+        input_tag=tag("InputTag.Mage.Skill2"),
+        ability_tags=tags("Ability.Mage.Thunder"),
+        cooldown_duration=10.0,
+        cooldown_tags=tags("Cooldown.Mage.Thunder"),
+        damage_multiplier=2.0,
+        recovery_time=0.3,
+        montage_play_rate=1.3,
+        montage_start_time=0.6,
+    ), thunder_montage, "/Game/Assets/External/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Lightning_Owner_Cast",
+       dict(strike_effect=load("/Game/Assets/External/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Lightning_Strike"),
+            max_range=1000.0, radius=250.0, strike_delay=0.5)),
 ]
 
 # ---------- 마법사 시작 능력에 추가 (이미 있으면 그대로) ----------

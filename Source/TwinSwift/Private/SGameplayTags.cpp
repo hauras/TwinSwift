@@ -17,6 +17,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Warrior_SpinAssist, "Ability.Warrior.SpinAssist", "전사 교체 어시스트: 회전 베기");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Mage_FireBolt, "Ability.Mage.FireBolt", "마법사 기본 공격: 화염탄");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Mage_FrostBolt, "Ability.Mage.FrostBolt", "마법사 냉기탄 (빙결 표식)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Mage_Thunder, "Ability.Mage.Thunder", "마법사 낙뢰 (균열 터뜨림)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Dodge, "Ability.Dodge", "회피 (전사 구르기, 마법사 순간이동)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Swap, "Ability.Swap", "캐릭터 교체");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_HitReact, "Ability.HitReact", "피격 반응");
@@ -46,6 +47,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Warrior_GroundSlam, "Cooldown.Warrior.GroundSlam", "내려찍기 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_FireBolt, "Cooldown.Mage.FireBolt", "화염탄 발사 간격");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_FrostBolt, "Cooldown.Mage.FrostBolt", "냉기탄 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_Thunder, "Cooldown.Mage.Thunder", "낙뢰 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Dodge, "Cooldown.Dodge", "회피 쿨다운");
 
 	// 데미지
