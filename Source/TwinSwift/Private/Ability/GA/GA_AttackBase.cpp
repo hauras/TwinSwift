@@ -20,6 +20,11 @@ UGA_AttackBase::UGA_AttackBase()
 
 	ActivationBlockedTags.AddTag(SGameplayTags::State_Stun);
 	ActivationBlockedTags.AddTag(SGameplayTags::State_Dead);
+
+	// 스킬 시전 중(State.Attacking)에는 기본 공격이 새로 나가지 않음
+	// 안 막으면 기본 공격 몽타주가 스킬 몽타주를 끊어서 스킬은 쿨다운만 돌고 효과가 안 나감
+	// (콤보 다음 타는 이미 돌고 있는 이 능력 안에서 입력을 받으므로 막히지 않음)
+	ActivationBlockedTags.AddTag(SGameplayTags::State_Attacking);
 }
 
 void UGA_AttackBase::ActivateAbility(

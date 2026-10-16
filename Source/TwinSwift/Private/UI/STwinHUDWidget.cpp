@@ -293,7 +293,7 @@ namespace
         { TEXT("구르기"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("구르며 0.3초 동안 무적"), TEXT("Roll") }
     };
     const FHUDSkill MageSkills[] = {
-        { TEXT("마탄"), TEXT("InputTag.Attack"), TEXT("LMB"), TEXT("커서를 향해 마탄 발사"), TEXT("MagicBolt") },
+        { TEXT("화염탄"), TEXT("InputTag.Attack"), TEXT("LMB"), TEXT("커서를 향해 작은 화염탄 연사"), TEXT("MagicBolt") },
         { TEXT("냉기탄"), TEXT("InputTag.Mage.Skill1"), TEXT("3"), TEXT("냉기 투사체 · 빙결 표식 부여"), TEXT("FrostBolt") },
         { TEXT("낙뢰"), TEXT("InputTag.Mage.Skill2"), TEXT("4"), TEXT("커서 위치 범위 공격 · 균열 표식 폭발"), TEXT("Thunder") },
         { TEXT("순간이동"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("짧은 거리 순간이동"), TEXT("Blink") }

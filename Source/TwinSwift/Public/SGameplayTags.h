@@ -5,7 +5,7 @@
 /**
  * 게임플레이 태그 모음
  * C++에 선언해 두면 이름 오타를 컴파일할 때 잡고, 에디터 태그 목록에도 자동으로 나옴
- * 마법사 태그는 마법사 스킬을 만들 때 추가
+ * 마법사 태그는 마법사 스킬을 만들 때마다 추가
  */
 namespace SGameplayTags
 {
@@ -23,6 +23,8 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Warrior_DashSlash);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Warrior_GroundSlam);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Warrior_SpinAssist);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Mage_FireBolt);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Mage_FrostBolt);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dodge);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Swap);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_HitReact);
@@ -55,6 +57,8 @@ namespace SGameplayTags
 	// ---------- 쿨다운 (쿨다운 GE가 이 태그를 붙임) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Warrior_DashSlash);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Warrior_GroundSlam);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_FireBolt);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_FrostBolt);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Dodge);
 
 	// ---------- 데미지 (스킬마다 배율을 GE에 넘김) ----------
