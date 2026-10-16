@@ -1,21 +1,15 @@
 #include "Ability/GA/GA_AttackBase.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "SGameplayTags.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
-#include "Ability/SAbilityFunctionLibrary.h"
-#include "Ability/SGE_Damage.h"
 #include "Animation/AnimInstance.h"
-#include "Controller/SPlayerController.h"
-#include "GameFramework/Character.h"
 
 UGA_AttackBase::UGA_AttackBase()
 {
 	InputTag = SGameplayTags::InputTag_Attack;
-	DamageEffectClass = USGE_Damage::StaticClass();
 
 	FGameplayTagContainer AssetTags;
 	AssetTags.AddTag(SGameplayTags::Ability_Warrior_Combo);
@@ -150,26 +144,8 @@ void UGA_AttackBase::EndAbility(
 
 void UGA_AttackBase::OnHitEvent(FGameplayEventData Payload)
 {
-	AActor* Target = const_cast<AActor*>(Payload.Target.Get());
-	if (!Target || USAbilityFunctionLibrary::IsFriend(GetAvatarActorFromActorInfo(), Target))
-	{
-		return;
-	}
-
-	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
-	if (!TargetASC || !DamageEffectClass)
-	{
-		return;
-	}
-
-	const FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
-	if (!Spec.IsValid())
-	{
-		return;
-	}
-
-	Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_DamageMultiplier, ComboSteps[CurrentStep].DamageMultiplier);
-	GetAbilitySystemComponentFromActorInfo()->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+	// 같은 편 무시·GE 적용은 부모(USGameplayAbility)의 공통 도우미가 함
+	ApplyDamageTo(const_cast<AActor*>(Payload.Target.Get()), ComboSteps[CurrentStep].DamageMultiplier);
 }
 
 bool UGA_AttackBase::IsStaleMontageCallback() const
@@ -179,22 +155,4 @@ bool UGA_AttackBase::IsStaleMontageCallback() const
 	const UAnimInstance* AnimInstance = CurrentActorInfo ? CurrentActorInfo->GetAnimInstance() : nullptr;
 	const UAnimMontage* StepMontage = ComboSteps.IsValidIndex(CurrentStep) ? ComboSteps[CurrentStep].Montage.Get() : nullptr;
 	return AnimInstance && StepMontage && AnimInstance->Montage_IsPlaying(StepMontage);
-}
-
-void UGA_AttackBase::FaceAimPoint() const
-{
-	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	const ASPlayerController* PlayerController = Character ? Cast<ASPlayerController>(Character->GetController()) : nullptr;
-	if (!PlayerController)
-	{
-		return;
-	}
-
-	const FVector ToAim = PlayerController->GetAimPoint() - Character->GetActorLocation();
-	if (ToAim.SizeSquared2D() < 1.f)
-	{
-		return;
-	}
-
-	Character->SetActorRotation(FRotator(0.f, ToAim.Rotation().Yaw, 0.f));
 }

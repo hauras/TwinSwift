@@ -7,6 +7,9 @@ ANIMS = [
     "/Game/Asset/Knight_Free/Animations/A_Knight_Slash_02",
     "/Game/Asset/Knight_Free/Animations/A_Knight_Slash",
     "/Game/Asset/Knight_Free/Animations/A_Knight_Roll",
+    "/Game/Asset/Knight_Free/Animations/A_Knight_SlideAttack",
+    "/Game/Asset/Knight_Free/Animations/A_Knight_JumpAttack",
+    "/Game/Asset/Knight_Free/Animations/A_Knight_SpinAttack",
 ]
 PELVIS = "spine"
 ROOT = "Knight_metarig_01"

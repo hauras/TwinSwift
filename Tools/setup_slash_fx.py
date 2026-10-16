@@ -40,7 +40,19 @@ MAX_TILT = 40.0
 STRIKES = [
     ("AM_Warrior_Combo1", "A_Knight_Slash_03", "NE_attack02", [(0.53, 0.80)]),
     ("AM_Warrior_Combo3", "A_Knight_Slash_01", "NE_attack05", [(0.73, 1.13)]),
+    # 돌진 베기 SlideAttack: 1.17~1.60 미끄러짐이 끝나고 몸을 돌리며 가로로 크게 벰 (약 270도) → 반달 두 개로 나눔
+    ("AM_Warrior_DashSlash", "A_Knight_SlideAttack", "NE_attack05", [(1.17, 1.40), (1.37, 1.60)]),
+    # 내려찍기 JumpAttack: 0.97~1.25 머리 위에서 앞 바닥으로 세로 내려치기 (1.23초에 칼끝이 바닥)
+    ("AM_Warrior_GroundSlam", "A_Knight_JumpAttack", "NE_attack02", [(0.97, 1.25)]),
 ]
+
+# 판정을 몽타주(Weapon Trace)가 아니라 능력 코드가 하는 몽타주 → Hit 트랙은 만들지 않음
+# (돌진 베기: USGA_DashSlash가 지나간 길을 쓸어서 판정 / 내려찍기: 착지 신호 AN_SendEvent로 USGA_GroundSlam이 범위 판정)
+NO_HIT_TRACK = {"AM_Warrior_DashSlash", "AM_Warrior_GroundSlam"}
+
+# 몽타주에 칼날 궤적이 아직 없을 때 쓰는 기본값 (setup_trail_notify.py와 같음)
+DEFAULT_TRAIL = "/Game/SwordTrailVFX/VFX/NS_Trail_16"
+DEFAULT_TRAIL_SOCKET = "TrailSocket"
 
 knight = unreal.load_asset("/Game/Asset/Knight_Free/FBX/Characters/Knight_01")
 weapon_socket = knight.find_socket("WeaponSocket")
@@ -139,18 +151,25 @@ for montage_name, anim_name, fx_name, windows in STRIKES:
 
     # 판정·칼날 궤적도 실제 베는 구간으로 맞춤
     for track, cls in (("Hit", unreal.ANS_WeaponTrace), ("Trail", unreal.AnimNotifyState_TimedNiagaraEffect)):
+        if track == "Hit" and montage_name in NO_HIT_TRACK:
+            continue
+        if track not in [str(n) for n in anim_lib.get_animation_notify_track_names(montage)]:
+            anim_lib.add_animation_notify_track(montage, track)
         old = anim_lib.get_animation_notify_events_for_track(montage, track)
-        template = None
+        trail_fx, trail_socket = load(DEFAULT_TRAIL), DEFAULT_TRAIL_SOCKET
         for event in old:
             state = event.get_editor_property("notify_state_class")
             if isinstance(state, unreal.AnimNotifyState_TimedNiagaraEffect):
-                template = state
+                trail_fx = state.get_editor_property("template")
+                trail_socket = state.get_editor_property("socket_name")
         anim_lib.remove_animation_notify_events_by_track(montage, track)
-        for s, e in windows:
+        # 칼날 궤적은 구간이 겹치면 하나로 이어 붙임 (리본이 두 번 생기지 않게)
+        spans = [(min(s for s, _ in windows), max(e for _, e in windows))] if track == "Trail" else windows
+        for s, e in spans:
             state = anim_lib.add_animation_notify_state_event(montage, track, s, e - s, cls)
-            if template:
-                state.set_editor_property("template", template.get_editor_property("template"))
-                state.set_editor_property("socket_name", template.get_editor_property("socket_name"))
+            if track == "Trail":
+                state.set_editor_property("template", trail_fx)
+                state.set_editor_property("socket_name", trail_socket)
                 state.set_editor_property("destroy_at_end", False)
     eal.save_loaded_asset(montage, only_if_is_dirty=False)
 

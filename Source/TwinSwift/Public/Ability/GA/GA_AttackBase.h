@@ -5,7 +5,6 @@
 #include "GA_AttackBase.generated.h"
 
 class UAnimMontage;
-class UGameplayEffect;
 class UAbilityTask_PlayMontageAndWait;
 class UAbilityTask_WaitInputPress;
 
@@ -59,9 +58,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Attack")
 	float ComboResetTime = 1.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Attack")
-	TSubclassOf<UGameplayEffect> DamageEffectClass;
-
 private:
 	// CurrentStep의 몽타주 재생 + 다음 입력 대기
 	void PlayCurrentStep();
@@ -84,9 +80,6 @@ private:
 
 	// 이전 타 몽타주가 늦게 보낸 콜백인지 (현재 타 몽타주가 아직 정상 재생 중이면 그렇다)
 	bool IsStaleMontageCallback() const;
-
-	// GetAimPoint() 방향으로 몸을 돌림
-	void FaceAimPoint() const;
 
 	// 지금 재생 중인 타 (ComboSteps 인덱스)
 	int32 CurrentStep = 0;
