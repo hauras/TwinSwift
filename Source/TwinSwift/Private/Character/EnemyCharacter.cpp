@@ -10,12 +10,16 @@
 #include "Ability/SGE_Damage.h"
 #include "Components/CapsuleComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/SMarkIndicatorComponent.h"
 
 AEnemyCharacter::AEnemyCharacter()
 {
 	AbilitySystemComponent = CreateDefaultSubobject<USAbilitySystemComponent>("AbilitySystemComponent");
 
 	AttributeSet = CreateDefaultSubobject<USAttributeSet>("AttributeSet");
+
+	MarkIndicator = CreateDefaultSubobject<USMarkIndicatorComponent>("MarkIndicator");
+	MarkIndicator->SetupAttachment(GetRootComponent());
 }
 
 void AEnemyCharacter::BeginPlay()

@@ -5,11 +5,13 @@
 #include "EnemyCharacter.generated.h"
 
 class USAbilitySystemComponent;
+class USMarkIndicatorComponent;
 
 /**
  * 적. 플레이어와 달리 ASC·AttributeSet을 캐릭터 자신이 가짐 (죽으면 같이 사라져도 됨)
  * 단계 3: 맞으면 체력만 깎이는 허수아비. AI·사망은 이후 단계에서
  * 단계 6: 시험용 주기 공격 (회피·타이밍 교체 시험). 보스 AI가 생기면 끔
+ * 단계 8: 머리 위 표식 아이콘 ([균열]·[빙결])
  */
 UCLASS()
 class TWINSWIFT_API AEnemyCharacter : public ACharacterBase
@@ -25,6 +27,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void InitAbilityActorInfo() override;
+
+	// 머리 위 표식 아이콘. 아이콘 머티리얼은 블루프린트(BP_Dummy 등)에서
+	UPROPERTY(VisibleAnywhere, Category = "Mark")
+	TObjectPtr<USMarkIndicatorComponent> MarkIndicator;
 
 	// [시험용] 켜면 일정 간격으로 주변을 공격: 바닥에 빨간 원 경고 → 안쪽 원이 다 차는 순간 원 안이면 데미지
 	UPROPERTY(EditAnywhere, Category = "Debug Attack")

@@ -165,11 +165,7 @@ for i,key in enumerate(['3','4']):
     text(panel,f'BenchSkill{i+1}Key',key,x,150,60,24,13,BLUE)
 text(panel,'AssistText','교체 어시스트: 냉기 장판 [예정]',734,185,205,28,10,MUTED)
 
-# 숨겨진 이미지 참조로 비활성 캐릭터의 아이콘도 패키징에 포함한다.
-preload=canvas(root,'IconPreload',0,0,1,1)
-preload.set_visibility(u.SlateVisibility.COLLAPSED)
-for name in names:
-    image(preload,'Preload'+name,name,0,0,1,1)
+# 아이콘은 WBP의 SkillMaterials 칸에서 직접 참조 (Tools/setup_hud_icons.py)
 
 u.BlueprintEditorLibrary.compile_blueprint(bp)
 assert eal.save_loaded_asset(bp,only_if_is_dirty=False)

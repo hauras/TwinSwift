@@ -115,7 +115,9 @@ private:
 	void SetHUDText(FName Name, const FString& Value);
 	FString GetInputKeyLabel(FGameplayTag Input, const FString& Fallback) const;
 
-	UPROPERTY(Transient)
+	// 스킬 아이콘 (이름 → 아이콘 머티리얼). WBP_TwinHUD에서 지정
+	// 코드에 경로 문자열로 두면 패키징 때 빠질 수 있어서(문자열은 참조로 안 잡힘) 에셋에서 직접 참조
+	UPROPERTY(EditDefaultsOnly, Category = "HUD")
 	TMap<FName, TObjectPtr<UMaterialInterface>> SkillMaterials;
 
 	FTimerHandle SkillRefreshTimer;

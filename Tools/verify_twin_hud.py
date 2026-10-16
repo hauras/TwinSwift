@@ -10,14 +10,7 @@ for name in expected:
     if isinstance(obj,u.ProgressBar):
         obj.set_visibility(u.SlateVisibility.HIT_TEST_INVISIBLE)
 root=u.find_object(None,tree.get_path_name()+'.CanvasPanel_0')
-if not u.find_object(None,tree.get_path_name()+'.IconPreload'):
-    preload=u.new_object(u.CanvasPanel,outer=tree,name='IconPreload')
-    root.add_child_to_canvas(preload)
-    preload.set_visibility(u.SlateVisibility.COLLAPSED)
-    for name in ['WarriorAttack','DashSlash','GroundSlam','Roll','MagicBolt','FrostBolt','Thunder','Blink']:
-        im=u.new_object(u.Image,outer=tree,name='Preload'+name)
-        im.set_brush_from_material(u.load_asset('/Game/UI/Icons/M_UI_'+name))
-        preload.add_child_to_canvas(im)
+# 아이콘은 WBP의 SkillMaterials 칸에서 직접 참조 (Tools/setup_hud_icons.py)
 def fix_hit_tests(parent):
     if isinstance(parent,u.PanelWidget):
         for child in parent.get_all_children():

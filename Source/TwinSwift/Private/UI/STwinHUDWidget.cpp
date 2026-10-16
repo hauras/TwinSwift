@@ -58,13 +58,6 @@ void USTwinHUDWidget::BindToCharacter(APlayerCharacter* InCharacter)
 	DefeatedHandle = InCharacter->OnDefeated.AddUObject(this, &ThisClass::OnDefeated);
 	PerfectEvadeHandle = InCharacter->OnPerfectEvade.AddUObject(this, &ThisClass::OnPerfectEvade);
 	OnPerfectEvade(false);
-	// UI 전용 아이콘 머티리얼은 한 번 로드하고 GC 참조를 보관한다.
-	for (const TCHAR* Name : { TEXT("WarriorAttack"), TEXT("DashSlash"), TEXT("GroundSlam"), TEXT("Roll"),
-		TEXT("MagicBolt"), TEXT("FrostBolt"), TEXT("Thunder"), TEXT("Blink") })
-	{
-		const FString Path = FString::Printf(TEXT("/Game/UI/Icons/M_UI_%s.M_UI_%s"), Name, Name);
-		SkillMaterials.Add(FName(Name), LoadObject<UMaterialInterface>(nullptr, *Path));
-	}
 	OnActiveSlotChanged(InCharacter->GetActiveSlot());
 	if (GetWorld())
 		GetWorld()->GetTimerManager().SetTimer(SkillRefreshTimer, this, &ThisClass::RefreshSkillHUD, 0.1f, true);
