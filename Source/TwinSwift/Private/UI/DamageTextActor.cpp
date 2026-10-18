@@ -2,6 +2,8 @@
 
 #include "Components/TextRenderComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Materials/MaterialInterface.h"
+#include "UObject/ConstructorHelpers.h"
 
 ADamageTextActor::ADamageTextActor()
 {
@@ -15,11 +17,22 @@ ADamageTextActor::ADamageTextActor()
 	Text->SetWorldSize(60.f);
 	Text->SetTextRenderColor(FColor::White);
 	Text->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 조명과 노출에 색이 씻기지 않도록 글자 색을 그대로 출력
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> NumberMaterial(
+		TEXT("/Game/UI/Materials/M_DamageText_Unlit.M_DamageText_Unlit"));
+	if (NumberMaterial.Succeeded())
+	{
+		Text->SetTextMaterial(NumberMaterial.Object);
+	}
 }
 
-void ADamageTextActor::SetDamage(float Damage)
+void ADamageTextActor::SetDamage(float Damage, bool bShatter)
 {
 	Text->SetText(FText::AsNumber(FMath::RoundToInt(Damage)));
+	// 산산조각은 글자 알림 없이 색과 크기로만 구분
+	Text->SetTextRenderColor(bShatter ? FColor(35, 180, 255) : FColor::White);
+	Text->SetWorldSize(bShatter ? 72.f : 60.f);
 }
 
 void ADamageTextActor::Tick(float DeltaSeconds)

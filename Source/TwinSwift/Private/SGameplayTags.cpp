@@ -52,5 +52,7 @@ namespace SGameplayTags
 
 	// 데미지
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_DamageMultiplier, "SetByCaller.DamageMultiplier", "스킬 데미지 배율 (공격력 × 배율)");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Duration, "SetByCaller.Duration", "지속 시간(초): 공통 쿨다운 GE(USGE_Cooldown)에 능력이 넣음");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Duration, "SetByCaller.Duration", "지속 시간(초): 공통 쿨다운 GE에 능력이 넣음");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Shatter, "Damage.Shatter", "산산조각 추가 피해: [빙결]을 전사가 깸");
+
 }

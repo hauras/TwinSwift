@@ -5,6 +5,8 @@
 #include "SGameplayAbility.generated.h"
 
 class UGameplayEffect;
+class UNiagaraSystem;
+class UAbilitySystemComponent;
 
 /**
  * 모든 능력의 부모
@@ -45,6 +47,22 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Damage")
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 
+	// 맞힌 적에 [빙결]이 있으면 깸 (전사 능력만 켬)
+	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter")
+	bool bShattersFrost = false;
+
+	// 산산조각 추가 피해 배율
+	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter", meta = (ClampMin = "0"))
+	float ShatterMultiplier = 3.f;
+
+	// 산산조각 경직 시간(초)
+	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter", meta = (ClampMin = "0"))
+	float ShatterStunDuration = 0.5f;
+
+	// 산산조각 파편 이펙트 (맞은 자리에 생성)
+	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter")
+	TObjectPtr<UNiagaraSystem> ShatterEffect;
+
 	// 대상 하나에 배율 데미지. 같은 편이거나 ASC가 없으면 무시. 데미지를 줬으면 true
 	bool ApplyDamageTo(AActor* Target, float Multiplier) const;
 
@@ -54,6 +72,13 @@ protected:
 		float Radius,
 		float Multiplier,
 		TArray<AActor*>* OutHitActors = nullptr) const;
+
+	// 대상에 시간 태그를 붙임 (공통 시간 태그 GE에 태그·시간을 넣어 적용). 경직, 표식에 씀
+	// 같은 편 검사는 하지 않음 (부르는 쪽에서 이미 거름)
+	void ApplyTimedTagTo(AActor* Target, const FGameplayTag& Tag, float Duration) const;
+
+	// [빙결]이 있으면 지우고 추가 피해 + 경직 + 파편. ApplyDamageTo가 데미지를 준 뒤 부름
+	void TryShatterFrost(AActor* Target, UAbilitySystemComponent* TargetASC) const;
 
 	// 커서가 가리키는 바닥 위치. 플레이어가 아니면 캐릭터 앞쪽 1m
 	FVector GetAimPoint() const;

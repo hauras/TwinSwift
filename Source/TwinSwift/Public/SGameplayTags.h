@@ -39,9 +39,9 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Montage_CancelWindow);
 
 	// ---------- 표식 (확정 표식, 상대 캐릭터가 터뜨림) ----------
-	// 전사가 걺 → 마법사 낙뢰가 터뜨림
+	// 전사 → 마법사 낙뢰가 터뜨림
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Mark_Crack);
-	// 마법사가 걺 → 전사가 산산조각
+	// 마법사 → 전사가 산산조각
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Mark_Frost);
 
 	// ---------- 상태 ----------
@@ -66,4 +66,6 @@ namespace SGameplayTags
 	// ---------- 데미지 (스킬마다 배율을 GE에 넘김) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_DamageMultiplier);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Duration);
+
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_Shatter);
 }

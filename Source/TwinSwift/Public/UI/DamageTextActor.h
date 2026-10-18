@@ -20,7 +20,7 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	void SetDamage(float Damage);
+	void SetDamage(float Damage, bool bShatter = false);
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Damage Text")

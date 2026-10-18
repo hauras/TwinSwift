@@ -88,6 +88,7 @@ void USAttributeSet::ShowDamageNumber(const FGameplayEffectModCallbackData& Data
 	AActor* TargetAvatar = Data.Target.GetAvatarActor();
 	if (SourceController && TargetAvatar)
 	{
-		SourceController->ShowDamageNumber(Damage, TargetAvatar);
+		const bool bShatter = Data.EffectSpec.GetDynamicAssetTags().HasTagExact(SGameplayTags::Damage_Shatter);
+		SourceController->ShowDamageNumber(Damage, TargetAvatar, bShatter);
 	}
 }

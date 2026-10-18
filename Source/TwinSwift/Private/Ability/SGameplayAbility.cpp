@@ -9,6 +9,7 @@
 #include "Controller/SPlayerController.h"
 #include "Engine/OverlapResult.h"
 #include "GameFramework/Pawn.h"
+#include "NiagaraFunctionLibrary.h"
 
 USGameplayAbility::USGameplayAbility()
 {
@@ -74,6 +75,9 @@ bool USGameplayAbility::ApplyDamageTo(AActor* Target, float Multiplier) const
 
 	Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_DamageMultiplier, Multiplier);
 	SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+
+	// 전사 능력이면 [빙결] 산산조각 (일반 피해 숫자 다음에 추가 피해 숫자)
+	TryShatterFrost(Target, TargetASC);
 	return true;
 }
 
@@ -122,6 +126,72 @@ int32 USGameplayAbility::ApplyDamageInRadius(
 		}
 	}
 	return HitCount;
+}
+
+void USGameplayAbility::ApplyTimedTagTo(AActor* Target, const FGameplayTag& Tag, float Duration) const
+{
+	if (!Target || !Tag.IsValid() || Duration <= 0.f)
+	{
+		return;
+	}
+
+	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	if (!TargetASC || !SourceASC)
+	{
+		return;
+	}
+
+	const FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(USGE_Cooldown::StaticClass(), GetAbilityLevel());
+	if (!Spec.IsValid())
+	{
+		return;
+	}
+
+	Spec.Data->DynamicGrantedTags.AddTag(Tag);
+	Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_Duration, Duration);
+	SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+}
+
+void USGameplayAbility::TryShatterFrost(AActor* Target, UAbilitySystemComponent* TargetASC) const
+{
+	if (!bShattersFrost || !Target || !TargetASC || !TargetASC->HasMatchingGameplayTag(SGameplayTags::Mark_Frost))
+	{
+		return;
+	}
+
+	// [빙결]을 먼저 지움 → 같은 프레임·다음 판정(돌진 베기 0.02초 간격)에서 두 번 터지지 않음
+	TargetASC->RemoveActiveEffectsWithGrantedTags(FGameplayTagContainer(SGameplayTags::Mark_Frost));
+
+	// 추가 피해: 같은 데미지 GE에 산산조각 배율 + Damage.Shatter 표시 (숫자 색 구분용)
+	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
+	const FGameplayEffectSpecHandle Spec = MakeOutgoingGameplayEffectSpec(DamageEffectClass, GetAbilityLevel());
+	if (SourceASC && Spec.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_DamageMultiplier, ShatterMultiplier);
+		Spec.Data->AddDynamicAssetTag(SGameplayTags::Damage_Shatter);
+		SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+	}
+
+	// 경직
+	ApplyTimedTagTo(Target, SGameplayTags::State_Stun, ShatterStunDuration);
+
+	// 파편 이펙트 (맞은 자리)
+	if (ShatterEffect)
+	{
+		// 캡슐 중심에 만들면 몸체에 가려짐: 공격자 쪽 표면으로 빼서 생성
+		FVector EffectLocation = Target->GetActorLocation() + FVector(0.f, 0.f, 30.f);
+		if (const AActor* Avatar = GetAvatarActorFromActorInfo())
+		{
+			EffectLocation += (Avatar->GetActorLocation() - Target->GetActorLocation()).GetSafeNormal2D() * 45.f;
+		}
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			ShatterEffect,
+			EffectLocation,
+			FRotator::ZeroRotator,
+			FVector(1.6f));
+	}
 }
 
 FVector USGameplayAbility::GetAimPoint() const

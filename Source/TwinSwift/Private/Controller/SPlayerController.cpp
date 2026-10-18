@@ -6,6 +6,7 @@
 #include "Ability/SAbilitySystemComponent.h"
 #include "Ability/SAttributeSet.h"
 #include "Camera/SCameraConfig.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Character/PlayerCharacter.h"
 #include "Input/SInputConfig.h"
 #include "SGameplayTags.h"
@@ -253,24 +254,30 @@ bool ASPlayerController::IsMoveInputBlocked() const
 	return SASC->HasAnyMatchingGameplayTags(BlockTags);
 }
 
-void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target)
+void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, bool bShatter)
 {
 	if (!IsValid(Target))
 	{
 		return;
 	}
 
-	// 머리 위, 여러 번 맞아도 숫자가 겹치지 않게 조금씩 흩뿌림
-	const FVector Location = Target->GetActorLocation() + FVector(
-		FMath::RandRange(-30.f, 30.f),
-		FMath::RandRange(-30.f, 30.f),
-		120.f);
+	// 월드 Z만 벌리면 쿼터뷰에서 겹침: 화면의 좌우로 두 숫자를 분리
+	const FRotator ViewRotation = PlayerCameraManager
+		? PlayerCameraManager->GetCameraRotation()
+		: GetControlRotation();
+	const FVector ScreenRight = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Y);
+	const FVector ScreenUp = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Z);
+	const float SideOffset = bShatter ? 90.f : -60.f;
+	const FVector Location = Target->GetActorLocation()
+		+ FVector(0.f, 0.f, 120.f)
+		+ ScreenRight * (SideOffset + FMath::RandRange(-8.f, 8.f))
+		+ ScreenUp * (bShatter ? 30.f : 0.f);
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	if (ADamageTextActor* DamageText = GetWorld()->SpawnActor<ADamageTextActor>(Location, FRotator::ZeroRotator, Params))
 	{
-		DamageText->SetDamage(Damage);
+		DamageText->SetDamage(Damage, bShatter);
 	}
 }
 
