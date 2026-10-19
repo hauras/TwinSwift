@@ -27,12 +27,26 @@ ADamageTextActor::ADamageTextActor()
 	}
 }
 
-void ADamageTextActor::SetDamage(float Damage, bool bShatter)
+void ADamageTextActor::SetDamage(float Damage, EDamageNumberType Type)
 {
 	Text->SetText(FText::AsNumber(FMath::RoundToInt(Damage)));
-	// 산산조각은 글자 알림 없이 색과 크기로만 구분
-	Text->SetTextRenderColor(bShatter ? FColor(35, 180, 255) : FColor::White);
-	Text->SetWorldSize(bShatter ? 72.f : 60.f);
+
+	// 표식 피해는 글자 알림 없이 색과 크기로만 구분 (산산조각 하늘색, 균열 폭발 주황색)
+	switch (Type)
+	{
+	case EDamageNumberType::Shatter:
+		Text->SetTextRenderColor(FColor(35, 180, 255));
+		Text->SetWorldSize(72.f);
+		break;
+	case EDamageNumberType::CrackBurst:
+		Text->SetTextRenderColor(FColor(255, 130, 30));
+		Text->SetWorldSize(68.f);
+		break;
+	default:
+		Text->SetTextRenderColor(FColor::White);
+		Text->SetWorldSize(60.f);
+		break;
+	}
 }
 
 void ADamageTextActor::Tick(float DeltaSeconds)

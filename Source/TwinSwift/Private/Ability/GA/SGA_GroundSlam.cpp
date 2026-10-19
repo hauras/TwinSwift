@@ -1,9 +1,6 @@
 #include "Ability/GA/SGA_GroundSlam.h"
 
-#include "AbilitySystemBlueprintLibrary.h"
-#include "AbilitySystemComponent.h"
 #include "SGameplayTags.h"
-#include "Ability/SGE_Cooldown.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
@@ -156,29 +153,21 @@ void USGA_GroundSlam::OnImpact(FGameplayEventData Payload)
 
 	// 발밑(캡슐 가운데) 기준 반경 타격
 	TArray<AActor*> HitActors;
-	ApplyDamageInRadius(Avatar->GetActorLocation(), Radius, DamageMultiplier, &HitActors);
+	TArray<AActor*> ShatteredActors;
+	ApplyDamageInRadius(
+		Avatar->GetActorLocation(),
+		Radius,
+		DamageMultiplier,
+		&HitActors,
+		&ShatteredActors);
 
-	// 맞은 적에게 균열 표식: 공통 "시간 태그" GE(USGE_Cooldown)에 Mark.Crack과 시간을 넣어 적용
-	// → 표식마다 GE 에셋을 만들지 않음. 시간이 지나면 태그가 저절로 빠짐
-	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-	if (CrackDuration <= 0.f || !SourceASC || HitActors.Num() == 0)
-	{
-		return;
-	}
-
-	const FGameplayEffectSpecHandle CrackSpec = MakeOutgoingGameplayEffectSpec(USGE_Cooldown::StaticClass(), GetAbilityLevel());
-	if (!CrackSpec.IsValid())
-	{
-		return;
-	}
-	CrackSpec.Data->DynamicGrantedTags.AddTag(SGameplayTags::Mark_Crack);
-	CrackSpec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_Duration, CrackDuration);
-
+	// 맞은 적에게 균열 표식 (공통 시간 태그 GE, 시간이 지나면 저절로 빠짐)
+	// 표식을 터뜨린 타격은 새 표식을 남기지 않음 → 이번에 [빙결]을 깬 적은 건너뜀
 	for (AActor* Target : HitActors)
 	{
-		if (UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
+		if (!ShatteredActors.Contains(Target))
 		{
-			SourceASC->ApplyGameplayEffectSpecToTarget(*CrackSpec.Data.Get(), TargetASC);
+			ApplyTimedTagTo(Target, SGameplayTags::Mark_Crack, CrackDuration);
 		}
 	}
 }

@@ -113,6 +113,9 @@ protected:
 	// 슬로 중에 PIE를 끄면 세상 속도가 느린 채로 남지 않게 되돌림
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	// 완벽 회피 슬로 중에는 세상 배율의 역수 (플레이어만 정상 속도)
+	virtual float GetNormalTimeDilation() const override;
+
 	// 교체가 성공한 위치에 한 번 재생. 비우면 해당 방향의 연출을 끌 수 있다.
 	UPROPERTY(EditDefaultsOnly, Category = "Twin|VFX")
 	TSoftObjectPtr<UNiagaraSystem> SwapToMageEffect;

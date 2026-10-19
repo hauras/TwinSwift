@@ -3,6 +3,14 @@
 #include "Ability/SAttributeSet.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
+
+namespace
+{
+	// 히트스톱 중 시간 배율 (0이면 애니메이션 상태가 이상해질 수 있어 거의 0)
+	constexpr float HitStopDilation = 0.05f;
+}
 
 ACharacterBase::ACharacterBase()
 {
@@ -17,4 +25,31 @@ ACharacterBase::ACharacterBase()
 UAbilitySystemComponent* ACharacterBase::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
+}
+
+void ACharacterBase::ApplyHitStop(float Duration)
+{
+	UWorld* World = GetWorld();
+	if (!World || Duration <= 0.f)
+	{
+		return;
+	}
+
+	bInHitStop = true;
+	RefreshTimeDilation();
+
+	// 타이머는 세상 시간으로 흐름 → 세상이 느린 중(완벽 회피 슬로)이어도 실제 시간 Duration에 끝나게 맞춤
+	const float WorldDuration = Duration * UGameplayStatics::GetGlobalTimeDilation(this);
+	World->GetTimerManager().SetTimer(HitStopTimer, this, &ThisClass::EndHitStop, WorldDuration, false);
+}
+
+void ACharacterBase::EndHitStop()
+{
+	bInHitStop = false;
+	RefreshTimeDilation();
+}
+
+void ACharacterBase::RefreshTimeDilation()
+{
+	CustomTimeDilation = bInHitStop ? HitStopDilation : GetNormalTimeDilation();
 }

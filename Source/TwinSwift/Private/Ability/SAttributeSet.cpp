@@ -88,7 +88,17 @@ void USAttributeSet::ShowDamageNumber(const FGameplayEffectModCallbackData& Data
 	AActor* TargetAvatar = Data.Target.GetAvatarActor();
 	if (SourceController && TargetAvatar)
 	{
-		const bool bShatter = Data.EffectSpec.GetDynamicAssetTags().HasTagExact(SGameplayTags::Damage_Shatter);
-		SourceController->ShowDamageNumber(Damage, TargetAvatar, bShatter);
+		// 데미지 스펙에 붙은 Damage.* 태그로 숫자 종류를 정함
+		const FGameplayTagContainer& DamageTags = Data.EffectSpec.GetDynamicAssetTags();
+		EDamageNumberType Type = EDamageNumberType::Normal;
+		if (DamageTags.HasTagExact(SGameplayTags::Damage_Shatter))
+		{
+			Type = EDamageNumberType::Shatter;
+		}
+		else if (DamageTags.HasTagExact(SGameplayTags::Damage_CrackBurst))
+		{
+			Type = EDamageNumberType::CrackBurst;
+		}
+		SourceController->ShowDamageNumber(Damage, TargetAvatar, Type);
 	}
 }

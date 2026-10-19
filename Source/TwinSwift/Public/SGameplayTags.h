@@ -67,5 +67,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_DamageMultiplier);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Duration);
 
+	// ---------- 데미지 종류 (데미지 스펙에 붙여 숫자 색·연출 구분) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_Shatter);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Damage_CrackBurst);
 }

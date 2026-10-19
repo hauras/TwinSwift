@@ -7,7 +7,11 @@
 #include "Ability/SAttributeSet.h"
 #include "Camera/SCameraConfig.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Camera/SCameraShake_Shatter.h"
+#include "Ability/SGE_Cooldown.h"
+#include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
+#include "EngineUtils.h"
 #include "Input/SInputConfig.h"
 #include "SGameplayTags.h"
 #include "State/SPlayerState.h"
@@ -33,6 +37,8 @@ namespace
 
 ASPlayerController::ASPlayerController()
 {
+	// C++ 클래스라 에셋 경로 없이 기본값으로 넣음 (BP에서 다른 흔들림으로 바꿀 수 있음)
+	MarkCameraShake = USCameraShake_Shatter::StaticClass();
 }
 
 void ASPlayerController::BeginPlay()
@@ -254,12 +260,15 @@ bool ASPlayerController::IsMoveInputBlocked() const
 	return SASC->HasAnyMatchingGameplayTags(BlockTags);
 }
 
-void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, bool bShatter)
+void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, EDamageNumberType Type)
 {
 	if (!IsValid(Target))
 	{
 		return;
 	}
+
+	// 표식 피해(산산조각·균열 폭발)는 일반 숫자와 겹치지 않게 오른쪽 위로
+	const bool bMarkDamage = Type != EDamageNumberType::Normal;
 
 	// 월드 Z만 벌리면 쿼터뷰에서 겹침: 화면의 좌우로 두 숫자를 분리
 	const FRotator ViewRotation = PlayerCameraManager
@@ -267,17 +276,24 @@ void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, bool bSh
 		: GetControlRotation();
 	const FVector ScreenRight = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Y);
 	const FVector ScreenUp = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Z);
-	const float SideOffset = bShatter ? 90.f : -60.f;
+	const float SideOffset = bMarkDamage ? 90.f : -60.f;
 	const FVector Location = Target->GetActorLocation()
 		+ FVector(0.f, 0.f, 120.f)
 		+ ScreenRight * (SideOffset + FMath::RandRange(-8.f, 8.f))
-		+ ScreenUp * (bShatter ? 30.f : 0.f);
+		+ ScreenUp * (bMarkDamage ? 30.f : 0.f);
 
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	if (ADamageTextActor* DamageText = GetWorld()->SpawnActor<ADamageTextActor>(Location, FRotator::ZeroRotator, Params))
 	{
-		DamageText->SetDamage(Damage, bShatter);
+		DamageText->SetDamage(Damage, Type);
+	}
+
+	// 표식 피해면 때린 플레이어 화면만 흔듦 (Client RPC라 멀티에서도 그 플레이어 화면에만)
+	// 균열 연쇄는 단계마다 흔들림이 다시 시작됨 (bSingleInstance) → "쾅, 쾅, 쾅"
+	if (bMarkDamage && MarkCameraShake)
+	{
+		ClientStartCameraShake(MarkCameraShake);
 	}
 }
 
@@ -310,6 +326,46 @@ void ASPlayerController::DebugDamage(float Amount)
 	// ApplyModToAttribute는 GE 실행 콜백(PostGameplayEffectExecute)을 거치지 않아 IncomingDamage로는 체력이 안 줄어듦
 	const float Health = ASC->GetNumericAttribute(USAttributeSet::GetHealthAttribute());
 	ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, FMath::Max(0.f, Health - Amount));
+}
+
+void ASPlayerController::DebugMarkAll(const FString& MarkName)
+{
+	FGameplayTag MarkTag;
+	if (MarkName.Equals(TEXT("Crack"), ESearchCase::IgnoreCase))
+	{
+		MarkTag = SGameplayTags::Mark_Crack;
+	}
+	else if (MarkName.Equals(TEXT("Frost"), ESearchCase::IgnoreCase))
+	{
+		MarkTag = SGameplayTags::Mark_Frost;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("DebugMarkAll: Crack 또는 Frost"));
+		return;
+	}
+
+	// 실제 스킬과 같은 방식: 공통 시간 태그 GE에 표식 태그와 시간을 넣어 적에게 스스로 적용
+	constexpr float DebugMarkDuration = 10.f;
+	int32 MarkedCount = 0;
+	for (TActorIterator<AEnemyCharacter> It(GetWorld()); It; ++It)
+	{
+		UAbilitySystemComponent* EnemyASC = It->GetAbilitySystemComponent();
+		if (!EnemyASC)
+		{
+			continue;
+		}
+		const FGameplayEffectSpecHandle Spec = EnemyASC->MakeOutgoingSpec(USGE_Cooldown::StaticClass(), 1.f, EnemyASC->MakeEffectContext());
+		if (!Spec.IsValid())
+		{
+			continue;
+		}
+		Spec.Data->DynamicGrantedTags.AddTag(MarkTag);
+		Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_Duration, DebugMarkDuration);
+		EnemyASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		++MarkedCount;
+	}
+	UE_LOG(LogTemp, Log, TEXT("DebugMarkAll: 적 %d명에게 %s %.0f초"), MarkedCount, *MarkTag.ToString(), DebugMarkDuration);
 }
 
 void ASPlayerController::ApplyCurrentCameraConfig()

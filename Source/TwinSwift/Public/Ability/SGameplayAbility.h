@@ -59,26 +59,41 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter", meta = (ClampMin = "0"))
 	float ShatterStunDuration = 0.5f;
 
+	// 산산조각 히트스톱 시간(실제 초). 때린 캐릭터와 맞은 적만 잠깐 멈춤. 0이면 안 멈춤
+	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter", meta = (ClampMin = "0"))
+	float ShatterHitStopDuration = 0.06f;
+
 	// 산산조각 파편 이펙트 (맞은 자리에 생성)
 	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter")
 	TObjectPtr<UNiagaraSystem> ShatterEffect;
 
 	// 대상 하나에 배율 데미지. 같은 편이거나 ASC가 없으면 무시. 데미지를 줬으면 true
-	bool ApplyDamageTo(AActor* Target, float Multiplier) const;
+	// bOutShattered: 이 타격으로 [빙결]을 깼는지 (표식을 터뜨린 타격은 새 표식을 남기지 않게 할 때 씀)
+	// DamageTypeTag: 데미지 스펙에 붙일 종류 태그 (Damage.CrackBurst 등 → 숫자 색). 비우면 일반 피해
+	bool ApplyDamageTo(
+		AActor* Target,
+		float Multiplier,
+		bool* bOutShattered = nullptr,
+		const FGameplayTag& DamageTypeTag = FGameplayTag()) const;
 
-	// 원(Center, Radius) 안의 적 모두에게 배율 데미지. 맞은 적 수를 돌려줌 (맞은 적은 OutHitActors에)
+	// 원(Center, Radius) 안의 적 모두에게 배율 데미지. 맞은 적 수를 돌려줌
+	// 맞은 적은 OutHitActors에, 그중 [빙결]을 깬 적은 OutShatteredActors에도
 	int32 ApplyDamageInRadius(
 		const FVector& Center,
 		float Radius,
 		float Multiplier,
-		TArray<AActor*>* OutHitActors = nullptr) const;
+		TArray<AActor*>* OutHitActors = nullptr,
+		TArray<AActor*>* OutShatteredActors = nullptr) const;
+
+	// 원(Center, Radius) 안의 적 찾기 (같은 편·ASC 없는 것 제외, 한 액터는 한 번). 피해는 주지 않음
+	void FindEnemiesInRadius(const FVector& Center, float Radius, TArray<AActor*>& OutEnemies) const;
 
 	// 대상에 시간 태그를 붙임 (공통 시간 태그 GE에 태그·시간을 넣어 적용). 경직, 표식에 씀
 	// 같은 편 검사는 하지 않음 (부르는 쪽에서 이미 거름)
 	void ApplyTimedTagTo(AActor* Target, const FGameplayTag& Tag, float Duration) const;
 
-	// [빙결]이 있으면 지우고 추가 피해 + 경직 + 파편. ApplyDamageTo가 데미지를 준 뒤 부름
-	void TryShatterFrost(AActor* Target, UAbilitySystemComponent* TargetASC) const;
+	// [빙결]이 있으면 지우고 추가 피해 + 경직 + 파편. ApplyDamageTo가 데미지를 준 뒤 부름. 깼으면 true
+	bool TryShatterFrost(AActor* Target, UAbilitySystemComponent* TargetASC) const;
 
 	// 커서가 가리키는 바닥 위치. 플레이어가 아니면 캐릭터 앞쪽 1m
 	FVector GetAimPoint() const;

@@ -270,7 +270,7 @@ void APlayerCharacter::TriggerPerfectEvade()
 	// 세상만 느리게, 플레이어는 정상 속도 (배율의 역수로 상쇄)
 	bPerfectSlow = true;
 	UGameplayStatics::SetGlobalTimeDilation(this, PerfectSlowDilation);
-	CustomTimeDilation = 1.f / PerfectSlowDilation;
+	RefreshTimeDilation();
 
 	// 타이머도 느려진 세상 시간으로 흐르므로, 실제 시간 PerfectSlowDuration에 맞춰 줄여서 걸어 둠
 	GetWorldTimerManager().SetTimer(PerfectSlowTimer, this, &ThisClass::EndPerfectSlow, PerfectSlowDuration * PerfectSlowDilation, false);
@@ -287,9 +287,14 @@ void APlayerCharacter::EndPerfectSlow()
 	}
 	bPerfectSlow = false;
 	UGameplayStatics::SetGlobalTimeDilation(this, 1.f);
-	CustomTimeDilation = 1.f;
+	RefreshTimeDilation();
 
 	OnPerfectEvade.Broadcast(false);
+}
+
+float APlayerCharacter::GetNormalTimeDilation() const
+{
+	return bPerfectSlow ? 1.f / PerfectSlowDilation : 1.f;
 }
 
 void APlayerCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)

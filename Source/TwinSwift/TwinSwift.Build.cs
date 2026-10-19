@@ -30,7 +30,9 @@ public class TwinSwift : ModuleRules
 			"Slate",
 			"SlateCore",
 			"Niagara",
-			"MotionWarping"
+			"MotionWarping",
+			// 화면 흔들림 모양 (UWaveOscillatorCameraShakePattern)
+			"EngineCameras"
 		});
 		if (Target.bBuildEditor)
 		{

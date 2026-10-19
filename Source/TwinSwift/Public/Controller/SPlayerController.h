@@ -3,8 +3,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
+#include "UI/DamageTextActor.h"
 #include "SPlayerController.generated.h"
 
+class UCameraShakeBase;
 class UInputAction;
 class UInputMappingContext;
 class USCameraConfig;
@@ -34,7 +36,7 @@ public:
 	void CycleCameraConfig();
 
 	// 내가 때린 데미지 숫자를 대상 머리 위에 띄움
-	void ShowDamageNumber(float Damage, AActor* Target, bool bShatter = false);
+	void ShowDamageNumber(float Damage, AActor* Target, EDamageNumberType Type = EDamageNumberType::Normal);
 
 	// [디버그] 겨냥 위치를 구로 표시 (콘솔: ShowAim)
 	UFUNCTION(Exec)
@@ -43,6 +45,10 @@ public:
 	// [디버그] 지금 나와 있는 캐릭터에게 데미지 (콘솔: DebugDamage 50). 적이 아직 플레이어를 때리지 않아서 교체 규칙 시험용
 	UFUNCTION(Exec)
 	void DebugDamage(float Amount);
+
+	// [디버그] 맵의 모든 적에게 표식 10초 (콘솔: DebugMarkAll Crack / DebugMarkAll Frost). 연쇄 폭발·산산조각 시험용
+	UFUNCTION(Exec)
+	void DebugMarkAll(const FString& MarkName);
 
 protected:
 	virtual void BeginPlay() override;
@@ -80,6 +86,10 @@ protected:
 	// 전투 HUD 위젯 블루프린트 (WBP_TwinHUD, 부모 USTwinHUDWidget)
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<USTwinHUDWidget> HUDWidgetClass;
+
+	// 표식 피해(산산조각·균열 폭발) 때 화면 흔들림 (기본 USCameraShake_Shatter). 비우면 흔들지 않음
+	UPROPERTY(EditDefaultsOnly, Category = "Feedback")
+	TSubclassOf<UCameraShakeBase> MarkCameraShake;
 
 private:
 	void Move_Input(const FInputActionValue& InputValue);
