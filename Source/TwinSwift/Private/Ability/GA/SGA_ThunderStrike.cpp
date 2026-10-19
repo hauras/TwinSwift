@@ -4,6 +4,7 @@
 #include "AbilitySystemComponent.h"
 #include "DrawDebugHelpers.h"
 #include "SGameplayTags.h"
+#include "Ability/SAbilityFunctionLibrary.h"
 #include "Engine/World.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
@@ -35,7 +36,7 @@ void USGA_ThunderStrike::Strike()
 	UWorld* World = GetWorld();
 	if (World && StrikeEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, StrikeEffect, StrikeLocation);
+		USAbilityFunctionLibrary::SpawnOneShotEffect(World, StrikeEffect, StrikeLocation);
 	}
 
 	// 원 안의 적 모두에게 배율 데미지 (같은 편은 알아서 거름)
@@ -144,7 +145,7 @@ bool USGA_ThunderStrike::ExplodeOne(
 	UWorld* World = GetWorld();
 	if (World && BurstEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, BurstEffect, Center);
+		USAbilityFunctionLibrary::SpawnOneShotEffect(World, BurstEffect, Center);
 	}
 	else if (World)
 	{
@@ -217,7 +218,7 @@ void USGA_ThunderStrike::OnCast(const FVector& Origin, const FVector& Direction)
 	// 경고 원: 이펙트가 있으면 이펙트, 없으면 바닥에 디버그 원 (StrikeDelay 동안 보임)
 	if (WarningEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, WarningEffect, StrikeLocation);
+		USAbilityFunctionLibrary::SpawnOneShotEffect(World, WarningEffect, StrikeLocation);
 	}
 	else
 	{

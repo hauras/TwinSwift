@@ -1,6 +1,7 @@
 #include "Ability/GA/SGA_CrystalTorrent.h"
 
 #include "SGameplayTags.h"
+#include "Ability/SAbilityFunctionLibrary.h"
 #include "Engine/World.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
@@ -75,7 +76,7 @@ void USGA_CrystalTorrent::OnCast(const FVector& Origin, const FVector& Direction
 
 	if (TorrentEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetAvatarActorFromActorInfo(), TorrentEffect, Origin, Direction.Rotation());
+		USAbilityFunctionLibrary::SpawnOneShotEffect(GetAvatarActorFromActorInfo(), TorrentEffect, Origin, Direction.Rotation());
 	}
 
 	World->GetTimerManager().SetTimer(TickTimer, this, &ThisClass::TickTorrent, TickInterval, true);

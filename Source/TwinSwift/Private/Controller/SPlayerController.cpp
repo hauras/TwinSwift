@@ -9,6 +9,17 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Camera/SCameraShake_Shatter.h"
 #include "Ability/SGE_Cooldown.h"
+#include "Ability/SGE_Damage.h"
+#include "Projectile/SProjectile.h"
+#include "Pool/SActorPool.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/App.h"
+#include "Misc/CommandLine.h"
+#include "Misc/CoreDelegates.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectArray.h"
+#include <atomic>
 #include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
 #include "EngineUtils.h"
@@ -20,6 +31,25 @@
 
 namespace
 {
+	// [측정] 측정 동안 새로 만들어진 UObject 수 (액터, 컴포넌트, 이펙트 등). 풀의 효과 = 버리는 객체가 줄어듦
+	// 비동기 로딩 스레드에서도 불릴 수 있어서 원자 변수
+	class FBenchObjectCreateCounter : public FUObjectArray::FUObjectCreateListener
+	{
+	public:
+		std::atomic<int32> Count{ 0 };
+
+		virtual void NotifyUObjectCreated(const UObjectBase* Object, int32 Index) override
+		{
+			Count.fetch_add(1, std::memory_order_relaxed);
+		}
+
+		virtual void OnUObjectArrayShutdown() override
+		{
+			GUObjectArray.RemoveUObjectCreateListener(this);
+		}
+	};
+	FBenchObjectCreateCounter BenchObjectCounter;
+
 	// 입력을 받을 캐릭터: 캐릭터 전용 스킬 키면 그 캐릭터, 아니면(공격·회피) 지금 캐릭터
 	ETwinSlot GetSlotForInput(const FGameplayTag& InputTag, ETwinSlot ActiveSlot)
 	{
@@ -48,6 +78,25 @@ void ASPlayerController::BeginPlay()
 	if (!IsLocalController())
 	{
 		return;
+	}
+
+	// [측정] 실행 인자 -Bench=60,20 이면 로딩이 가라앉도록 3초 뒤 자동으로 BenchProjectiles 60 20
+	FString BenchArgs;
+	// 쉼표에서 끊지 않게 (기본은 쉼표를 구분자로 봄)
+	if (FParse::Value(FCommandLine::Get(), TEXT("Bench="), BenchArgs, false))
+	{
+		FString PerSecondText;
+		FString SecondsText;
+		if (BenchArgs.Split(TEXT(","), &PerSecondText, &SecondsText))
+		{
+			const float PerSecond = FCString::Atof(*PerSecondText);
+			const float Seconds = FCString::Atof(*SecondsText);
+			FTimerHandle WarmupTimer;
+			GetWorldTimerManager().SetTimer(WarmupTimer, FTimerDelegate::CreateWeakLambda(this, [this, PerSecond, Seconds]()
+			{
+				BenchProjectiles(PerSecond, Seconds);
+			}), 3.f, false);
+		}
 	}
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
@@ -282,9 +331,12 @@ void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, EDamageN
 		+ ScreenRight * (SideOffset + FMath::RandRange(-8.f, 8.f))
 		+ ScreenUp * (bMarkDamage ? 30.f : 0.f);
 
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	if (ADamageTextActor* DamageText = GetWorld()->SpawnActor<ADamageTextActor>(Location, FRotator::ZeroRotator, Params))
+	// 맞을 때마다 생겨서 풀에서 꺼내 씀 (1초 뒤 스스로 반납)
+	USActorPool* Pool = GetWorld()->GetSubsystem<USActorPool>();
+	ADamageTextActor* DamageText = Pool ? Pool->Acquire<ADamageTextActor>(
+		ADamageTextActor::StaticClass(),
+		FTransform(Location)) : nullptr;
+	if (DamageText)
 	{
 		DamageText->SetDamage(Damage, Type);
 	}
@@ -366,6 +418,169 @@ void ASPlayerController::DebugMarkAll(const FString& MarkName)
 		++MarkedCount;
 	}
 	UE_LOG(LogTemp, Log, TEXT("DebugMarkAll: 적 %d명에게 %s %.0f초"), MarkedCount, *MarkTag.ToString(), DebugMarkDuration);
+}
+
+void ASPlayerController::BenchProjectiles(float PerSecond, float Seconds)
+{
+	const APawn* ControlledPawn = GetPawn();
+	if (!BenchProjectileClass || !ControlledPawn || PerSecond <= 0.f || Seconds <= 0.f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[벤치] BenchProjectiles 초당발수 초 (예: 60 20). BP_PlayerController의 BenchProjectileClass 확인"));
+		return;
+	}
+
+	// 같은 조건으로 다시 잴 수 있게: 방향은 가장 가까운 적 쪽으로 고정 (커서는 실행마다 달라서), 퍼짐은 고정 시드
+	BenchDirection = ControlledPawn->GetActorForwardVector();
+	float NearestDistSq = TNumericLimits<float>::Max();
+	for (TActorIterator<AEnemyCharacter> It(GetWorld()); It; ++It)
+	{
+		const float DistSq = FVector::DistSquared(It->GetActorLocation(), ControlledPawn->GetActorLocation());
+		if (DistSq < NearestDistSq)
+		{
+			NearestDistSq = DistSq;
+			BenchDirection = (It->GetActorLocation() - ControlledPawn->GetActorLocation()).GetSafeNormal2D();
+		}
+	}
+	BenchRandom.Initialize(42);
+
+	// 실행 인자 -BenchNoPool: 모든 풀(액터 풀 + 나이아가라 이펙트 풀)을 끄고 잼 → 같은 빌드에서 풀 전후 비교
+	if (FParse::Param(FCommandLine::Get(), TEXT("BenchNoPool")))
+	{
+		if (IConsoleVariable* PoolEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("ts.Pool.Enabled")))
+		{
+			PoolEnabled->Set(0, ECVF_SetByConsole);
+		}
+	}
+	UE_LOG(LogTemp, Log, TEXT("[벤치] 풀: %s"), USActorPool::IsPoolingEnabled() ? TEXT("켬") : TEXT("끔"));
+
+	// GC 간격을 10초로 고정 (기본 61초면 20초 측정 안에 GC가 안 일어날 수 있음). 풀 전후 같은 조건
+	if (IConsoleVariable* GCInterval = IConsoleManager::Get().FindConsoleVariable(TEXT("gc.TimeBetweenPurgingPendingKillObjects")))
+	{
+		GCInterval->Set(10.f, ECVF_SetByConsole);
+	}
+
+	BenchRemaining = FMath::RoundToInt(PerSecond * Seconds);
+	BenchFired = 0;
+	BenchSpawnSeconds = 0.0;
+	BenchMaxSpawnSeconds = 0.0;
+	BenchFrameTimes.Reset();
+	BenchFrameTimes.Reserve(FMath::CeilToInt(Seconds * 200.f));
+	BenchGCCount = 0;
+	BenchGCSeconds = 0.0;
+	BenchGCMaxSeconds = 0.0;
+
+	// 새로 만들어진 UObject 수 세기 시작
+	BenchObjectCounter.Count = 0;
+	GUObjectArray.AddUObjectCreateListener(&BenchObjectCounter);
+
+	// 프레임 시간과 GC 시간을 측정하는 동안만 기록
+	BenchFrameHandle = FCoreDelegates::OnEndFrame.AddWeakLambda(this, [this]()
+	{
+		BenchFrameTimes.Add(FApp::GetDeltaTime());
+	});
+	BenchPreGCHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddWeakLambda(this, [this]()
+	{
+		BenchGCStart = FPlatformTime::Seconds();
+	});
+	BenchPostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddWeakLambda(this, [this]()
+	{
+		const double Elapsed = FPlatformTime::Seconds() - BenchGCStart;
+		++BenchGCCount;
+		BenchGCSeconds += Elapsed;
+		BenchGCMaxSeconds = FMath::Max(BenchGCMaxSeconds, Elapsed);
+	});
+
+	UE_LOG(LogTemp, Log, TEXT("[벤치] 시작: 초당 %.0f발 × %.0f초 = %d발"), PerSecond, Seconds, BenchRemaining);
+	GetWorldTimerManager().SetTimer(BenchTimer, this, &ThisClass::BenchFireOne, 1.f / PerSecond, true);
+}
+
+void ASPlayerController::FinishBench()
+{
+	GetWorldTimerManager().ClearTimer(BenchTimer);
+	FCoreDelegates::OnEndFrame.Remove(BenchFrameHandle);
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(BenchPreGCHandle);
+	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(BenchPostGCHandle);
+	GUObjectArray.RemoveUObjectCreateListener(&BenchObjectCounter);
+
+	// 프레임 시간: 평균, 최대, 상위 1% (느린 쪽 1%의 경계 = 끊김 정도)
+	TArray<float> Sorted = BenchFrameTimes;
+	Sorted.Sort();
+	double FrameSum = 0.0;
+	for (const float FrameTime : Sorted)
+	{
+		FrameSum += FrameTime;
+	}
+	const int32 FrameCount = Sorted.Num();
+	const double FrameAverageMs = FrameCount > 0 ? FrameSum / FrameCount * 1e3 : 0.0;
+	const double FrameMaxMs = FrameCount > 0 ? Sorted.Last() * 1e3 : 0.0;
+	const double FrameP99Ms = FrameCount > 0 ? Sorted[FMath::Min(FrameCount - 1, FMath::FloorToInt(FrameCount * 0.99f))] * 1e3 : 0.0;
+
+	const double SpawnAverageMicros = BenchFired > 0 ? BenchSpawnSeconds / BenchFired * 1e6 : 0.0;
+	UE_LOG(LogTemp, Log, TEXT("[벤치] 끝: %d발, 생성 평균 %.1f us, 최대 %.1f us, 합계 %.2f ms"),
+		BenchFired,
+		SpawnAverageMicros,
+		BenchMaxSpawnSeconds * 1e6,
+		BenchSpawnSeconds * 1e3);
+	UE_LOG(LogTemp, Log, TEXT("[벤치] 프레임: %d개, 평균 %.2f ms, 상위1%% %.2f ms, 최대 %.2f ms"),
+		FrameCount,
+		FrameAverageMs,
+		FrameP99Ms,
+		FrameMaxMs);
+	UE_LOG(LogTemp, Log, TEXT("[벤치] GC: %d번, 합계 %.2f ms, 최대 %.2f ms"),
+		BenchGCCount,
+		BenchGCSeconds * 1e3,
+		BenchGCMaxSeconds * 1e3);
+	UE_LOG(LogTemp, Log, TEXT("[벤치] 새 UObject: %d개 (1발당 %.1f개)"),
+		BenchObjectCounter.Count.load(),
+		BenchFired > 0 ? static_cast<double>(BenchObjectCounter.Count.load()) / BenchFired : 0.0);
+
+	// 자동 측정 (실행 인자 -BenchQuit): 결과를 남기고 종료
+	if (FParse::Param(FCommandLine::Get(), TEXT("BenchQuit")))
+	{
+		ConsoleCommand(TEXT("quit"));
+	}
+}
+
+void ASPlayerController::BenchFireOne()
+{
+	const APawn* ControlledPawn = GetPawn();
+	UAbilitySystemComponent* ASC = GetSAbilitySystemComponent();
+	if (BenchRemaining <= 0 || !ControlledPawn || !ASC)
+	{
+		FinishBench();
+		return;
+	}
+	--BenchRemaining;
+
+	// 실제 화염탄과 같은 내용: 데미지 스펙을 들고 날아감 (맞으면 데미지 숫자도 생김)
+	const FGameplayEffectSpecHandle Spec = ASC->MakeOutgoingSpec(USGE_Damage::StaticClass(), 1.f, ASC->MakeEffectContext());
+	if (Spec.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_DamageMultiplier, 1.f);
+	}
+	const FVector Direction = BenchDirection.RotateAngleAxis(BenchRandom.FRandRange(-20.f, 20.f), FVector::UpVector);
+	const FTransform SpawnTransform(Direction.Rotation(), ControlledPawn->GetActorLocation() + FVector(0.f, 0.f, 40.f));
+
+	// 잴 구간: 꺼내기 → 초기화 → 발사. 풀이 꺼져 있으면(-BenchNoPool) 꺼내기가 매번 새로 생성 (같은 코드 경로)
+	const double Start = FPlatformTime::Seconds();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BenchProjectileSpawn);
+		USActorPool* Pool = GetWorld()->GetSubsystem<USActorPool>();
+		ASProjectile* Projectile = Pool ? Pool->Acquire<ASProjectile>(
+			BenchProjectileClass,
+			SpawnTransform,
+			GetPawn(),
+			GetPawn()) : nullptr;
+		if (Projectile)
+		{
+			Projectile->InitializeProjectile(ASC, { Spec });
+			Projectile->Launch();
+		}
+	}
+	const double Elapsed = FPlatformTime::Seconds() - Start;
+	BenchSpawnSeconds += Elapsed;
+	BenchMaxSpawnSeconds = FMath::Max(BenchMaxSpawnSeconds, Elapsed);
+	++BenchFired;
 }
 
 void ASPlayerController::ApplyCurrentCameraConfig()

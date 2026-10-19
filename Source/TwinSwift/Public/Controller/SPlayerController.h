@@ -6,6 +6,7 @@
 #include "UI/DamageTextActor.h"
 #include "SPlayerController.generated.h"
 
+class ASProjectile;
 class UCameraShakeBase;
 class UInputAction;
 class UInputMappingContext;
@@ -50,6 +51,12 @@ public:
 	UFUNCTION(Exec)
 	void DebugMarkAll(const FString& MarkName);
 
+	// [측정] 투사체를 초당 PerSecond발씩 Seconds초 동안 자동 발사 (콘솔: BenchProjectiles 60 20)
+	// 오브젝트 풀 전후 비교용: 매번 같은 개수·같은 방향(가장 가까운 적 쪽, 고정 시드). 끝나면 생성 시간·프레임·GC를 로그로
+	// 단독 실행 인자 -Bench=60,20 이면 시작 3초 뒤 자동, -BenchQuit이면 끝나고 종료
+	UFUNCTION(Exec)
+	void BenchProjectiles(float PerSecond, float Seconds);
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -91,7 +98,44 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Feedback")
 	TSubclassOf<UCameraShakeBase> MarkCameraShake;
 
+	// [측정] BenchProjectiles가 쏠 투사체 (화염탄 BP)
+	UPROPERTY(EditDefaultsOnly, Category = "Debug")
+	TSubclassOf<ASProjectile> BenchProjectileClass;
+
 private:
+	// [측정] 한 발 생성 + 시간 기록. 다 쏘면 결과 로그
+	void BenchFireOne();
+
+	FTimerHandle BenchTimer;
+
+	// 남은 발 수, 쏜 발 수
+	int32 BenchRemaining = 0;
+	int32 BenchFired = 0;
+
+	// 생성에 걸린 시간 합계·최대 (초)
+	double BenchSpawnSeconds = 0.0;
+	double BenchMaxSpawnSeconds = 0.0;
+
+	// 측정 시작 시 고정한 발사 방향 (가장 가까운 적 쪽)과 퍼짐용 고정 시드 난수
+	FVector BenchDirection = FVector::ForwardVector;
+	FRandomStream BenchRandom;
+
+	// 측정 중 프레임 시간(초) 기록 → 평균·최대·상위 1%
+	TArray<float> BenchFrameTimes;
+
+	// 측정 중 GC 횟수와 걸린 시간 합계·최대 (초)
+	int32 BenchGCCount = 0;
+	double BenchGCSeconds = 0.0;
+	double BenchGCMaxSeconds = 0.0;
+	double BenchGCStart = 0.0;
+
+	FDelegateHandle BenchFrameHandle;
+	FDelegateHandle BenchPreGCHandle;
+	FDelegateHandle BenchPostGCHandle;
+
+	// 측정 끝: 알림 해제, 결과 로그, -BenchQuit이면 게임 종료
+	void FinishBench();
+
 	void Move_Input(const FInputActionValue& InputValue);
 	void Look_Input(const FInputActionValue& InputValue);
 	void WalkStarted_Input();

@@ -232,7 +232,7 @@ bool USGameplayAbility::TryShatterFrost(AActor* Target, UAbilitySystemComponent*
 		{
 			EffectLocation += (Avatar->GetActorLocation() - Target->GetActorLocation()).GetSafeNormal2D() * 45.f;
 		}
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+		USAbilityFunctionLibrary::SpawnOneShotEffect(
 			GetWorld(),
 			ShatterEffect,
 			EffectLocation,

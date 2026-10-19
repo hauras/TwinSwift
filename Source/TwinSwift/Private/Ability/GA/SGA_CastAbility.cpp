@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "SGameplayTags.h"
+#include "Ability/SAbilityFunctionLibrary.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
@@ -164,7 +165,7 @@ void USGA_CastAbility::OnCastEvent(FGameplayEventData Payload)
 
 	if (LaunchEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetAvatarActorFromActorInfo(), LaunchEffect, Origin, Direction.Rotation());
+		USAbilityFunctionLibrary::SpawnOneShotEffect(GetAvatarActorFromActorInfo(), LaunchEffect, Origin, Direction.Rotation());
 	}
 
 	OnCast(Origin, Direction);

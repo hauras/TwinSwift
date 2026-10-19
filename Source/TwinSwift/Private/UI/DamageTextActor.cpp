@@ -3,12 +3,13 @@
 #include "Components/TextRenderComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInterface.h"
+#include "Pool/SActorPool.h"
 #include "UObject/ConstructorHelpers.h"
 
 ADamageTextActor::ADamageTextActor()
 {
+	// 수명은 Tick에서 직접 셈 (InitialLifeSpan으로 지우면 풀에 반납할 수 없음)
 	PrimaryActorTick.bCanEverTick = true;
-	InitialLifeSpan = 1.f;
 
 	Text = CreateDefaultSubobject<UTextRenderComponent>("Text");
 	SetRootComponent(Text);
@@ -49,9 +50,37 @@ void ADamageTextActor::SetDamage(float Damage, EDamageNumberType Type)
 	}
 }
 
+void ADamageTextActor::OnAcquiredFromPool()
+{
+	Age = 0.f;
+	SetActorHiddenInGame(false);
+	SetActorTickEnabled(true);
+}
+
+void ADamageTextActor::OnReleasedToPool()
+{
+	SetActorHiddenInGame(true);
+	SetActorTickEnabled(false);
+}
+
 void ADamageTextActor::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// 다 떴으면 반납 (풀이 꺼져 있으면 풀이 지움)
+	Age += DeltaSeconds;
+	if (Age >= LifeTime)
+	{
+		if (USActorPool* Pool = GetWorld()->GetSubsystem<USActorPool>())
+		{
+			Pool->Release(this);
+		}
+		else
+		{
+			Destroy();
+		}
+		return;
+	}
 
 	AddActorWorldOffset(FVector(0.f, 0.f, RiseSpeed * DeltaSeconds));
 

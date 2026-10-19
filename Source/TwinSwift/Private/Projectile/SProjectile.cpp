@@ -8,6 +8,7 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Pool/SActorPool.h"
 #include "TimerManager.h"
 
 namespace
@@ -40,6 +41,8 @@ ASProjectile::ASProjectile()
 	Movement->bRotationFollowsVelocity = true;
 	// 빠르게 날아도 얇은 적을 건너뛰지 않게 프레임을 쪼개서 이동
 	Movement->bForceSubStepping = true;
+	// 생성되자마자 날아가지 않음: Launch에서 켬 (풀에서 꺼낸 투사체를 다시 쏠 때도 같은 길)
+	Movement->bAutoActivate = false;
 
 	FlightEffect = CreateDefaultSubobject<UNiagaraComponent>("FlightEffect");
 	FlightEffect->SetupAttachment(Collision);
@@ -70,17 +73,116 @@ void ASProjectile::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SetLifeSpan(MaxLifeTime);
-
-	// 쏜 캐릭터 몸에서 바로 터지지 않게
-	Collision->IgnoreActorWhenMoving(GetOwner(), true);
+	// 이벤트 연결은 처음 한 번만 (풀에서 다시 써도 그대로)
 	Collision->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnOverlap);
 	Collision->OnComponentHit.AddDynamic(this, &ThisClass::OnBlocked);
 
+	// 풀 없이 직접 만든 투사체는 예전처럼 바로 발사
+	if (!bManagedByPool)
+	{
+		Launch();
+	}
+}
+
+void ASProjectile::Launch()
+{
+	bLaunched = true;
+	bResolved = false;
+	SetActorHiddenInGame(false);
+
+	// 명중 때 숨긴 구체 메시(블루프린트에 붙은 것)를 다시 보이게
+	TArray<UStaticMeshComponent*> VisualMeshes;
+	GetComponents<UStaticMeshComponent>(VisualMeshes);
+	for (UStaticMeshComponent* VisualMesh : VisualMeshes)
+	{
+		VisualMesh->SetHiddenInGame(false);
+	}
+
+	// 쏜 캐릭터 몸에서 바로 터지지 않게
+	Collision->IgnoreActorWhenMoving(GetOwner(), true);
+	Collision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+	// 앞 방향(발사 회전)으로 초기 속도
+	Movement->SetUpdatedComponent(Collision);
+	Movement->Velocity = GetActorForwardVector() * Movement->InitialSpeed;
+	Movement->Activate(true);
+
+	FlightEffect->Activate(true);
 	if (FlightEffectRepeatInterval > 0.f && FlightEffect->GetAsset())
 	{
 		GetWorldTimerManager().SetTimer(FlightRepeatTimer, this, &ThisClass::SpawnFlightEffectCopy, FlightEffectRepeatInterval, true);
 	}
+
+	// 아무것도 안 맞으면 MaxLifeTime 뒤 끝
+	GetWorldTimerManager().SetTimer(LifeTimer, this, &ThisClass::ReturnToPool, MaxLifeTime, false);
+}
+
+void ASProjectile::ResetForPool()
+{
+	bLaunched = false;
+	bResolved = false;
+
+	FTimerManager& Timers = GetWorldTimerManager();
+	Timers.ClearTimer(LifeTimer);
+	Timers.ClearTimer(FadeTimer);
+	Timers.ClearTimer(FlightRepeatTimer);
+
+	SetActorHiddenInGame(true);
+	Collision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Collision->ClearMoveIgnoreActors();
+
+	Movement->StopMovementImmediately();
+	Movement->Deactivate();
+	Movement->bIsHomingProjectile = false;
+	Movement->HomingTargetComponent = nullptr;
+
+	// 비행 이펙트는 바로 끄고, 반복으로 붙였던 복사본은 지움 (다음 발에 남지 않게)
+	FlightEffect->DeactivateImmediate();
+	TArray<UNiagaraComponent*> Effects;
+	GetComponents<UNiagaraComponent>(Effects);
+	for (UNiagaraComponent* Effect : Effects)
+	{
+		if (Effect != FlightEffect)
+		{
+			Effect->DestroyComponent();
+		}
+	}
+
+	// 지난 발의 상태 비우기: 하나라도 남으면 다음 발이 물려받음
+	SourceASC.Reset();
+	Specs.Reset();
+	PiercedActors.Reset();
+	HomingTarget.Reset();
+}
+
+void ASProjectile::OnCreatedByPool()
+{
+	// BeginPlay가 바로 Launch하지 않게 (쏘는 쪽이 스펙을 넣은 뒤 Launch)
+	bManagedByPool = true;
+}
+
+void ASProjectile::OnReleasedToPool()
+{
+	ResetForPool();
+}
+
+void ASProjectile::ReturnToPool()
+{
+	// 명중과 수명 끝이 겹쳐도 한 번만
+	if (!bLaunched)
+	{
+		return;
+	}
+
+	if (bManagedByPool)
+	{
+		if (USActorPool* Pool = GetWorld()->GetSubsystem<USActorPool>())
+		{
+			Pool->Release(this);
+			return;
+		}
+	}
+	Destroy();
 }
 
 void ASProjectile::SpawnFlightEffectCopy()
@@ -154,7 +256,7 @@ void ASProjectile::Pierce(AActor* Target, const FVector& Point)
 	ApplySpecsTo(Target);
 	if (ImpactEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactEffect, Point);
+		USAbilityFunctionLibrary::SpawnOneShotEffect(this, ImpactEffect, Point);
 	}
 }
 
@@ -207,7 +309,7 @@ void ASProjectile::Resolve(AActor* Target, const FVector& Point)
 
 	if (ImpactEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactEffect, Point);
+		USAbilityFunctionLibrary::SpawnOneShotEffect(this, ImpactEffect, Point);
 	}
 
 	// 구체 메시가 명중 섬광을 가리지 않게 즉시 숨김. 꼬리만 마저 사라짐
@@ -218,8 +320,9 @@ void ASProjectile::Resolve(AActor* Target, const FVector& Point)
 		VisualMesh->SetHiddenInGame(true);
 	}
 
-	// 새 입자만 멈추고, 이미 나간 꼬리는 잠깐 남았다가 사라짐
+	// 새 입자만 멈추고, 이미 나간 꼬리는 잠깐 남았다가 끝 (풀에 반납 또는 지움)
 	GetWorldTimerManager().ClearTimer(FlightRepeatTimer);
+	GetWorldTimerManager().ClearTimer(LifeTimer);
 	FlightEffect->Deactivate();
-	SetLifeSpan(FadeOutTime);
+	GetWorldTimerManager().SetTimer(FadeTimer, this, &ThisClass::ReturnToPool, FadeOutTime, false);
 }

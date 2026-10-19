@@ -12,6 +12,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "Projectile/SProjectile.h"
+#include "Pool/SActorPool.h"
 #include "TimerManager.h"
 
 namespace
@@ -122,7 +123,7 @@ void ASAssistActor::DoHit()
 
 	if (HitEffect)
 	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), HitEffect, GetActorLocation());
+		USAbilityFunctionLibrary::SpawnOneShotEffect(GetWorld(), HitEffect, GetActorLocation());
 	}
 
 	if (ProjectileClass)
@@ -259,13 +260,13 @@ void ASAssistActor::FireProjectile(UAbilitySystemComponent* ASC)
 	}
 	const FTransform SpawnTransform(Direction.Rotation(), Origin);
 
-	// 주인 = 나가는 캐릭터 → 투사체가 같은 편 판단·쏜 캐릭터 통과를 그 캐릭터 기준으로 함
-	ASProjectile* Projectile = World->SpawnActorDeferred<ASProjectile>(
+	// 풀에서 꺼냄. 주인 = 나가는 캐릭터 → 투사체가 같은 편 판단·쏜 캐릭터 통과를 그 캐릭터 기준으로 함
+	USActorPool* Pool = World->GetSubsystem<USActorPool>();
+	ASProjectile* Projectile = Pool ? Pool->Acquire<ASProjectile>(
 		ProjectileClass,
 		SpawnTransform,
 		SourceAvatar,
-		Cast<APawn>(SourceAvatar),
-		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+		Cast<APawn>(SourceAvatar)) : nullptr;
 	if (!Projectile)
 	{
 		return;
@@ -274,7 +275,7 @@ void ASAssistActor::FireProjectile(UAbilitySystemComponent* ASC)
 	// 스펙에 산산조각이 없음: 어시스트는 표식을 소비하지 않음
 	Projectile->InitializeProjectile(ASC, { Spec });
 	Projectile->SetHomingTarget(HomingTarget);
-	Projectile->FinishSpawning(SpawnTransform);
+	Projectile->Launch();
 }
 
 AActor* ASAssistActor::PickHomingTarget()
