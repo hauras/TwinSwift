@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "TwinSlot.generated.h"
 
+class ASAssistActor;
 class UGameplayAbility;
 class UGameplayEffect;
 
@@ -27,4 +28,8 @@ struct FTwinSlotConfig
 	// 시작 스탯 GE (비워 두면 AttributeSet 생성자의 기본값)
 	UPROPERTY(EditDefaultsOnly, Category = "GAS")
 	TSubclassOf<UGameplayEffect> DefaultAttributesEffect;
+
+	// 교체로 나갈 때 남는 분신 (BP_Assist_Warrior 등). 비우면 어시스트 없음
+	UPROPERTY(EditDefaultsOnly, Category = "Assist")
+	TSubclassOf<ASAssistActor> AssistClass;
 };

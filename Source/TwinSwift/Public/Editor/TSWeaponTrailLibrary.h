@@ -22,4 +22,9 @@ public:
     // 예: 빨간 번개 → TargetHue 215 (파랑)
     UFUNCTION(BlueprintCallable, Category="Editor|WeaponTrail")
     static FString TintSystemHue(UObject* SystemAsset, float TargetHue, bool bApply);
+
+    // 에미터의 입자 공간(로컬/월드) 목록을 돌려주고, bApply면 이름에 NameFilters 중 하나가 들어간 에미터를 로컬 공간으로
+    // 로컬 = 입자가 이펙트를 따라 움직임 (날아가는 투사체에 붙인 반달), 월드 = 생긴 자리에 남음 (꼬리 불꽃)
+    UFUNCTION(BlueprintCallable, Category="Editor|WeaponTrail")
+    static FString SetEmittersLocalSpace(UObject* SystemAsset, const TArray<FString>& NameFilters, bool bApply);
 };

@@ -375,7 +375,25 @@ void USTwinHUDWidget::RefreshSkillHUD()
     SetHUDText(TEXT("BenchSkill2Key"), GetInputKeyLabel(HUDTag(Bench[2].Input), Bench[2].Key));
     SetHUDText(TEXT("PassiveText"), bWarrior ? TEXT("산산조각 · 빙결 적 타격 시 3.0 + 경직 [예정]") :
         TEXT("균열 → 낙뢰로 폭발 / 빙결 → 전사가 산산조각 [예정]"));
-    SetHUDText(TEXT("AssistText"), bWarrior ? TEXT("교체 어시스트: 냉기 장판 [예정]") :
-        TEXT("교체 어시스트: 회전 베기 1.2 [예정]"));
+    const float AssistRemaining = Character->GetAssistCooldownRemaining();
+    const float AssistDuration = Character->GetAssistCooldownDuration();
+    const bool bHasAssist = Character->HasActiveAssist();
+    const bool bCoolingDown = AssistRemaining > 0.f;
+    const FString AssistStatus = Character->IsDefeated() ? TEXT("어시스트 · 사용 불가") :
+        bCoolingDown ? FString::Printf(TEXT("어시스트 공용 · %.1f초"), AssistRemaining) :
+        !bHasAssist ? TEXT("어시스트 · 미설정") :
+        bWarrior ? TEXT("어시스트 준비 · 교체 시 검기") : TEXT("어시스트 준비 · 교체 시 발동");
+    SetHUDText(TEXT("AssistText"), AssistStatus);
+    const FLinearColor AssistColor = bCoolingDown ? FLinearColor(0.6f, 0.65f, 0.72f) :
+        bHasAssist ? FLinearColor(1.f, 0.65f, 0.2f) : FLinearColor(0.5f, 0.55f, 0.6f);
+    if (auto* Label = Cast<UTextBlock>(GetWidgetFromName(TEXT("AssistText"))))
+        Label->SetColorAndOpacity(FSlateColor(AssistColor));
+    if (auto* Bar = Cast<UProgressBar>(GetWidgetFromName(TEXT("AssistCooldownBar"))))
+    {
+        Bar->SetPercent(bCoolingDown && AssistDuration > 0.f
+            ? FMath::Clamp(1.f - AssistRemaining / AssistDuration, 0.f, 1.f)
+            : bHasAssist ? 1.f : 0.f);
+        Bar->SetFillColorAndOpacity(AssistColor);
+    }
 }
 

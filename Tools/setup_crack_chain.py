@@ -36,9 +36,10 @@ dummy_class = unreal.load_asset(DUMMY_BP).generated_class()
 for label, location in DUMMIES.items():
     actor = existing.get(label)
     if not actor:
-        actor = actors.spawn_actor_from_class(dummy_class, location, unreal.Rotator(0.0, 180.0, 0.0))
+        actor = actors.spawn_actor_from_class(dummy_class, location, unreal.Rotator(roll=0.0, pitch=0.0, yaw=180.0))
         actor.set_actor_label(label)
     actor.set_actor_location(location, False, False)
+    actor.set_actor_rotation(unreal.Rotator(roll=0.0, pitch=0.0, yaw=180.0), False)
     print(label, actor.get_actor_location())
 
 unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).save_current_level()

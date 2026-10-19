@@ -68,6 +68,14 @@ public:
 
 	float GetSwapCooldownDuration() const { return SwapCooldown; }
 
+	// 어시스트는 교체 쿨다운과 별개이며 두 캐릭터가 공유
+	float GetAssistCooldownRemaining() const;
+
+	float GetAssistCooldownDuration() const { return AssistCooldown; }
+
+	bool HasActiveAssist() const;
+
+
 	// 체력 0으로 쓰러졌는지
 	bool IsSlotDown(ETwinSlot Slot) const;
 
@@ -131,6 +139,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Twin", meta = (ClampMin = "0"))
 	float SwapCooldown = 2.f;
 
+	// 어시스트 쿨다운(초). 교체는 막지 않고 분신만 쉼
+	UPROPERTY(EditDefaultsOnly, Category = "Twin", meta = (ClampMin = "0"))
+	float AssistCooldown = 6.f;
+
 	// 교체·회피 직후 완벽 회피 판정 시간(초). 교체는 이 시간 동안 무적이기도 함
 	UPROPERTY(EditDefaultsOnly, Category = "Twin|Perfect Evade", meta = (ClampMin = "0"))
 	float PerfectWindowTime = 0.25f;
@@ -183,6 +195,9 @@ private:
 	// 실제 교체 (검사 없이): 상태 바꾸고 몸·ASC·회복·이펙트·알림
 	void PerformSwap(ETwinSlot NewSlot);
 
+	// 나가는 캐릭터의 분신 생성 (쿨다운이 끝났고 AssistClass가 있을 때만). SwapTo가 교체 전에 부름
+	void SpawnAssist();
+
 	// 두 캐릭터의 체력이 바뀌면 GAS가 부름 → 0이면 쓰러짐 처리
 	void OnSlotHealthChanged(const FOnAttributeChangeData& Data, ETwinSlot Slot);
 
@@ -207,6 +222,9 @@ private:
 
 	// 마지막으로 교체한 시각 (게임 시간, 초). 처음에는 쿨다운 없이 교체 가능하게 아주 옛날
 	double LastSwapTime = -1000.0;
+
+	// 마지막으로 어시스트가 나간 시각 (게임 시간, 초). 처음 교체에도 어시스트가 나가게 아주 옛날
+	double LastAssistTime = -1000.0;
 
 	bool bDefeated = false;
 

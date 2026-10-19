@@ -209,3 +209,41 @@ FString UTSWeaponTrailLibrary::TintSystemHue(UObject* SystemAsset, float TargetH
     return TEXT("ERROR: Editor only");
 #endif
 }
+
+FString UTSWeaponTrailLibrary::SetEmittersLocalSpace(UObject* SystemAsset, const TArray<FString>& NameFilters, bool bApply)
+{
+#if WITH_EDITOR
+    auto* System = Cast<UNiagaraSystem>(SystemAsset);
+    if (!System) return TEXT("ERROR: Missing Niagara system");
+    if (bApply) System->Modify();
+
+    FString Report;
+    int32 Edits = 0;
+    for (auto& Handle : System->GetEmitterHandles())
+    {
+        auto* Data = Handle.GetInstance().GetEmitterData();
+        if (!Data) continue;
+        const FString Name = Handle.GetName().ToString();
+        const bool bMatch = NameFilters.ContainsByPredicate([&Name](const FString& Filter) { return Name.Contains(Filter); });
+        Report += FString::Printf(TEXT("EMITTER %s local=%d"), *Name, Data->bLocalSpace ? 1 : 0);
+        if (bApply && bMatch && !Data->bLocalSpace)
+        {
+            Handle.GetInstance().Emitter->Modify();
+            Data->bLocalSpace = true;
+            Report += TEXT(" -> 1");
+            ++Edits;
+        }
+        Report += TEXT("\n");
+    }
+
+    if (bApply && Edits > 0)
+    {
+        System->RequestCompile(false);
+        System->WaitForCompilationComplete(true, false);
+        System->MarkPackageDirty();
+    }
+    return Report + FString::Printf(TEXT("VALID=%d EDITS=%d"), System->IsValid(), Edits);
+#else
+    return TEXT("ERROR: Editor only");
+#endif
+}

@@ -37,6 +37,9 @@ MAX_TILT = 40.0
 # 1타 Slash_03: 0.53~0.80 오른쪽 어깨 위 → 앞 → 왼쪽 아래 대각선 내려치기
 # 2타 Slash_01: 0.73~1.13 왼쪽 → 앞 → 오른쪽 가로 베기 (마무리라 금색. 몽타주 이름은 예전 그대로 Combo3)
 # (Combo2 Slash_02는 콤보에서 뺌: 0.53~0.80 머리 위 칼 돌리기, 1.40~1.57 내려찍기)
+# 몽타주가 아니라 애니 자체에 넣는 것 (전체 경로). 없으면 원본 애니를 복사해서 만듦 (지금은 없음)
+ASSIST_COPIES = set()
+
 STRIKES = [
     ("AM_Warrior_Combo1", "A_Knight_Slash_03", "NE_attack02", [(0.53, 0.80)]),
     ("AM_Warrior_Combo3", "A_Knight_Slash_01", "NE_attack05", [(0.73, 1.13)]),
@@ -137,7 +140,12 @@ for montage_name, anim_name, fx_name, windows in STRIKES:
     if PREVIEW:
         continue
 
-    montage = load(f"{MONTAGE_DIR}/{montage_name}")
+    if montage_name in ASSIST_COPIES:
+        if not eal.does_asset_exist(montage_name):
+            eal.duplicate_asset(anim.get_path_name().split(".")[0], montage_name)
+        montage = load(montage_name)
+    else:
+        montage = load(f"{MONTAGE_DIR}/{montage_name}")
     anim_lib.remove_animation_notify_events_by_track(montage, TRACK)
     if TRACK not in [str(n) for n in anim_lib.get_animation_notify_track_names(montage)]:
         anim_lib.add_animation_notify_track(montage, TRACK)

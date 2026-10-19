@@ -14,6 +14,8 @@
 #include "State/SPlayerState.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "Actor/SAssistActor.h"
+#include "Controller/SPlayerController.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -43,8 +45,6 @@ APlayerCharacter::APlayerCharacter()
 	Camera->bUsePawnControlRotation = false;
 
 	WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>("WeaponMesh");
-	// 스켈레톤의 WeaponSocket(hand_R 아래)에 붙임. 손 안 위치·각도·크기는 소켓이 정함
-	// → 애니 에디터 미리보기 무기도 같은 소켓에 붙여서, 미리보기와 게임이 똑같이 보이게
 	WeaponMesh->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
 
 	// 타격 판정은 트레이스로 함. 무기 자체는 충돌 없음 (캐릭터 이동을 막지 않게)
@@ -56,7 +56,7 @@ APlayerCharacter::APlayerCharacter()
 
 	// 충돌은 캡슐이 맡음 (전사 몸과 같게)
 	MageMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-}
+} 
 
 void APlayerCharacter::OnConstruction(const FTransform& Transform)
 {
@@ -204,11 +204,13 @@ void APlayerCharacter::SwapTo(ETwinSlot NewSlot)
 	}
 
 	// 공격 중이면 나가는 캐릭터의 공격을 끊고 교체 (몽타주가 숨긴 몸에서 계속 돌지 않게)
-	// 단계 7에서 여기에 교체 어시스트(나가는 캐릭터의 한 방)가 붙음
 	if (AbilitySystemComponent)
 	{
 		AbilitySystemComponent->CancelAllAbilities();
 	}
+
+	// 교체 어시스트: 나가는 캐릭터가 지금 자리에 분신으로 남아 한 번 공격 (교체 전에 해야 나가는 캐릭터의 ASC·몸을 씀)
+	SpawnAssist();
 
 	PerformSwap(NewSlot);
 
@@ -341,6 +343,58 @@ void APlayerCharacter::PerformSwap(ETwinSlot NewSlot)
 	PlaySwapEffect(NewSlot);
 
 	OnActiveSlotChanged.Broadcast(ActiveSlot);
+}
+
+float APlayerCharacter::GetAssistCooldownRemaining() const
+{
+	return GetWorld()
+		? FMath::Max(0.f, static_cast<float>(AssistCooldown - (GetWorld()->GetTimeSeconds() - LastAssistTime)))
+		: 0.f;
+}
+
+bool APlayerCharacter::HasActiveAssist() const
+{
+	const FTwinSlotConfig& Config = ActiveSlot == ETwinSlot::Warrior ? WarriorConfig : MageConfig;
+	return Config.AssistClass != nullptr && !IsDefeated() && !IsSlotDown(ActiveSlot);
+}
+
+void APlayerCharacter::SpawnAssist()
+{
+	const FTwinSlotConfig& OutConfig = ActiveSlot == ETwinSlot::Warrior ? WarriorConfig : MageConfig;
+	const double Now = GetWorld()->GetTimeSeconds();
+
+	if (!OutConfig.AssistClass || !AbilitySystemComponent || Now - LastAssistTime < AssistCooldown)
+	{
+		return;
+	}
+
+	// 겨냥 방향: 캐릭터 → 커서 (수평). 커서가 없거나 캐릭터 위면 바라보는 방향
+	FVector AimDirection = GetActorForwardVector();
+	if (const ASPlayerController* PlayerController = Cast<ASPlayerController>(GetController()))
+	{
+		const FVector ToAim = (PlayerController->GetAimPoint() - GetActorLocation()).GetSafeNormal2D();
+		if (!ToAim.IsNearlyZero())
+		{
+			AimDirection = ToAim;
+		}
+	}
+
+	// 나가는 몸의 Transform(발 위치·크기)에서 방향만 겨냥 쪽으로. 메시 자체의 회전 보정(-90도)은 그대로 둠
+	const USkeletalMeshComponent* OutMesh = GetActiveMesh();
+	FTransform SpawnTransform = OutMesh->GetComponentTransform();
+	SpawnTransform.SetRotation(AimDirection.Rotation().Quaternion() * OutMesh->GetRelativeRotation().Quaternion());
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ASAssistActor* Assist = GetWorld()->SpawnActor<ASAssistActor>(
+		OutConfig.AssistClass,
+		SpawnTransform,
+		Params);
+	if (Assist)
+	{
+		Assist->StartAssist(AbilitySystemComponent, AimDirection);
+		LastAssistTime = Now;
+	}
 }
 
 void APlayerCharacter::OnSlotHealthChanged(const FOnAttributeChangeData& Data, ETwinSlot Slot)
