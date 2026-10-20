@@ -5,6 +5,7 @@
 #include "Ability/SAbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AI/SAIController.h"
+#include "AI/SBossPatternComponent.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -13,6 +14,8 @@ ABossCharacter::ABossCharacter()
 	
 	GetCharacterMovement()->MaxWalkSpeed = 300.f;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 180.f, 0.f);
+
+	PatternComponent = CreateDefaultSubobject<USBossPatternComponent>("PatternComponent");
 
 	AIControllerClass = ASAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;

@@ -33,6 +33,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Slam);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Punch);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_JumpSlam);
 
 	// ---------- 몽타주 이벤트 (Notify → 능력에 신호) ----------
 	// 칼이 닿는 프레임 → 타격 판정
@@ -70,6 +71,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Dodge);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Golem_Slam);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Golem_Punch);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Golem_JumpSlam);
 
 	// ---------- 데미지 (스킬마다 배율을 GE에 넘김) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_DamageMultiplier);

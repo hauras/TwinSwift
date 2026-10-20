@@ -1,9 +1,12 @@
 #include "Ability/GA/Enemy/SGA_BossAttack.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
+#include "AbilitySystemComponent.h"
 #include "AIController.h"
 #include "DrawDebugHelpers.h"
 #include "SGameplayTags.h"
 #include "TimerManager.h"
+#include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Ability/SAbilityFunctionLibrary.h"
 #include "Animation/AnimInstance.h"
@@ -49,9 +52,12 @@ void USGA_BossAttack::ActivateAbility(
 	// 능력 인스턴스는 재사용되므로 매번 처음 상태로
 	HitIndex = 0;
 	ActivateTime = GetWorld()->GetTimeSeconds();
+	bLeapStarted = false;
+	bHasLockedCenter = false;
 
 	// 시작할 때 표적을 봄 (좌우만). 공격 도중에는 돌지 않음 → 예고된 범위 그대로 맞음
-	if (const AActor* Target = GetTargetActor())
+	const AActor* Target = GetTargetActor();
+	if (Target)
 	{
 		FVector ToTarget = Target->GetActorLocation() - Character->GetActorLocation();
 		ToTarget.Z = 0.f;
@@ -59,6 +65,12 @@ void USGA_BossAttack::ActivateAbility(
 		{
 			Character->SetActorRotation(ToTarget.Rotation());
 		}
+	}
+
+	// 도약 공격: 착지 지점을 지금 정함 → 예고 원이 처음부터 그 자리에 고정 (플레이어가 보고 피할 시간)
+	if (bLeapToTarget)
+	{
+		PlanLeap(Target);
 	}
 
 	if (AttackMontage)
@@ -131,8 +143,15 @@ void USGA_BossAttack::OnAttackTick()
 		return;
 	}
 
-	// 지난 HitTimes를 모두 처리 (확인 주기 사이에 두 타격이 지나가도 놓치지 않게 while)
 	const float AttackTime = GetAttackTime();
+
+	// 도약 시작 (판정과 같은 공격 시계)
+	if (bLeapToTarget && !bLeapStarted && AttackTime >= LeapStartTime)
+	{
+		StartLeap();
+	}
+
+	// 지난 HitTimes를 모두 처리 (확인 주기 사이에 두 타격이 지나가도 놓치지 않게 while)
 	while (HitTimes.IsValidIndex(HitIndex) && AttackTime >= HitTimes[HitIndex])
 	{
 		DoHit();
@@ -158,10 +177,19 @@ void USGA_BossAttack::DoHit()
 	FindEnemiesInRadius(GetShapeCenter(), Radius, Candidates);
 	for (AActor* Target : Candidates)
 	{
-		if (IsInShape(Target))
+		if (!IsInShape(Target))
 		{
-			// 플레이어 공격과 같은 경로 → AttributeSet에서 무적·완벽 회피 판정을 거침
-			ApplyDamageTo(Target, DamageMultiplier);
+			continue;
+		}
+
+		// 피해를 주기 전에 무적인지 봐 둠 (피해는 무적이어도 GE가 들어가서 AttributeSet이 버림 → 결과로는 구분 못 함)
+		const UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
+		const bool bDodged = TargetASC && TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Invincible);
+
+		// 플레이어 공격과 같은 경로 → AttributeSet에서 무적·완벽 회피 판정을 거침
+		if (ApplyDamageTo(Target, DamageMultiplier) && !bDodged && HitStunDuration > 0.f)
+		{
+			ApplyTimedTagTo(Target, SGameplayTags::State_Stun, HitStunDuration);
 		}
 	}
 
@@ -222,6 +250,12 @@ bool USGA_BossAttack::IsInShape(const AActor* Target) const
 
 FVector USGA_BossAttack::GetShapeCenter() const
 {
+	// 도약 공격은 발동할 때 정한 지점 (뛰는 동안 보스 위치를 따라 움직이지 않음)
+	if (bHasLockedCenter)
+	{
+		return LockedCenter;
+	}
+
 	const ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!Character)
 	{
@@ -233,6 +267,56 @@ FVector USGA_BossAttack::GetShapeCenter() const
 	return Character->GetActorLocation()
 		+ Character->GetActorForwardVector() * ForwardOffset
 		- FVector(0.f, 0.f, HalfHeight - 3.f);
+}
+
+void USGA_BossAttack::PlanLeap(const AActor* Target)
+{
+	const ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!Character)
+	{
+		return;
+	}
+
+	// 표적까지 방향·거리 (높이 무시). 표적이 없으면 앞으로 최대 거리
+	const FVector Start = Character->GetActorLocation();
+	FVector ToTarget = Target
+		? Target->GetActorLocation() - Start
+		: Character->GetActorForwardVector() * (MaxLeapDistance + ForwardOffset);
+	ToTarget.Z = 0.f;
+	const float Distance = ToTarget.Size();
+	const FVector Direction = Distance > KINDA_SMALL_NUMBER ? ToTarget / Distance : Character->GetActorForwardVector();
+
+	// 손이 몸 앞 ForwardOffset에 떨어지므로 그만큼 덜 감 → 손이 표적 자리에. 가까우면 제자리에서 내리침
+	const float Travel = FMath::Clamp(Distance - ForwardOffset, 0.f, MaxLeapDistance);
+	LeapDestination = Start + Direction * Travel;
+
+	// 범위 중심 = 착지 지점 앞 ForwardOffset, 발밑 높이
+	const float HalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	LockedCenter = LeapDestination + Direction * ForwardOffset - FVector(0.f, 0.f, HalfHeight - 3.f);
+	bHasLockedCenter = true;
+}
+
+void USGA_BossAttack::StartLeap()
+{
+	bLeapStarted = true;
+
+	// 몽타주 시간 → 실제 시간. 히트스톱 중에는 모션만 느려져 착지가 조금 먼저 끝날 수 있음 (0.06초 수준이라 무시)
+	const float Duration = FMath::Max((LeapEndTime - LeapStartTime) / MontagePlayRate, 0.05f);
+
+	// 걷기 모드 그대로 수평 이동 (뛰는 높이는 애니의 골반이 보여 줌, 캡슐은 바닥에)
+	UAbilityTask_ApplyRootMotionMoveToForce* LeapTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
+		this,
+		NAME_None,
+		LeapDestination,
+		Duration,
+		false,
+		MOVE_Walking,
+		false,
+		nullptr,
+		ERootMotionFinishVelocityMode::SetVelocity,
+		FVector::ZeroVector,
+		0.f);
+	LeapTask->ReadyForActivation();
 }
 
 void USGA_BossAttack::DrawTelegraph(float AttackTime) const

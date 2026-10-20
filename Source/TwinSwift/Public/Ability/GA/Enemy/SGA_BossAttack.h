@@ -82,6 +82,27 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Hit", meta = (ClampMin = "0"))
 	float DamageMultiplier = 2.f;
 
+	// 맞은 플레이어 경직 시간(초). 0이면 없음. 경직 중엔 이동·공격·회피 불가, 교체로만 빠져나옴 (경직은 캐릭터마다 따로)
+	// 무적(회피·완벽 회피)으로 피한 경우는 걸지 않음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Hit", meta = (ClampMin = "0"))
+	float HitStunDuration = 0.f;
+
+	// 표적에게 뛰어듦: 발동할 때 착지 지점을 정하고(예고도 그 자리에 고정) LeapStartTime~LeapEndTime 동안 캡슐을 옮김
+	// 애니는 제자리 버전(앞뒤 이동 0)을 써야 함. 착지 지점 = 표적 - 앞쪽 ForwardOffset (손이 몸 앞에 떨어지므로)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Leap")
+	bool bLeapToTarget = false;
+
+	// 이동 시작·끝 (초, 몽타주 시간 기준). 원본 애니에서 골반이 앞으로 가는 구간을 재서 넣음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Leap", meta = (EditCondition = "bLeapToTarget", ClampMin = "0"))
+	float LeapStartTime = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Leap", meta = (EditCondition = "bLeapToTarget", ClampMin = "0"))
+	float LeapEndTime = 0.5f;
+
+	// 최대 이동 거리(cm). 표적이 더 멀면 그 방향으로 여기까지만
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Leap", meta = (EditCondition = "bLeapToTarget", ClampMin = "0"))
+	float MaxLeapDistance = 800.f;
+
 	// 맞는 순간 범위 중심에 생기는 이펙트 (나이아가라 풀 사용). 비우면 없음
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Feedback")
 	TObjectPtr<UNiagaraSystem> ImpactEffect;
@@ -122,8 +143,12 @@ private:
 	// Target이 지금 범위 안인지 (높이 무시)
 	bool IsInShape(const AActor* Target) const;
 
-	// 범위 중심 (보스 위치 + 앞으로 ForwardOffset, 발밑 높이)
+	// 범위 중심 (보스 위치 + 앞으로 ForwardOffset, 발밑 높이). 도약 공격은 발동할 때 정한 착지 쪽 지점
 	FVector GetShapeCenter() const;
+
+	// 도약: 착지 지점·범위 중심을 정함 (발동할 때) / 이동 시작 (공격 시계가 LeapStartTime을 지날 때)
+	void PlanLeap(const AActor* Target);
+	void StartLeap();
 
 	// 예고 그리기. 안쪽 원이 바깥에 닿는 순간 맞음
 	void DrawTelegraph(float AttackTime) const;
@@ -143,4 +168,10 @@ private:
 
 	// OnAttackTick 반복 타이머
 	FTimerHandle AttackTickTimer;
+
+	// 도약 상태 (발동마다 처음부터)
+	bool bLeapStarted = false;
+	bool bHasLockedCenter = false;
+	FVector LeapDestination = FVector::ZeroVector;
+	FVector LockedCenter = FVector::ZeroVector;
 };

@@ -14,12 +14,22 @@ UBTTask_ActivateAbilityByTag::UBTTask_ActivateAbilityByTag()
 
 EBTNodeResult::Type UBTTask_ActivateAbilityByTag::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	FBTActivateAbilityMemory* Memory = CastInstanceNodeMemory<FBTActivateAbilityMemory>(NodeMemory);
+	Memory->ActiveTag = FGameplayTag();
+
 	const AAIController* AIController = OwnerComp.GetAIOwner();
 	ABossCharacter* Boss = AIController ? Cast<ABossCharacter>(AIController->GetPawn()) : nullptr;
-	if (!Boss || !Boss->TryActivateAttack(AbilityTag))
+	if (!Boss)
 	{
 		return EBTNodeResult::Failed;
 	}
+
+	const FGameplayTag Tag = ChooseAbilityTag(OwnerComp, *Boss);
+	if (!Tag.IsValid() || !Boss->TryActivateAttack(Tag))
+	{
+		return EBTNodeResult::Failed;
+	}
+	Memory->ActiveTag = Tag;
 
 	// 공격 중이면 끝날 때까지 이 노드에 머묾 (바로 끝나는 능력이면 기다릴 필요 없음)
 	return Boss->IsAttacking() ? EBTNodeResult::InProgress : EBTNodeResult::Succeeded;
@@ -41,16 +51,39 @@ void UBTTask_ActivateAbilityByTag::TickTask(UBehaviorTreeComponent& OwnerComp, u
 
 EBTNodeResult::Type UBTTask_ActivateAbilityByTag::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	const FBTActivateAbilityMemory* Memory = CastInstanceNodeMemory<FBTActivateAbilityMemory>(NodeMemory);
+
 	const AAIController* AIController = OwnerComp.GetAIOwner();
 	const ABossCharacter* Boss = AIController ? Cast<ABossCharacter>(AIController->GetPawn()) : nullptr;
-	if (UAbilitySystemComponent* ASC = Boss ? Boss->GetAbilitySystemComponent() : nullptr)
+	UAbilitySystemComponent* ASC = Boss ? Boss->GetAbilitySystemComponent() : nullptr;
+	if (ASC && Memory->ActiveTag.IsValid())
 	{
-		// 이 노드가 발동한 공격만 취소 (태그가 같은 능력)
-		const FGameplayTagContainer AbilityTags(AbilityTag);
+		// 이 노드가 발동한 공격만 취소
+		const FGameplayTagContainer AbilityTags(Memory->ActiveTag);
 		ASC->CancelAbilities(&AbilityTags);
 	}
 
 	return EBTNodeResult::Aborted;
+}
+
+FGameplayTag UBTTask_ActivateAbilityByTag::ChooseAbilityTag(UBehaviorTreeComponent& OwnerComp, ABossCharacter& Boss) const
+{
+	return AbilityTag;
+}
+
+uint16 UBTTask_ActivateAbilityByTag::GetInstanceMemorySize() const
+{
+	return sizeof(FBTActivateAbilityMemory);
+}
+
+void UBTTask_ActivateAbilityByTag::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const
+{
+	InitializeNodeMemory<FBTActivateAbilityMemory>(NodeMemory, InitType);
+}
+
+void UBTTask_ActivateAbilityByTag::CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const
+{
+	CleanupNodeMemory<FBTActivateAbilityMemory>(NodeMemory, CleanupType);
 }
 
 FString UBTTask_ActivateAbilityByTag::GetStaticDescription() const

@@ -280,6 +280,16 @@ void APlayerCharacter::TriggerPerfectEvade()
 	OnPerfectEvade.Broadcast(true);
 }
 
+void APlayerCharacter::NotifyDamaged(float Damage)
+{
+	if (ASPlayerController* SPlayerController = GetController<ASPlayerController>())
+	{
+		SPlayerController->OnPawnDamaged(Damage);
+	}
+
+	OnPlayerDamaged.Broadcast(Damage);
+}
+
 void APlayerCharacter::EndPerfectSlow()
 {
 	GetWorldTimerManager().ClearTimer(PerfectSlowTimer);

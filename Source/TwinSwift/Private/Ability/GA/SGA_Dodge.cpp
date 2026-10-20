@@ -16,6 +16,9 @@ USGA_Dodge::USGA_Dodge()
 	// 쓰러진 캐릭터는 회피 못 함
 	ActivationBlockedTags.AddTag(SGameplayTags::State_Dead);
 
+	// 경직 중에도 못 함 (보스 점프 내려찍기 등). 경직 태그는 캐릭터(ASC)마다 따로라 교체하면 빠져나옴 → 탈출 수단은 교체
+	ActivationBlockedTags.AddTag(SGameplayTags::State_Stun);
+
 	// 기본 쿨다운 1초 (블루프린트에서 바꿀 수 있음)
 	CooldownDuration = 1.f;
 	CooldownTags.AddTag(SGameplayTags::Cooldown_Dodge);

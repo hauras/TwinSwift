@@ -9,6 +9,7 @@
 class UGameplayAbility;
 class UGameplayEffect;
 class UBehaviorTree;
+class USBossPatternComponent;
 
 UCLASS()
 class TWINSWIFT_API ABossCharacter : public AEnemyCharacter
@@ -22,6 +23,9 @@ public:
 	bool IsAttacking() const;
 
 	UBehaviorTree* GetBehaviorTree() const { return BehaviorTree; }
+
+	// 패턴 선택기 (BT의 Activate Boss Pattern이 물어봄)
+	USBossPatternComponent* GetPatternComponent() const { return PatternComponent; }
 protected:
 	virtual void BeginPlay() override;
 
@@ -36,6 +40,10 @@ protected:
 	// 이 보스의 행동 트리 (골렘: BT_Golem)
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|AI")
 	TObjectPtr<UBehaviorTree> BehaviorTree;
+
+	// 패턴 목록과 고르는 규칙 (BP에서 Patterns 입력)
+	UPROPERTY(VisibleAnywhere, Category = "Boss|AI")
+	TObjectPtr<USBossPatternComponent> PatternComponent;
 	
 private:
 	void GiveStartupAbilitiesAndAttributes();

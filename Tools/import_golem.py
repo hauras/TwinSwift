@@ -18,7 +18,8 @@ ANIMS = [
     # 걷기·달리기는 믹사모 In Place로 다시 받은 파일 (처음 받은 것은 골반이 한 바퀴에 3m씩 앞으로 가서 튕김)
     ("Mutant Walking (1).fbx", "A_Golem_Walk"),
     ("Mutant Run (1).fbx", "A_Golem_Run"),
-    ("Mutant Punch.fbx", "A_Golem_Punch"),
+    # 빠른 공격: 처음 받은 Mutant Punch(허리 높이 짧은 훅)는 쿼터뷰에서 잘 안 읽혀 손등 쓸어 치기로 바꿈
+    ("Standing Melee Attack Backhand.fbx", "A_Golem_Backhand"),
     ("Mutant Swiping.fbx", "A_Golem_Swipe"),
     ("Jump Attack.fbx", "A_Golem_JumpAttack"),
     ("Mutant Dying.fbx", "A_Golem_Death"),

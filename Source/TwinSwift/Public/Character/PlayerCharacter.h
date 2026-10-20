@@ -26,6 +26,9 @@ DECLARE_MULTICAST_DELEGATE(FOnDefeated);
 // 완벽 회피 슬로가 시작(true)·끝(false)될 때
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPerfectEvade, bool);
 
+// 지금 캐릭터가 피해를 받았을 때 (피해량)
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlayerDamaged, float);
+
 /**
  * 플레이어 캐릭터. 액터 하나에 몸(메시) 둘이 상주하는 태그 캐릭터 (전사·마법사)
  * 캡슐·이동·카메라는 둘이 같이 쓰고, 교체하면 보이는 몸과 "지금 ASC"만 바뀜
@@ -105,10 +108,16 @@ public:
 	// 판정 중에 공격을 받으면 AttributeSet이 부름 → 데미지는 이미 무시됨, 여기서 슬로 시작
 	void TriggerPerfectEvade();
 
+	// 피해를 받으면 AttributeSet이 부름 (무적으로 버린 피해는 안 부름) → 컨트롤러(빨간 숫자·흔들림) + OnPlayerDamaged(HUD 빨간 번쩍)
+	void NotifyDamaged(float Damage);
+
 	float GetPerfectWindowTime() const { return PerfectWindowTime; }
 
 	// 완벽 회피 슬로 시작·끝 알림 (HUD가 글자 표시)
 	FOnPerfectEvade OnPerfectEvade;
+
+	// 피해 알림 (HUD가 화면 가장자리 빨간 번쩍)
+	FOnPlayerDamaged OnPlayerDamaged;
 
 protected:
 	// 에디터에서 BP를 고칠 때도 불림 → 마법사 몸 위치를 전사 몸에 맞춤

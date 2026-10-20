@@ -39,6 +39,9 @@ public:
 	// 내가 때린 데미지 숫자를 대상 머리 위에 띄움
 	void ShowDamageNumber(float Damage, AActor* Target, EDamageNumberType Type = EDamageNumberType::Normal);
 
+	// 내 캐릭터가 맞음 (APlayerCharacter::NotifyDamaged가 부름): 빨간 숫자 + 화면 흔들림. 빨간 번쩍은 HUD가
+	void OnPawnDamaged(float Damage);
+
 	// [디버그] 겨냥 위치를 구로 표시 (콘솔: ShowAim)
 	UFUNCTION(Exec)
 	void ShowAim();
@@ -50,6 +53,10 @@ public:
 	// [디버그] 맵의 모든 적에게 표식 10초 (콘솔: DebugMarkAll Crack / DebugMarkAll Frost). 연쇄 폭발·산산조각 시험용
 	UFUNCTION(Exec)
 	void DebugMarkAll(const FString& MarkName);
+
+	// [측정] 맵의 첫 보스 패턴 선택기로 Count번 고르기 시뮬레이션 → 선택기 vs 완전 무작위 (콘솔: BossPatternSim 1000)
+	UFUNCTION(Exec)
+	void BossPatternSim(int32 Count = 1000);
 
 	// [측정] 투사체를 초당 PerSecond발씩 Seconds초 동안 자동 발사 (콘솔: BenchProjectiles 60 20)
 	// 오브젝트 풀 전후 비교용: 매번 같은 개수·같은 방향(가장 가까운 적 쪽, 고정 시드). 끝나면 생성 시간·프레임·GC를 로그로
@@ -97,6 +104,10 @@ protected:
 	// 표식 피해(산산조각·균열 폭발) 때 화면 흔들림 (기본 USCameraShake_Shatter). 비우면 흔들지 않음
 	UPROPERTY(EditDefaultsOnly, Category = "Feedback")
 	TSubclassOf<UCameraShakeBase> MarkCameraShake;
+
+	// 내 캐릭터가 맞았을 때 화면 흔들림 (기본 USCameraShake_Shatter, 짧은 "툭"). 비우면 흔들지 않음
+	UPROPERTY(EditDefaultsOnly, Category = "Feedback")
+	TSubclassOf<UCameraShakeBase> HurtCameraShake;
 
 	// [측정] BenchProjectiles가 쏠 투사체 (화염탄 BP)
 	UPROPERTY(EditDefaultsOnly, Category = "Debug")

@@ -23,7 +23,8 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_HitReact, "Ability.HitReact", "피격 반응");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss, "Ability.Boss", "보스 공격 전체 (취소할 때 부모 태그로)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Slam, "Ability.Boss.Golem.Slam", "골렘 내려치기 (느림, 앞쪽 바닥 원형)");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Punch, "Ability.Boss.Golem.Punch", "골렘 훅 (빠름, 앞쪽 부채꼴)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Punch, "Ability.Boss.Golem.Punch", "골렘 손등 치기 (내려치기보다 빠름, 앞쪽 넓은 부채꼴)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_JumpSlam, "Ability.Boss.Golem.JumpSlam", "골렘 점프 내려찍기 (멀리 있는 플레이어에게 뛰어듦)");
 
 	// 몽타주 이벤트
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_Hit, "Event.Montage.Hit", "타격 판정 프레임");
@@ -54,7 +55,8 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_Thunder, "Cooldown.Mage.Thunder", "낙뢰 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Dodge, "Cooldown.Dodge", "회피 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Golem_Slam, "Cooldown.Boss.Golem.Slam", "골렘 내려치기 쿨다운");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Golem_Punch, "Cooldown.Boss.Golem.Punch", "골렘 훅 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Golem_Punch, "Cooldown.Boss.Golem.Punch", "골렘 손등 치기 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Golem_JumpSlam, "Cooldown.Boss.Golem.JumpSlam", "골렘 점프 내려찍기 쿨다운");
 
 	// 데미지
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_DamageMultiplier, "SetByCaller.DamageMultiplier", "스킬 데미지 배율 (공격력 × 배율)");

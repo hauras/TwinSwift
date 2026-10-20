@@ -15,6 +15,8 @@ enum class EDamageNumberType : uint8
 	Shatter,
 	// 균열 폭발: 주황색
 	CrackBurst,
+	// 플레이어가 맞음: 빨간색 (내가 준 피해와 구분)
+	PlayerHurt,
 };
 
 /**

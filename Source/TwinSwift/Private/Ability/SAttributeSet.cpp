@@ -57,7 +57,13 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 
 			ShowDamageNumber(Data, Damage);
 
-			// 사망·피격 반응은 이후 단계에서
+			// 플레이어가 맞았으면 맞은 쪽에서 알림 (때린 쪽이 보스면 위 숫자가 안 뜸)
+			if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(TargetASC.GetAvatarActor()))
+			{
+				PlayerCharacter->NotifyDamaged(Damage);
+			}
+
+			// 사망은 이후 단계에서
 		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())

@@ -32,7 +32,7 @@ void ADamageTextActor::SetDamage(float Damage, EDamageNumberType Type)
 {
 	Text->SetText(FText::AsNumber(FMath::RoundToInt(Damage)));
 
-	// 표식 피해는 글자 알림 없이 색과 크기로만 구분 (산산조각 하늘색, 균열 폭발 주황색)
+	// 표식 피해는 글자 알림 없이 색과 크기로만 구분 (산산조각 하늘색, 균열 폭발 주황색, 내가 맞음 빨간색)
 	switch (Type)
 	{
 	case EDamageNumberType::Shatter:
@@ -42,6 +42,10 @@ void ADamageTextActor::SetDamage(float Damage, EDamageNumberType Type)
 	case EDamageNumberType::CrackBurst:
 		Text->SetTextRenderColor(FColor(255, 130, 30));
 		Text->SetWorldSize(68.f);
+		break;
+	case EDamageNumberType::PlayerHurt:
+		Text->SetTextRenderColor(FColor(255, 45, 45));
+		Text->SetWorldSize(64.f);
 		break;
 	default:
 		Text->SetTextRenderColor(FColor::White);

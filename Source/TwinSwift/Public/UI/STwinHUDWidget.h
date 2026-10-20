@@ -9,6 +9,7 @@
 
 class APlayerCharacter;
 class UAbilitySystemComponent;
+class UImage;
 class UProgressBar;
 class UTextBlock;
 class UMaterialInterface;
@@ -97,6 +98,17 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> PerfectEvadeText;
 
+	// 맞았을 때 화면 가장자리 빨간 번쩍 (화면 전체 이미지, 가운데는 투명한 M_HUD_HitVignette)
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UImage> HitFlash;
+
+	// 번쩍 최대 투명도와 사라지는 시간(실제 초)
+	UPROPERTY(EditDefaultsOnly, Category = "HUD", meta = (ClampMin = "0", ClampMax = "1"))
+	float HitFlashPeakOpacity = 0.7f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "HUD", meta = (ClampMin = "0.05"))
+	float HitFlashDuration = 0.35f;
+
 	// 쓰러진 카드 투명도
 	UPROPERTY(EditDefaultsOnly, Category = "HUD", meta = (ClampMin = "0", ClampMax = "1"))
 	float DownOpacity = 0.35f;
@@ -155,6 +167,15 @@ private:
 	// 완벽 회피 슬로 시작·끝 → 글자 보이기·숨기기
 	void OnPerfectEvade(bool bStarted);
 	FDelegateHandle PerfectEvadeHandle;
+
+	// 맞음 → 빨간 번쩍 시작 / 짧은 타이머로 투명도를 줄여 감
+	void OnPlayerDamaged(float Damage);
+	void UpdateHitFlash();
+	FDelegateHandle PlayerDamagedHandle;
+	FTimerHandle HitFlashTimer;
+
+	// 번쩍이 시작된 실제 시간 (완벽 회피 슬로 중에도 같은 속도로 사라지게 실제 시간 기준)
+	double HitFlashStartTime = 0.0;
 
 	FTimerHandle SwapCooldownTimer;
 	FDelegateHandle SlotDownHandle;

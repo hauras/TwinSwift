@@ -58,6 +58,13 @@ void USTwinHUDWidget::BindToCharacter(APlayerCharacter* InCharacter)
 	DefeatedHandle = InCharacter->OnDefeated.AddUObject(this, &ThisClass::OnDefeated);
 	PerfectEvadeHandle = InCharacter->OnPerfectEvade.AddUObject(this, &ThisClass::OnPerfectEvade);
 	OnPerfectEvade(false);
+	PlayerDamagedHandle = InCharacter->OnPlayerDamaged.AddUObject(this, &ThisClass::OnPlayerDamaged);
+	if (HitFlash)
+	{
+		// 처음엔 안 보임. 클릭을 막지 않게
+		HitFlash->SetRenderOpacity(0.f);
+		HitFlash->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
 	OnActiveSlotChanged(InCharacter->GetActiveSlot());
 	if (GetWorld())
 		GetWorld()->GetTimerManager().SetTimer(SkillRefreshTimer, this, &ThisClass::RefreshSkillHUD, 0.1f, true);
@@ -67,6 +74,7 @@ void USTwinHUDWidget::Unbind()
 {
 	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(SkillRefreshTimer);
 	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(SwapCooldownTimer);
+	if (GetWorld()) GetWorld()->GetTimerManager().ClearTimer(HitFlashTimer);
 	for (FSlotBinding* Binding : { &WarriorBinding, &MageBinding })
 	{
 		if (UAbilitySystemComponent* ASC = Binding->ASC.Get())
@@ -85,12 +93,14 @@ void USTwinHUDWidget::Unbind()
 		Character->OnSlotDown.Remove(SlotDownHandle);
 		Character->OnDefeated.Remove(DefeatedHandle);
 		Character->OnPerfectEvade.Remove(PerfectEvadeHandle);
+		Character->OnPlayerDamaged.Remove(PlayerDamagedHandle);
 	}
 	BoundCharacter.Reset();
 	ActiveSlotChangedHandle.Reset();
 	SlotDownHandle.Reset();
 	DefeatedHandle.Reset();
 	PerfectEvadeHandle.Reset();
+	PlayerDamagedHandle.Reset();
 }
 
 void USTwinHUDWidget::OnHealthChanged(const FOnAttributeChangeData& Data, ETwinSlot CharSlot)
@@ -248,6 +258,37 @@ void USTwinHUDWidget::OnPerfectEvade(bool bStarted)
 	if (PerfectEvadeText)
 	{
 		PerfectEvadeText->SetVisibility(bStarted ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+void USTwinHUDWidget::OnPlayerDamaged(float Damage)
+{
+	if (!HitFlash || !GetWorld())
+	{
+		return;
+	}
+
+	// 연달아 맞으면 처음부터 다시 (가장 진하게)
+	HitFlashStartTime = GetWorld()->GetRealTimeSeconds();
+	HitFlash->SetRenderOpacity(HitFlashPeakOpacity);
+	GetWorld()->GetTimerManager().SetTimer(HitFlashTimer, this, &ThisClass::UpdateHitFlash, 1.f / 60.f, true);
+}
+
+void USTwinHUDWidget::UpdateHitFlash()
+{
+	if (!HitFlash || !GetWorld())
+	{
+		return;
+	}
+
+	// 실제 시간으로 진하게 → 투명하게 (완벽 회피 슬로 중에도 같은 속도)
+	const float Elapsed = static_cast<float>(GetWorld()->GetRealTimeSeconds() - HitFlashStartTime);
+	const float Alpha = FMath::Clamp(Elapsed / HitFlashDuration, 0.f, 1.f);
+	HitFlash->SetRenderOpacity(HitFlashPeakOpacity * (1.f - Alpha));
+
+	if (Alpha >= 1.f)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(HitFlashTimer);
 	}
 }
 

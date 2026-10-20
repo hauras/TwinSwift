@@ -20,6 +20,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectArray.h"
 #include <atomic>
+#include "AI/SBossPatternComponent.h"
+#include "Character/BossCharacter.h"
 #include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
 #include "EngineUtils.h"
@@ -69,6 +71,7 @@ ASPlayerController::ASPlayerController()
 {
 	// C++ 클래스라 에셋 경로 없이 기본값으로 넣음 (BP에서 다른 흔들림으로 바꿀 수 있음)
 	MarkCameraShake = USCameraShake_Shatter::StaticClass();
+	HurtCameraShake = USCameraShake_Shatter::StaticClass();
 }
 
 void ASPlayerController::BeginPlay()
@@ -316,8 +319,9 @@ void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, EDamageN
 		return;
 	}
 
-	// 표식 피해(산산조각·균열 폭발)는 일반 숫자와 겹치지 않게 오른쪽 위로
-	const bool bMarkDamage = Type != EDamageNumberType::Normal;
+	// 표식 피해(산산조각·균열 폭발)는 일반 숫자와 겹치지 않게 오른쪽 위로, 내가 맞은 숫자는 머리 위 가운데
+	const bool bMarkDamage = Type == EDamageNumberType::Shatter || Type == EDamageNumberType::CrackBurst;
+	const bool bPlayerHurt = Type == EDamageNumberType::PlayerHurt;
 
 	// 월드 Z만 벌리면 쿼터뷰에서 겹침: 화면의 좌우로 두 숫자를 분리
 	const FRotator ViewRotation = PlayerCameraManager
@@ -325,7 +329,7 @@ void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, EDamageN
 		: GetControlRotation();
 	const FVector ScreenRight = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Y);
 	const FVector ScreenUp = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Z);
-	const float SideOffset = bMarkDamage ? 90.f : -60.f;
+	const float SideOffset = bMarkDamage ? 90.f : (bPlayerHurt ? 0.f : -60.f);
 	const FVector Location = Target->GetActorLocation()
 		+ FVector(0.f, 0.f, 120.f)
 		+ ScreenRight * (SideOffset + FMath::RandRange(-8.f, 8.f))
@@ -346,6 +350,17 @@ void ASPlayerController::ShowDamageNumber(float Damage, AActor* Target, EDamageN
 	if (bMarkDamage && MarkCameraShake)
 	{
 		ClientStartCameraShake(MarkCameraShake);
+	}
+}
+
+void ASPlayerController::OnPawnDamaged(float Damage)
+{
+	// 보스는 플레이어 컨트롤러가 없어 "때린 쪽이 숫자를 띄우는" 경로로는 안 보임 → 맞은 쪽이 직접 띄움
+	ShowDamageNumber(Damage, GetPawn(), EDamageNumberType::PlayerHurt);
+
+	if (HurtCameraShake)
+	{
+		ClientStartCameraShake(HurtCameraShake);
 	}
 }
 
@@ -378,6 +393,20 @@ void ASPlayerController::DebugDamage(float Amount)
 	// ApplyModToAttribute는 GE 실행 콜백(PostGameplayEffectExecute)을 거치지 않아 IncomingDamage로는 체력이 안 줄어듦
 	const float Health = ASC->GetNumericAttribute(USAttributeSet::GetHealthAttribute());
 	ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, FMath::Max(0.f, Health - Amount));
+}
+
+void ASPlayerController::BossPatternSim(int32 Count)
+{
+	for (TActorIterator<ABossCharacter> It(GetWorld()); It; ++It)
+	{
+		if (const USBossPatternComponent* Patterns = It->GetPatternComponent())
+		{
+			// 고정 시드: 몇 번을 돌려도 같은 결과 (README 숫자를 다시 확인할 수 있게)
+			Patterns->RunSimulation(Count, 42);
+			return;
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[패턴 시뮬레이션] 맵에 보스가 없음"));
 }
 
 void ASPlayerController::DebugMarkAll(const FString& MarkName)
