@@ -29,6 +29,10 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Dodge);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Swap);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_HitReact);
+	// 보스 공격 (BT가 이 태그로 발동). 부모 태그(Ability.Boss)로 보스 공격 전부를 한 번에 취소
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Slam);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Punch);
 
 	// ---------- 몽타주 이벤트 (Notify → 능력에 신호) ----------
 	// 칼이 닿는 프레임 → 타격 판정
@@ -50,6 +54,8 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PerfectWindow);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Stun);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
+	// 큰 경직 (보스 갑옷 파괴 등). 작은 경직(State.Stun)과 달리 진행 중인 보스 공격을 취소
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy);
 
 	// ---------- 지금 조작 중인 캐릭터 (교체) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_Warrior);
@@ -62,6 +68,8 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_FrostBolt);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_Thunder);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Dodge);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Golem_Slam);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Golem_Punch);
 
 	// ---------- 데미지 (스킬마다 배율을 GE에 넘김) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_DamageMultiplier);
