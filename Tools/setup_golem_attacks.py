@@ -16,6 +16,12 @@ BOSS_BP = "/Game/Blueprints/Enemy/BP_Boss_Golem"
 PARENT = unreal.load_class(None, "/Script/TwinSwift.SGA_BossAttack")
 GOLEM_SLAM_FX = "/Game/Assets/VFX/Boss/NS_GolemSlam"
 
+# 골렘 스탯 (시작할 때 한 번 덮어씀). 조정은 여기만
+# 체력: 지금은 테스트용으로 낮게 (영상용 2~3분 전투는 약 3000). 공격력 15 → 내려치기 37 · 손등 22 · 점프 45
+GOLEM_STATS = {"MaxHealth": 500.0, "Health": 500.0, "AttackPower": 15.0}
+STATS_SOURCE = "/Game/Abilities/Warrior/GE_Warrior_DefaultAttributes"
+STATS_GE = "/Game/Abilities/Boss/GE_Golem_DefaultAttributes"
+
 ATTACKS = [
     {
         "ga": "GA_Golem_Slam",
@@ -164,6 +170,27 @@ for cls in ga_classes:
     if cls not in abilities:
         abilities.append(cls)
 boss_cdo.set_editor_property("startup_abilities", abilities)
+
+# 스탯 GE: 플레이어 것(즉시 적용, 덮어쓰기 3개)을 복사해 값만 바꿈
+if not eal.does_asset_exist(STATS_GE):
+    eal.duplicate_asset(STATS_SOURCE, STATS_GE)
+stats_bp = unreal.load_asset(STATS_GE)
+stats_cdo = unreal.get_default_object(stats_bp.generated_class())
+modifiers = list(stats_cdo.get_editor_property("modifiers"))
+for modifier in modifiers:
+    text = modifier.export_text()
+    attribute = text.split('AttributeName="')[1].split('"')[0]
+    if attribute in GOLEM_STATS:
+        # ScalableFloatMagnitude의 Value만 바꿈 (첫 번째 Value=가 그 값)
+        head, tail = text.split("ScalableFloatMagnitude=(Value=", 1)
+        old_value, rest = tail.split(",", 1)
+        modifier.import_text(f"{head}ScalableFloatMagnitude=(Value={GOLEM_STATS[attribute]:.6f},{rest}")
+stats_cdo.set_editor_property("modifiers", modifiers)
+unreal.BlueprintEditorLibrary.compile_blueprint(stats_bp)
+eal.save_loaded_asset(stats_bp)
+boss_cdo.set_editor_property("default_attributes_effect", stats_bp.generated_class())
+print("스탯:", [m.export_text().split('AttributeName="')[1].split('"')[0] + "=" + m.export_text().split("ScalableFloatMagnitude=(Value=")[1].split(",")[0]
+               for m in stats_cdo.get_editor_property("modifiers")])
 
 # 사망 몽타주: 끝나도 쓰러진 자세로 남게 자동 블렌드 아웃 끔 (켜 두면 끝나는 순간 Idle로 일어남)
 death = get_or_create_montage("AM_Golem_Death", "A_Golem_Death")

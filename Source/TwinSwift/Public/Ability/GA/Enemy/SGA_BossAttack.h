@@ -4,6 +4,7 @@
 #include "Ability/SGameplayAbility.h"
 #include "SGA_BossAttack.generated.h"
 
+class ASBossTelegraph;
 class UAnimMontage;
 class UCameraShakeBase;
 class UNiagaraSystem;
@@ -123,9 +124,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Target")
 	FName TargetKeyName = TEXT("TargetActor");
 
-	// [9-1 임시] 예고를 디버그 원으로 그림
+	// 바닥 예고 (BP_BossTelegraph). 발동할 때 풀에서 꺼내 범위 모양으로 → 공격 시계로 차오름 → 마지막 타격에 번쩍하고 반납
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Telegraph")
+	TSubclassOf<ASBossTelegraph> TelegraphClass;
+
+	// [디버그] 판정 범위를 디버그 선으로도 그림 (바닥 예고와 실제 판정이 맞는지 비교할 때)
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Debug")
-	bool bDrawDebugTelegraph = true;
+	bool bDrawDebugTelegraph = false;
 
 private:
 	// 블랙보드의 표적. 없으면 nullptr
@@ -150,7 +155,14 @@ private:
 	void PlanLeap(const AActor* Target);
 	void StartLeap();
 
-	// 예고 그리기. 안쪽 원이 바깥에 닿는 순간 맞음
+	// 지난 타격(첫 타격이면 0초)부터 다음 타격까지 몇 % 왔는지 (예고가 가득 = 맞는 순간). 바닥 예고와 디버그 선이 같이 씀
+	float GetTelegraphProgress(float AttackTime) const;
+
+	// 바닥 예고 꺼내기 (발동할 때) / 넣기 (마지막 타격이면 번쩍 후, 취소면 바로)
+	void ShowTelegraph();
+	void HideTelegraph(bool bFlash);
+
+	// [디버그] 예고 선 그리기. 안쪽 원이 바깥에 닿는 순간 맞음
 	void DrawTelegraph(float AttackTime) const;
 
 	// 범위 모양을 디버그 선으로 그림 (원 또는 부채꼴). 예고와 맞는 순간 표시가 같이 씀
@@ -168,6 +180,9 @@ private:
 
 	// OnAttackTick 반복 타이머
 	FTimerHandle AttackTickTimer;
+
+	// 이번 발동의 바닥 예고 (풀이 주인. 반납 뒤 다른 공격이 쓸 수 있어 약한 포인터 + 반납하면 바로 비움)
+	TWeakObjectPtr<ASBossTelegraph> Telegraph;
 
 	// 도약 상태 (발동마다 처음부터)
 	bool bLeapStarted = false;

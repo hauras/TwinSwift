@@ -9,6 +9,8 @@
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Ability/SAbilityFunctionLibrary.h"
+#include "Actor/SBossTelegraph.h"
+#include "Pool/SActorPool.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/SCameraShake_BossImpact.h"
 #include "Kismet/GameplayStatics.h"
@@ -73,6 +75,9 @@ void USGA_BossAttack::ActivateAbility(
 		PlanLeap(Target);
 	}
 
+	// 바닥 예고는 방향·착지 지점이 정해진 뒤에 (아래에서 몽타주가 실패해 바로 끝나도 EndAbility가 반납)
+	ShowTelegraph();
+
 	if (AttackMontage)
 	{
 		UAbilityTask_PlayMontageAndWait* MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
@@ -111,6 +116,9 @@ void USGA_BossAttack::EndAbility(
 	{
 		World->GetTimerManager().ClearTimer(AttackTickTimer);
 	}
+
+	// 맞기 전에 끝났으면 번쩍 없이 바로 반납 (마지막 타격에서 이미 반납했으면 아무것도 안 함)
+	HideTelegraph(false);
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
@@ -156,6 +164,12 @@ void USGA_BossAttack::OnAttackTick()
 	{
 		DoHit();
 		++HitIndex;
+	}
+
+	// 바닥 예고 차오름 (판정과 같은 공격 시계)
+	if (ASBossTelegraph* TelegraphActor = Telegraph.Get())
+	{
+		TelegraphActor->SetProgress(GetTelegraphProgress(AttackTime));
 	}
 
 	if (bDrawDebugTelegraph)
@@ -211,6 +225,12 @@ void USGA_BossAttack::DoHit()
 			Center,
 			Radius,
 			ImpactShakeOuterRadius);
+	}
+
+	// 마지막 타격이면 바닥 예고가 번쩍하고 사라짐 (여러 번 치는 공격은 그 전까지 다음 타격을 향해 다시 차오름)
+	if (HitIndex == HitTimes.Num() - 1)
+	{
+		HideTelegraph(true);
 	}
 
 	// 맞는 순간 표시 (굵은 빨간 선, 0.2초)
@@ -319,6 +339,63 @@ void USGA_BossAttack::StartLeap()
 	LeapTask->ReadyForActivation();
 }
 
+float USGA_BossAttack::GetTelegraphProgress(float AttackTime) const
+{
+	if (!HitTimes.IsValidIndex(HitIndex))
+	{
+		return 1.f;
+	}
+
+	// 지난 타격(첫 타격이면 0초)부터 이번 타격까지 몇 % 왔는지. 판정과 같은 공격 시계
+	const float Start = HitIndex > 0 ? HitTimes[HitIndex - 1] : 0.f;
+	const float End = HitTimes[HitIndex];
+	return FMath::Clamp((AttackTime - Start) / FMath::Max(End - Start, KINDA_SMALL_NUMBER), 0.f, 1.f);
+}
+
+void USGA_BossAttack::ShowTelegraph()
+{
+	const AActor* Avatar = GetAvatarActorFromActorInfo();
+	USActorPool* Pool = GetWorld()->GetSubsystem<USActorPool>();
+	if (!TelegraphClass || !Avatar || !Pool)
+	{
+		return;
+	}
+
+	ASBossTelegraph* TelegraphActor = Pool->Acquire<ASBossTelegraph>(TelegraphClass, FTransform(GetShapeCenter()));
+	if (!TelegraphActor)
+	{
+		return;
+	}
+
+	// 판정과 같은 중심·방향·반경·각도 (원이면 360)
+	TelegraphActor->Setup(
+		GetShapeCenter(),
+		Avatar->GetActorRotation(),
+		Radius,
+		Shape == EBossAttackShape::Fan ? FanAngle : 360.f);
+	Telegraph = TelegraphActor;
+}
+
+void USGA_BossAttack::HideTelegraph(bool bFlash)
+{
+	ASBossTelegraph* TelegraphActor = Telegraph.Get();
+	// 반납 뒤에는 풀에서 다른 공격이 꺼내 쓸 수 있음 → 다시 건드리지 않게 바로 비움
+	Telegraph.Reset();
+	if (!TelegraphActor)
+	{
+		return;
+	}
+
+	if (bFlash)
+	{
+		TelegraphActor->FlashAndRelease();
+	}
+	else
+	{
+		TelegraphActor->Release();
+	}
+}
+
 void USGA_BossAttack::DrawTelegraph(float AttackTime) const
 {
 	if (!HitTimes.IsValidIndex(HitIndex))
@@ -326,15 +403,10 @@ void USGA_BossAttack::DrawTelegraph(float AttackTime) const
 		return;
 	}
 
-	// 지난 타격(첫 타격이면 0초)부터 이번 타격까지 몇 % 왔는지. 판정과 같은 공격 시계
-	const float Start = HitIndex > 0 ? HitTimes[HitIndex - 1] : 0.f;
-	const float End = HitTimes[HitIndex];
-	const float Alpha = FMath::Clamp((AttackTime - Start) / FMath::Max(End - Start, KINDA_SMALL_NUMBER), 0.f, 1.f);
-
 	// 바깥 = 공격 범위, 안쪽 = 남은 시간 (바깥에 닿는 순간 맞음). 다음 확인 때까지 보이게 주기보다 조금 길게
 	const float Duration = AttackTickInterval * 1.5f;
 	DrawArea(Radius, FColor::Red, 4.f, Duration);
-	DrawArea(Radius * Alpha, FColor::Orange, 3.f, Duration);
+	DrawArea(Radius * GetTelegraphProgress(AttackTime), FColor::Orange, 3.f, Duration);
 }
 
 void USGA_BossAttack::DrawArea(float InRadius, const FColor& Color, float Thickness, float Duration) const
