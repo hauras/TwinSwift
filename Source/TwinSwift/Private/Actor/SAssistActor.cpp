@@ -180,8 +180,7 @@ void ASAssistActor::GatherEnemies(const FVector& Center, float SearchRadius, TAr
 		{
 			continue;
 		}
-		if (USAbilityFunctionLibrary::IsFriend(SourceAvatar, Target)
-			|| !UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
+		if (!USAbilityFunctionLibrary::IsTargetable(SourceAvatar, Target))
 		{
 			continue;
 		}
@@ -287,11 +286,15 @@ AActor* ASAssistActor::PickHomingTarget()
 		AssignShotTargets();
 	}
 
-	// 이번 발의 표적. 날아가기 전에 사라졌으면 그 뒤 발의 표적 중 남은 적
+	// 이번 발의 표적. 날아가기 전에 사라졌거나 죽었으면 그 뒤 발의 표적 중 남은 적
+	// 표적은 첫 발에서 저장해 둔 것 → 쓰는 지금 다시 확인 (보스는 죽어도 액터가 남아 포인터만으로는 모름)
+	const UAbilitySystemComponent* ASC = SourceASC.Get();
+	const AActor* SourceAvatar = ASC ? ASC->GetAvatarActor() : nullptr;
 	const int32 ShotIndex = FMath::Max(0, NextHitIndex - 1);
 	for (int32 Index = ShotIndex; Index < ShotTargets.Num(); ++Index)
 	{
-		if (AActor* Target = ShotTargets[Index].Get())
+		AActor* Target = ShotTargets[Index].Get();
+		if (USAbilityFunctionLibrary::IsTargetable(SourceAvatar, Target))
 		{
 			return Target;
 		}

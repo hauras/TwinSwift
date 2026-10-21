@@ -1,6 +1,7 @@
 #include "Editor/TSWidgetEditLibrary.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Components/CanvasPanel.h"
 #include "Components/PanelWidget.h"
 #include "Components/Overlay.h"
 #include "Components/Widget.h"
@@ -60,6 +61,25 @@ UWidget* UTSWidgetEditLibrary::FindWidget(UObject* WidgetBlueprint, FName Widget
 	return Tree ? Tree->FindWidget(WidgetName) : nullptr;
 #else
 	return nullptr;
+#endif
+}
+
+FName UTSWidgetEditLibrary::EnsureRootCanvas(UObject* WidgetBlueprint, FName RootName)
+{
+#if WITH_EDITOR
+	UWidgetTree* Tree = GetTree(WidgetBlueprint);
+	if (!Tree)
+	{
+		return NAME_None;
+	}
+	if (!Tree->RootWidget)
+	{
+		WidgetBlueprint->Modify();
+		Tree->RootWidget = Tree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), RootName);
+	}
+	return Tree->RootWidget->GetFName();
+#else
+	return NAME_None;
 #endif
 }
 

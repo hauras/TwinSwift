@@ -208,13 +208,16 @@ void ASProjectile::OnOverlap(
 	bool bFromSweep,
 	const FHitResult& SweepResult)
 {
-	if (!OtherActor || OtherActor == GetOwner() || USAbilityFunctionLibrary::IsFriend(GetOwner(), OtherActor))
+	// 주인·아군·죽은 적은 통과 (벽은 OnBlocked가 따로 처리)
+	if (OtherActor == GetOwner() || !USAbilityFunctionLibrary::IsTargetable(GetOwner(), OtherActor))
 	{
 		return;
 	}
 
-	// 유도탄은 자기 표적에만 맞음 (가는 길의 다른 적은 통과). 표적이 사라졌으면 아무 적이나
-	if (HomingTarget.IsValid() && OtherActor != HomingTarget.Get())
+	// 유도탄은 자기 표적에만 맞음 (가는 길의 다른 적은 통과). 표적이 사라졌거나 죽었으면 아무 적이나
+	if (HomingTarget.IsValid()
+		&& OtherActor != HomingTarget.Get()
+		&& USAbilityFunctionLibrary::IsTargetable(GetOwner(), HomingTarget.Get()))
 	{
 		return;
 	}

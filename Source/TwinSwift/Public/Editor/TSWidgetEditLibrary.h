@@ -22,6 +22,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor|Widget")
 	static FString DumpWidgetTree(UObject* WidgetBlueprint);
 
+	// 루트 위젯이 없으면 Canvas Panel을 루트로 만듦 (스크립트로 만든 새 WBP는 비어 있음). 루트 이름을 돌려줌
+	UFUNCTION(BlueprintCallable, Category = "Editor|Widget")
+	static FName EnsureRootCanvas(UObject* WidgetBlueprint, FName RootName);
+
 	// 이름으로 위젯 찾기 (없으면 null)
 	UFUNCTION(BlueprintCallable, Category = "Editor|Widget")
 	static UWidget* FindWidget(UObject* WidgetBlueprint, FName WidgetName);

@@ -65,7 +65,7 @@ bool USGameplayAbility::ApplyDamageTo(
 		*bOutShattered = false;
 	}
 
-	if (!Target || USAbilityFunctionLibrary::IsFriend(GetAvatarActorFromActorInfo(), Target))
+	if (!USAbilityFunctionLibrary::IsTargetable(GetAvatarActorFromActorInfo(), Target))
 	{
 		return false;
 	}
@@ -157,8 +157,7 @@ void USGameplayAbility::FindEnemiesInRadius(const FVector& Center, float Radius,
 		{
 			continue;
 		}
-		if (USAbilityFunctionLibrary::IsFriend(Avatar, Target)
-			|| !UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target))
+		if (!USAbilityFunctionLibrary::IsTargetable(Avatar, Target))
 		{
 			continue;
 		}
@@ -193,7 +192,11 @@ void USGameplayAbility::ApplyTimedTagTo(AActor* Target, const FGameplayTag& Tag,
 
 bool USGameplayAbility::TryShatterFrost(AActor* Target, UAbilitySystemComponent* TargetASC) const
 {
-	if (!bShattersFrost || !Target || !TargetASC || !TargetASC->HasMatchingGameplayTag(SGameplayTags::Mark_Frost))
+	// 죽었는지 다시 확인: 바로 앞의 일반 피해 GE가 즉시 적용돼 그 사이에 죽었을 수 있음 (시체에 추가 피해·경직·파편 방지)
+	if (!bShattersFrost
+		|| !USAbilityFunctionLibrary::IsTargetable(GetAvatarActorFromActorInfo(), Target)
+		|| !TargetASC
+		|| !TargetASC->HasMatchingGameplayTag(SGameplayTags::Mark_Frost))
 	{
 		return false;
 	}

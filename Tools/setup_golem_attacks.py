@@ -165,6 +165,12 @@ for cls in ga_classes:
         abilities.append(cls)
 boss_cdo.set_editor_property("startup_abilities", abilities)
 
+# 사망 몽타주: 끝나도 쓰러진 자세로 남게 자동 블렌드 아웃 끔 (켜 두면 끝나는 순간 Idle로 일어남)
+death = get_or_create_montage("AM_Golem_Death", "A_Golem_Death")
+death.set_editor_property("enable_auto_blend_out", False)
+eal.save_loaded_asset(death)
+boss_cdo.set_editor_property("death_montage", death)
+
 # 패턴 선택기 목록 (거리 cm). 판정 범위에서 정함:
 #   내려치기: 앞 280 중심 · 반경 220 원 → 앞 60~500이 맞음. 너무 붙으면 원 뒤쪽이라 빗나가서 최소 150
 #   손등 치기: 반경 320 부채꼴 → 0~320

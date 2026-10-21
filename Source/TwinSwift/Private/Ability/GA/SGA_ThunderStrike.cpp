@@ -131,9 +131,11 @@ bool USGA_ThunderStrike::ExplodeOne(
 	TSet<AActor*>& DamagedThisWave,
 	TArray<TWeakObjectPtr<AActor>>& OutNextWave)
 {
-	// 기다리는 동안 사라졌거나 [균열] 시간이 끝났으면 터지지 않음
+	// 기다리는 동안 사라졌거나 죽었거나 [균열] 시간이 끝났으면 터지지 않음 (이전 단계에서 저장한 대상 → 터뜨리는 지금 다시 확인)
 	UAbilitySystemComponent* SourceASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Source);
-	if (!SourceASC || !SourceASC->HasMatchingGameplayTag(SGameplayTags::Mark_Crack))
+	if (!USAbilityFunctionLibrary::IsTargetable(GetAvatarActorFromActorInfo(), Source)
+		|| !SourceASC
+		|| !SourceASC->HasMatchingGameplayTag(SGameplayTags::Mark_Crack))
 	{
 		return false;
 	}
