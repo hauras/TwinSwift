@@ -71,6 +71,10 @@ public:
 	// 교체(InputTag.Swap)면 교체, 나머지는 그 입력을 받을 캐릭터의 ASC로 (상대 캐릭터 스킬 키면 먼저 교체)
 	void ExecuteAbilityInput(const FGameplayTag& InputTag);
 
+	// 지금 누르고 있는 이동 방향 (월드, 바닥 평면, 단위 벡터). 이동이 막혀 있어도(공격 중) 기록됨. 안 누르면 0
+	// 회피가 씀: 캐릭터의 마지막 이동 입력은 공격 중에 비어 있어서
+	FVector GetDesiredMoveDirection() const { return DesiredMoveDirection; }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
@@ -155,6 +159,7 @@ private:
 	void FinishBench();
 
 	void Move_Input(const FInputActionValue& InputValue);
+	void MoveCompleted_Input();
 	void Look_Input(const FInputActionValue& InputValue);
 	void WalkStarted_Input();
 	void WalkCompleted_Input();
@@ -199,6 +204,9 @@ private:
 	void OnActiveSlotChanged(ETwinSlot NewSlot);
 
 	FDelegateHandle ActiveSlotChangedHandle;
+
+	// GetDesiredMoveDirection 값
+	FVector DesiredMoveDirection = FVector::ZeroVector;
 
 	// 교체 알림을 구독한 캐릭터 (다른 캐릭터에 다시 빙의하면 이전 구독을 끊고 새로 구독)
 	TWeakObjectPtr<APlayerCharacter> InputBufferCharacter;

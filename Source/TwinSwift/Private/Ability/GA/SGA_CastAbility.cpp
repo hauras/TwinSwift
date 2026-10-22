@@ -202,8 +202,10 @@ void USGA_CastAbility::OnMontageBlendOut()
 void USGA_CastAbility::OnMontageInterrupted()
 {
 	// 시전한 뒤에 몽타주만 끊긴 경우(같은 몸에서 회피 몽타주 등)는 효과를 계속 → 회복 시간·효과가 끝나면 TryFinishCast가 종료
+	// 다만 캐릭터의 시전 동작은 끝났으니 "공격 중"은 바로 풂 (안 풀면 회복 시간까지 이동·입력이 막힘)
 	if (bCastFired)
 	{
+		SetAttacking(false);
 		return;
 	}
 

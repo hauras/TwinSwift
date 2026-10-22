@@ -126,6 +126,7 @@ void ASPlayerController::SetupInputComponent()
 	}
 
 	EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Move_Input);
+	EnhancedInput->BindAction(MoveAction, ETriggerEvent::Completed, this, &ThisClass::MoveCompleted_Input);
 	EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Look_Input);
 	EnhancedInput->BindAction(WalkAction, ETriggerEvent::Started, this, &ThisClass::WalkStarted_Input);
 	EnhancedInput->BindAction(WalkAction, ETriggerEvent::Completed, this, &ThisClass::WalkCompleted_Input);
@@ -235,7 +236,7 @@ void ASPlayerController::PlayerTick(float DeltaTime)
 void ASPlayerController::Move_Input(const FInputActionValue& InputValue)
 {
 	APawn* ControlledPawn = GetPawn();
-	if (!ControlledPawn || !PlayerCameraManager || IsMoveInputBlocked())
+	if (!ControlledPawn || !PlayerCameraManager)
 	{
 		return;
 	}
@@ -244,10 +245,23 @@ void ASPlayerController::Move_Input(const FInputActionValue& InputValue)
 	const FRotator CameraYaw(0.f, PlayerCameraManager->GetCameraRotation().Yaw, 0.f);
 	const FVector ForwardDirection = FRotationMatrix(CameraYaw).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(CameraYaw).GetUnitAxis(EAxis::Y);
-
 	const FVector2D InputAxis = InputValue.Get<FVector2D>();
+
+	// 이동이 막혀 있어도(공격 중) 누르고 있는 방향은 기록 → 공격 중에 눌러 둔 회피가 이 방향으로 나감
+	DesiredMoveDirection = (ForwardDirection * InputAxis.Y + RightDirection * InputAxis.X).GetSafeNormal2D();
+
+	if (IsMoveInputBlocked())
+	{
+		return;
+	}
 	ControlledPawn->AddMovementInput(ForwardDirection, InputAxis.Y);
 	ControlledPawn->AddMovementInput(RightDirection, InputAxis.X);
+}
+
+void ASPlayerController::MoveCompleted_Input()
+{
+	// 이동키를 모두 뗌 → 회피는 캐릭터가 보는 쪽으로
+	DesiredMoveDirection = FVector::ZeroVector;
 }
 
 void ASPlayerController::Look_Input(const FInputActionValue& InputValue)
@@ -315,6 +329,14 @@ void ASPlayerController::ExecuteAbilityInput(const FGameplayTag& InputTag)
 	const ETwinSlot Slot = GetSlotForInput(InputTag, PlayerCharacter->GetActiveSlot());
 	if (Slot != PlayerCharacter->GetActiveSlot())
 	{
+		// "교체하며 시전"이라 그 스킬이 지금 못 나가면(쿨다운 등) 교체도 하지 않음
+		// 안 그러면 스킬은 안 나가고 교체 쿨다운·어시스트만 써 버림
+		const USAbilitySystemComponent* TargetASC = SPlayerState->GetSAbilitySystemComponent(Slot);
+		if (!TargetASC || !TargetASC->CanActivateAbilityByInputTag(InputTag))
+		{
+			return;
+		}
+
 		PlayerCharacter->SwapTo(Slot);
 		if (PlayerCharacter->GetActiveSlot() != Slot)
 		{

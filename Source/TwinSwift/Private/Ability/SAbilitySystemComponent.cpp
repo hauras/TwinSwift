@@ -33,6 +33,25 @@ void USAbilitySystemComponent::AddStartupAbilities(const TArray<TSubclassOf<UGam
 	bStartupAbilitiesGiven = true;
 }
 
+bool USAbilitySystemComponent::CanActivateAbilityByInputTag(const FGameplayTag& InputTag) const
+{
+	if (!InputTag.IsValid())
+	{
+		return false;
+	}
+
+	for (const FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
+	{
+		if (AbilitySpec.Ability
+			&& AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(InputTag)
+			&& AbilitySpec.Ability->CanActivateAbility(AbilitySpec.Handle, AbilityActorInfo.Get()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void USAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())

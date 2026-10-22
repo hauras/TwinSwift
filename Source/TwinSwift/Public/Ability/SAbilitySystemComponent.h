@@ -23,6 +23,10 @@ public:
 	void AbilityInputTagPressed(const FGameplayTag& InputTag);
 	void AbilityInputTagReleased(const FGameplayTag& InputTag);
 
+	// 이 입력 태그의 능력이 지금 발동 가능한지 (쿨다운·차단 태그). 발동은 하지 않음
+	// "상대 캐릭터 스킬 = 교체하며 시전"에서 교체하기 전에 확인 → 쿨다운인데 교체만 되는 일 방지
+	bool CanActivateAbilityByInputTag(const FGameplayTag& InputTag) const;
+
 private:
 	bool bStartupAbilitiesGiven = false;
 };

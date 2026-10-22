@@ -5,6 +5,7 @@
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionConstantForce.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Character/PlayerCharacter.h"
+#include "Controller/SPlayerController.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
@@ -116,7 +117,17 @@ FVector USGA_Dodge::GetDodgeDirection() const
 	}
 
 	// 지금 누르고 있는 이동 방향. 없으면 캐릭터가 보는 쪽
-	FVector Direction = Character->GetLastMovementInputVector();
+	// 플레이어는 컨트롤러가 기록한 방향 우선: 공격 중에는 이동 입력이 캐릭터에 안 넘어가 마지막 이동 입력이 비어 있음
+	// (입력 버퍼로 공격 중 눌러 둔 회피가 옆으로 피하려 했는데 앞으로 구르지 않게)
+	FVector Direction = FVector::ZeroVector;
+	if (const ASPlayerController* PlayerController = Character->GetController<ASPlayerController>())
+	{
+		Direction = PlayerController->GetDesiredMoveDirection();
+	}
+	if (Direction.IsNearlyZero())
+	{
+		Direction = Character->GetLastMovementInputVector();
+	}
 	Direction.Z = 0.f;
 	if (!Direction.Normalize())
 	{
