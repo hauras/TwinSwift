@@ -34,14 +34,11 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Slam);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Punch);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_JumpSlam);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Intro);
 
 	// ---------- 몽타주 이벤트 (Notify → 능력에 신호) ----------
 	// 칼이 닿는 프레임 → 타격 판정
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Montage_Hit);
-	// 다음 콤보 입력을 받는 구간 (입력 버퍼)
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Montage_ComboWindow);
-	// 다른 스킬·회피로 끊을 수 있는 구간
-	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Montage_CancelWindow);
 
 	// ---------- 표식 (확정 표식, 상대 캐릭터가 터뜨림) ----------
 	// 전사 → 마법사 낙뢰가 터뜨림
@@ -57,6 +54,11 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
 	// 큰 경직 (보스 갑옷 파괴 등). 작은 경직(State.Stun)과 달리 진행 중인 보스 공격을 취소
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy);
+
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Window_Combo);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Window_Dodge);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Window_Swap);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Window_Skill);
 
 	// ---------- 지금 조작 중인 캐릭터 (교체) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Character_Warrior);

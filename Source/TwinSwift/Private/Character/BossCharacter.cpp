@@ -2,6 +2,7 @@
 #include "Character/BossCharacter.h"
 
 #include "SGameplayTags.h"
+#include "Abilities/GameplayAbility.h"
 #include "Ability/SAbilitySystemComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AI/SAIController.h"
@@ -136,6 +137,62 @@ bool ABossCharacter::StartCombat()
 	}
 
 	return AIController->RunBehaviorTree(BehaviorTree);
+}
+
+bool ABossCharacter::PlayIntro(const FVector& Landing)
+{
+	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC || !IntroAbilityTag.IsValid() || IsDead())
+	{
+		return false;
+	}
+
+	// 등장 능력(도약 공격)이 발동할 때 이 위치를 가져감
+	LeapTargetOverride = Landing;
+	if (!ASC->TryActivateAbilitiesByTag(FGameplayTagContainer(IntroAbilityTag)))
+	{
+		LeapTargetOverride.Reset();
+		UE_LOG(LogTemp, Warning, TEXT("[보스] %s 등장 능력 발동 실패 (%s가 StartupAbilities에 있는지)"), *GetName(), *IntroAbilityTag.ToString());
+		return false;
+	}
+	return true;
+}
+
+bool ABossCharacter::IsIntroPlaying() const
+{
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (!ASC || !IntroAbilityTag.IsValid())
+	{
+		return false;
+	}
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.IsActive() && Spec.Ability && Spec.Ability->GetAssetTags().HasTag(IntroAbilityTag))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void ABossCharacter::SkipIntro(const FVector& Landing)
+{
+	// 공중에 있어도 능력을 끊으면 몽타주·이동이 같이 멈춤 → 착지 지점(바닥)에 바로 세움. 캡슐 가운데라 반 높이만큼 위
+	StopCombat();
+	LeapTargetOverride.Reset();
+	const FVector Standing = Landing + FVector(0.f, 0.f, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	SetActorLocation(Standing, false, nullptr, ETeleportType::TeleportPhysics);
+}
+
+bool ABossCharacter::ConsumeLeapTargetOverride(FVector& OutLocation)
+{
+	if (!LeapTargetOverride.IsSet())
+	{
+		return false;
+	}
+	OutLocation = LeapTargetOverride.GetValue();
+	LeapTargetOverride.Reset();
+	return true;
 }
 
 void ABossCharacter::StopCombat()

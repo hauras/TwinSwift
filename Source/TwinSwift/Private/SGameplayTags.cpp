@@ -25,12 +25,11 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Slam, "Ability.Boss.Golem.Slam", "골렘 내려치기 (느림, 앞쪽 바닥 원형)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Punch, "Ability.Boss.Golem.Punch", "골렘 손등 치기 (내려치기보다 빠름, 앞쪽 넓은 부채꼴)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_JumpSlam, "Ability.Boss.Golem.JumpSlam", "골렘 점프 내려찍기 (멀리 있는 플레이어에게 뛰어듦)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Intro, "Ability.Boss.Golem.Intro", "골렘 등장: 경기장 가장자리에서 가운데로 뛰어내려 착지 (피해 없음, 패턴 선택기 밖)");
 
 	// 몽타주 이벤트
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_Hit, "Event.Montage.Hit", "타격 판정 프레임");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_ComboWindow, "Event.Montage.ComboWindow", "다음 콤보 입력을 받는 구간");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_CancelWindow, "Event.Montage.CancelWindow", "스킬·회피로 끊을 수 있는 구간");
-
+	
 	// 표식
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Mark_Crack, "Mark.Crack", "균열: 전사가 걸고 마법사가 터뜨림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Mark_Frost, "Mark.Frost", "빙결: 마법사가 걸고 전사가 터뜨림");
@@ -42,6 +41,12 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Stun, "State.Stun", "경직·기절");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "큰 경직: 진행 중인 보스 공격 취소 (작은 경직 State.Stun은 공격 중 무시 = 슈퍼아머)");
+
+	// ---------- 행동 허용 창 ----------
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Window_Combo, "Window.Combo", "다음 평타로 이어도 되는 구간");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Window_Dodge, "Window.Dodge", "회피로 끊어도 되는 구간");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Window_Swap, "Window.Swap", "교체로 끊어도 되는 구간");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Window_Skill, "Window.Skill", "스킬로 끊어도 되는 구간");
 
 	// 캐릭터
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_Warrior, "Character.Warrior", "지금 전사를 조작 중");

@@ -148,7 +148,8 @@ for path in eal.list_assets(GA_DIR, recursive=True):
     if not isinstance(asset, unreal.Blueprint):
         continue
     ga_cdo = unreal.get_default_object(asset.generated_class())
-    if not isinstance(ga_cdo, unreal.SGA_BossAttack):
+    # 등장(Intro)은 피해가 없어 예고하지 않음
+    if not isinstance(ga_cdo, unreal.SGA_BossAttack) or "Intro" in asset.get_name():
         continue
     ga_cdo.set_editor_property("telegraph_class", bp.generated_class())
     unreal.BlueprintEditorLibrary.compile_blueprint(asset)

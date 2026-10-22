@@ -5,6 +5,8 @@
 #include "Character/BossCharacter.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 
 void USBossHUDWidget::BindToEncounter(ASBossEncounter* InEncounter)
 {
@@ -47,6 +49,11 @@ void USBossHUDWidget::NativeDestruct()
 
 void USBossHUDWidget::Unbind()
 {
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(IntroTitleTimer);
+	}
+
 	if (ASBossEncounter* OldEncounter = Encounter.Get())
 	{
 		OldEncounter->OnEncounterStateChanged.Remove(StateChangedHandle);
@@ -66,9 +73,23 @@ void USBossHUDWidget::Unbind()
 
 void USBossHUDWidget::OnEncounterStateChanged(EBossEncounterState NewState)
 {
-	// 이름·체력바: 등장 ~ 결과까지 (등장신 중에 체력바가 올라오는 연출은 10-22에)
-	const bool bShowBoss = NewState != EBossEncounterState::Waiting;
+	// 이름·체력바: 전투부터 (등장신 중에는 이름 카드가 대신)
+	const bool bShowBoss = NewState != EBossEncounterState::Waiting && NewState != EBossEncounterState::Intro;
 	BossPanel->SetVisibility(bShowBoss ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	// 이름 카드: 등장이 시작되면 착지 직후에 나왔다 사라짐. 건너뛰어 전투가 되면 바로 숨김
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(IntroTitleTimer);
+	}
+	if (NewState == EBossEncounterState::Intro && GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(IntroTitleTimer, this, &ThisClass::ShowIntroTitle, FMath::Max(IntroTitleDelay, 0.01f), false);
+	}
+	else
+	{
+		HideIntroTitle();
+	}
 
 	// 결과 글자: 승리·패배일 때만
 	switch (NewState)
@@ -87,6 +108,36 @@ void USBossHUDWidget::OnEncounterStateChanged(EBossEncounterState NewState)
 	default:
 		ResultText->SetVisibility(ESlateVisibility::Collapsed);
 		break;
+	}
+}
+
+void USBossHUDWidget::ShowIntroTitle()
+{
+	if (!IntroTitleText)
+	{
+		return;
+	}
+
+	if (const ASBossEncounter* CurrentEncounter = Encounter.Get())
+	{
+		if (const ABossCharacter* Boss = CurrentEncounter->GetBoss())
+		{
+			IntroTitleText->SetText(Boss->GetDisplayName());
+		}
+	}
+	IntroTitleText->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().SetTimer(IntroTitleTimer, this, &ThisClass::HideIntroTitle, IntroTitleDuration, false);
+	}
+}
+
+void USBossHUDWidget::HideIntroTitle()
+{
+	if (IntroTitleText)
+	{
+		IntroTitleText->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 

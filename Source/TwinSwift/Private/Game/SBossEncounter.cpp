@@ -3,6 +3,7 @@
 #include "Character/BossCharacter.h"
 #include "Character/PlayerCharacter.h"
 #include "Components/BoxComponent.h"
+#include "Camera/CameraActor.h"
 #include "Components/InputComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
@@ -60,6 +61,11 @@ void ASBossEncounter::BeginPlay()
 
 void ASBossEncounter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	CleanupIntro();
+	if (State == EBossEncounterState::Intro && IsValid(Boss))
+	{
+		Boss->SkipIntro(GetIntroLanding());
+	}
 	if (Boss)
 	{
 		Boss->OnBossDied.Remove(BossDiedHandle);
@@ -120,9 +126,161 @@ void ASBossEncounter::BeginEncounter()
 		PlayerDefeatedHandle = PlayerCharacter->OnDefeated.AddUObject(this, &ThisClass::OnPlayerDefeated);
 	}
 
-	// 등장신은 10-22에 이 상태에 넣음. 지금은 바로 전투
 	SetState(EBossEncounterState::Intro);
+	StartIntro();
+}
+
+void ASBossEncounter::StartIntro()
+{
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+
+	if (bPlayIntro && IntroDuration <= 0.f)
+	{
+		Boss->SkipIntro(GetIntroLanding());
+		StartFight();
+		return;
+	}
+
+	// 등장신을 끄거나 보스에게 등장 능력이 없으면 바로 전투 (실패 이유는 보스가 로그로)
+	if (!bPlayIntro || !PlayerController || !Boss->PlayIntro(GetIntroLanding()))
+	{
+		StartFight();
+		return;
+	}
+
+	IntroController = PlayerController;
+	PreviousViewTarget = PlayerController->GetViewTarget();
+	IntroStartTime = GetWorld()->GetTimeSeconds();
+	SetPlayerInputEnabled(false);
+	if (IntroCamera)
+	{
+		bIntroCameraChanged = true;
+		PlayerController->SetViewTargetWithBlend(IntroCamera, IntroCameraBlendTime, VTBlend_Cubic);
+	}
+
+	// 건너뛰기: Space·Enter (아무 키로 하면 마우스 움직임까지 걸릴 수 있음)
+	EnableInput(PlayerController);
+	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ThisClass::SkipIntro);
+	InputComponent->BindKey(EKeys::Enter, IE_Pressed, this, &ThisClass::SkipIntro);
+
+	GetWorldTimerManager().SetTimer(IntroTimer, this, &ThisClass::CheckIntroCompletion, 0.05f, true);
+}
+
+void ASBossEncounter::SkipIntro()
+{
+	if (State != EBossEncounterState::Intro)
+	{
+		return;
+	}
+
+	if (IsValid(Boss))
+	{
+		Boss->SkipIntro(GetIntroLanding());
+	}
+	EndIntro();
+}
+
+void ASBossEncounter::EndIntro()
+{
+	// 시간이 다 된 것과 건너뛰기가 같은 프레임에 와도 한 번만
+	if (State != EBossEncounterState::Intro)
+	{
+		return;
+	}
+	CleanupIntro();
 	StartFight();
+}
+
+void ASBossEncounter::CheckIntroCompletion()
+{
+	if (State != EBossEncounterState::Intro)
+	{
+		return;
+	}
+	const double Elapsed = GetWorld()->GetTimeSeconds() - IntroStartTime;
+	if (!IsValid(Boss) || Elapsed >= FMath::Max(IntroDuration, IntroTimeout))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[보스전] 등장 제한 시간 또는 보스 소멸: 연출 정리"));
+		SkipIntro();
+	}
+	else if (Elapsed >= IntroDuration && !Boss->IsIntroPlaying())
+	{
+		EndIntro();
+	}
+}
+
+void ASBossEncounter::CleanupIntro()
+{
+	GetWorldTimerManager().ClearTimer(IntroTimer);
+	ClearEncounterKeys();
+	SetPlayerInputEnabled(true);
+	if (APlayerController* Controller = IntroController.Get())
+	{
+		AActor* Target = PreviousViewTarget.Get();
+		if (!Target)
+		{
+			Target = Controller->GetPawn();
+		}
+		if (bIntroCameraChanged && IsValid(Target))
+		{
+			Controller->SetViewTargetWithBlend(Target, IntroCameraBlendTime, VTBlend_Cubic);
+		}
+	}
+	bIntroCameraChanged = false;
+	PreviousViewTarget.Reset();
+	IntroController.Reset();
+}
+
+FVector ASBossEncounter::GetIntroLanding() const
+{
+	// 경기장 가운데의 바닥 (보스가 기둥 위 등 높은 곳에서 시작해도 바닥에 착지)
+	// 위에서 아래로 고정 물체만 찾음. 못 찾으면 이 액터 높이
+	const FVector Center = GetActorLocation();
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(EncounterLanding), false, this);
+	if (GetWorld()->LineTraceSingleByObjectType(
+		Hit,
+		Center + FVector(0.f, 0.f, 1000.f),
+		Center - FVector(0.f, 0.f, 5000.f),
+		FCollisionObjectQueryParams(ECC_WorldStatic),
+		Params))
+	{
+		return Hit.ImpactPoint;
+	}
+	return Center;
+}
+
+void ASBossEncounter::SetPlayerInputEnabled(bool bEnabled)
+{
+	APlayerController* PlayerController = IntroController.Get();
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	// 컨트롤러의 입력(이동·스킬·교체)만 끔. 다른 액터가 EnableInput으로 넣은 입력(건너뛰기 키)은 계속 받음
+	if (bEnabled && bIntroInputLocked)
+	{
+		bIntroInputLocked = false;
+		PlayerController->EnableInput(PlayerController);
+	}
+	else if (!bEnabled && !bIntroInputLocked)
+	{
+		bIntroInputLocked = true;
+		PlayerController->DisableInput(PlayerController);
+	}
+}
+
+void ASBossEncounter::ClearEncounterKeys()
+{
+	if (InputComponent)
+	{
+		InputComponent->KeyBindings.Empty();
+	}
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		DisableInput(PlayerController);
+	}
 }
 
 void ASBossEncounter::StartFight()
@@ -203,6 +361,8 @@ void ASBossEncounter::BindRestartKey()
 	{
 		return;
 	}
+	// 등장신 건너뛰기 키가 남아 있지 않게 비우고 R만
+	ClearEncounterKeys();
 	EnableInput(PlayerController);
 	InputComponent->BindKey(EKeys::R, IE_Pressed, this, &ThisClass::RestartLevel);
 }

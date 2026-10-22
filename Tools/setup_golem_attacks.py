@@ -101,6 +101,36 @@ ATTACKS = [
             "hit_stun_duration": 1.0,
         },
     },
+    {
+        # 등장: 점프 내려찍기와 같은 모션으로 경기장 가장자리에서 가운데로 (노릴 위치는 ASBossEncounter가 보스에게 정해 줌)
+        # 피해·예고 없음, 이펙트·흔들림은 가장 크게. 패턴 선택기 목록(PATTERNS)에는 넣지 않음
+        "ga": "GA_Golem_Intro",
+        "montage": "AM_Golem_JumpSlam",
+        "anim": "A_Golem_JumpAttack_InPlace",
+        "tag": "Ability.Boss.Golem.Intro",
+        "cooldown_tag": None,
+        "props": {
+            "montage_play_rate": 1.0,
+            "hit_times": [1.67],
+            "shape": unreal.BossAttackShape.CIRCLE,
+            "forward_offset": 175.0,
+            "radius": 300.0,
+            "deal_damage": False,
+            "cooldown_duration": 0.0,
+            "leap_to_target": True,
+            "leap_start_time": 0.47,
+            "leap_end_time": 1.6,
+            # 가장자리(기둥 위)에서 가운데까지 (경기장 반경보다 넉넉히)
+            "max_leap_distance": 3000.0,
+            # 기둥 위에서 뛰어오르는 느낌: 직선(기둥 꼭대기 → 바닥) 가운데에서 2.5m 위로
+            "leap_arc_height": 250.0,
+            "impact_effect": unreal.load_asset(GOLEM_SLAM_FX),
+            "impact_effect_scale": 2.5,
+            "impact_shake_outer_radius": 5000.0,
+            "hit_stun_duration": 0.0,
+            "telegraph_class": None,
+        },
+    },
 ]
 
 
@@ -109,6 +139,12 @@ def tag_container(*names):
     inner = ",".join(f'(TagName="{n}")' for n in names)
     c.import_text(f"(GameplayTags=({inner}))")
     return c
+
+
+def make_tag(name):
+    tag = unreal.GameplayTag()
+    tag.import_text(f'(TagName="{name}")')
+    return tag
 
 
 def get_or_create_montage(name, anim_name):
@@ -141,7 +177,7 @@ for atk in ATTACKS:
     cdo.set_editor_property("attack_montage", montage)
     for key, value in atk["props"].items():
         cdo.set_editor_property(key, value)
-    cdo.set_editor_property("cooldown_tags", tag_container(atk["cooldown_tag"]))
+    cdo.set_editor_property("cooldown_tags", tag_container(atk["cooldown_tag"]) if atk["cooldown_tag"] else unreal.GameplayTagContainer())
 
     # 능력 이름표: 5.5부터 AbilityTags → AssetTags로 이름이 바뀜
     for prop in ("asset_tags", "ability_tags"):
@@ -170,6 +206,7 @@ for cls in ga_classes:
     if cls not in abilities:
         abilities.append(cls)
 boss_cdo.set_editor_property("startup_abilities", abilities)
+boss_cdo.set_editor_property("intro_ability_tag", make_tag("Ability.Boss.Golem.Intro"))
 
 # 스탯 GE: 플레이어 것(즉시 적용, 덮어쓰기 3개)을 복사해 값만 바꿈
 if not eal.does_asset_exist(STATS_GE):
@@ -207,12 +244,6 @@ PATTERNS = [
     # 점프: 최대 이동 800 + 손 위치 175 → 975까지 닿지만, 너무 멀면 예고를 보고 쉽게 피하므로 900까지. 400~480은 내려치기와 겹침
     {"tag": "Ability.Boss.Golem.JumpSlam", "min": 400.0, "max": 900.0, "preferred": 650.0, "weight": 1.0},
 ]
-
-
-def make_tag(name):
-    tag = unreal.GameplayTag()
-    tag.import_text(f'(TagName="{name}")')
-    return tag
 
 
 def make_pattern(p):

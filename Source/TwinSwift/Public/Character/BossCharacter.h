@@ -40,7 +40,19 @@ public:
 
 	// HUD에 보일 이름 (골렘: "바위 골렘")
 	const FText& GetDisplayName() const { return DisplayName; }
-	
+
+	// 등장: IntroAbilityTag 능력 발동 (골렘: 높은 곳·가장자리에서 Landing으로 뛰어내림). Landing = 바닥 위 한 점. 능력이 없으면 false
+	bool PlayIntro(const FVector& Landing);
+
+	// 실제 등장 능력이 아직 실행 중인지 확인
+	bool IsIntroPlaying() const;
+
+	// 등장 건너뛰기: 등장 능력을 끊고 Landing(바닥)에 바로 세움
+	void SkipIntro(const FVector& Landing);
+
+	// 도약 공격이 노릴 위치를 한 번만 정해 둠 (등장신 착지 등). 공격이 발동할 때 가져가고 비워짐
+	bool ConsumeLeapTargetOverride(FVector& OutLocation);
+
 	FOnBossDied OnBossDied;
 protected:
 	virtual void BeginPlay() override;
@@ -67,7 +79,14 @@ protected:
 	// 보스 이름 (BP에서)
 	UPROPERTY(EditDefaultsOnly, Category = "Boss")
 	FText DisplayName;
+
+	// 등장 능력의 태그 (StartupAbilities에 그 능력이 있어야 함. 패턴 선택기 목록에는 넣지 않음)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Intro", meta = (Categories = "Ability.Boss"))
+	FGameplayTag IntroAbilityTag;
 private:
+	// ConsumeLeapTargetOverride가 가져갈 위치 (없으면 표적을 노림)
+	TOptional<FVector> LeapTargetOverride;
+
 	void GiveStartupAbilitiesAndAttributes();
 
 	// 큰 경직(State.Groggy)이 붙으면 진행 중인 보스 공격(Ability.Boss.*) 취소

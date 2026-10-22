@@ -41,6 +41,17 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> ResultText;
 
+	// 등장신 이름 카드 (화면 가운데 큰 글자). 없으면 생략
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> IntroTitleText;
+
+	// 등장이 시작되고 이름 카드가 나올 때까지(초, 보스 착지 직후) / 떠 있는 시간(초)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss HUD", meta = (ClampMin = "0"))
+	float IntroTitleDelay = 1.8f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Boss HUD", meta = (ClampMin = "0.1"))
+	float IntroTitleDuration = 1.8f;
+
 private:
 	void Unbind();
 
@@ -50,6 +61,12 @@ private:
 
 	// 체력바를 ASC 값으로 다시 그림
 	void RefreshHealth();
+
+	// 이름 카드 보이기·숨기기 (타이머)
+	void ShowIntroTitle();
+	void HideIntroTitle();
+
+	FTimerHandle IntroTitleTimer;
 
 	TWeakObjectPtr<ASBossEncounter> Encounter;
 	TWeakObjectPtr<UAbilitySystemComponent> BossASC;

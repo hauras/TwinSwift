@@ -10,12 +10,14 @@
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Ability/SAbilityFunctionLibrary.h"
 #include "Actor/SBossTelegraph.h"
+#include "Character/BossCharacter.h"
 #include "Pool/SActorPool.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/SCameraShake_BossImpact.h"
 #include "Kismet/GameplayStatics.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Curves/CurveVector.h"
 #include "GameFramework/Character.h"
 
 namespace
@@ -57,22 +59,37 @@ void USGA_BossAttack::ActivateAbility(
 	bLeapStarted = false;
 	bHasLockedCenter = false;
 
-	// 시작할 때 표적을 봄 (좌우만). 공격 도중에는 돌지 않음 → 예고된 범위 그대로 맞음
-	const AActor* Target = GetTargetActor();
-	if (Target)
+	// 노릴 위치: 보스가 정해 둔 위치(등장신 착지)가 있으면 그것, 없으면 표적, 표적도 없으면 앞쪽
+	FVector AimLocation = Character->GetActorLocation() + Character->GetActorForwardVector() * (MaxLeapDistance + ForwardOffset);
+	bool bHasAim = false;
+	if (ABossCharacter* Boss = Cast<ABossCharacter>(Character))
 	{
-		FVector ToTarget = Target->GetActorLocation() - Character->GetActorLocation();
-		ToTarget.Z = 0.f;
-		if (!ToTarget.IsNearlyZero())
+		bHasAim = Boss->ConsumeLeapTargetOverride(AimLocation);
+	}
+	if (!bHasAim)
+	{
+		if (const AActor* Target = GetTargetActor())
 		{
-			Character->SetActorRotation(ToTarget.Rotation());
+			AimLocation = Target->GetActorLocation();
+			bHasAim = true;
+		}
+	}
+
+	// 시작할 때 노릴 곳을 봄 (좌우만). 공격 도중에는 돌지 않음 → 예고된 범위 그대로 맞음
+	if (bHasAim)
+	{
+		FVector ToAim = AimLocation - Character->GetActorLocation();
+		ToAim.Z = 0.f;
+		if (!ToAim.IsNearlyZero())
+		{
+			Character->SetActorRotation(ToAim.Rotation());
 		}
 	}
 
 	// 도약 공격: 착지 지점을 지금 정함 → 예고 원이 처음부터 그 자리에 고정 (플레이어가 보고 피할 시간)
 	if (bLeapToTarget)
 	{
-		PlanLeap(Target);
+		PlanLeap(AimLocation);
 	}
 
 	// 바닥 예고는 방향·착지 지점이 정해진 뒤에 (아래에서 몽타주가 실패해 바로 끝나도 EndAbility가 반납)
@@ -186,9 +203,12 @@ void USGA_BossAttack::OnAttackTick()
 
 void USGA_BossAttack::DoHit()
 {
-	// 원 안의 적을 먼저 넓게 찾고(같은 편 제외), 부채꼴이면 각도로 한 번 더 거름
+	// 원 안의 적을 먼저 넓게 찾고(같은 편 제외), 부채꼴이면 각도로 한 번 더 거름. 피해 없는 공격(등장)은 건너뜀
 	TArray<AActor*> Candidates;
-	FindEnemiesInRadius(GetShapeCenter(), Radius, Candidates);
+	if (bDealDamage)
+	{
+		FindEnemiesInRadius(GetShapeCenter(), Radius, Candidates);
+	}
 	for (AActor* Target : Candidates)
 	{
 		if (!IsInShape(Target))
@@ -289,7 +309,7 @@ FVector USGA_BossAttack::GetShapeCenter() const
 		- FVector(0.f, 0.f, HalfHeight - 3.f);
 }
 
-void USGA_BossAttack::PlanLeap(const AActor* Target)
+void USGA_BossAttack::PlanLeap(const FVector& AimLocation)
 {
 	const ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	if (!Character)
@@ -297,11 +317,9 @@ void USGA_BossAttack::PlanLeap(const AActor* Target)
 		return;
 	}
 
-	// 표적까지 방향·거리 (높이 무시). 표적이 없으면 앞으로 최대 거리
+	// 노릴 곳까지 방향·거리 (높이 무시)
 	const FVector Start = Character->GetActorLocation();
-	FVector ToTarget = Target
-		? Target->GetActorLocation() - Start
-		: Character->GetActorForwardVector() * (MaxLeapDistance + ForwardOffset);
+	FVector ToTarget = AimLocation - Start;
 	ToTarget.Z = 0.f;
 	const float Distance = ToTarget.Size();
 	const FVector Direction = Distance > KINDA_SMALL_NUMBER ? ToTarget / Distance : Character->GetActorForwardVector();
@@ -310,9 +328,15 @@ void USGA_BossAttack::PlanLeap(const AActor* Target)
 	const float Travel = FMath::Clamp(Distance - ForwardOffset, 0.f, MaxLeapDistance);
 	LeapDestination = Start + Direction * Travel;
 
-	// 범위 중심 = 착지 지점 앞 ForwardOffset, 발밑 높이
+	// 착지 높이 = 착지 지점의 바닥 (기둥 위에서 뛰어내리면 서 있던 높이와 다름). 바닥을 못 찾으면 지금 높이
 	const float HalfHeight = Character->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	LockedCenter = LeapDestination + Direction * ForwardOffset - FVector(0.f, 0.f, HalfHeight - 3.f);
+	float FloorZ = Start.Z - HalfHeight;
+	FindGroundZ(LeapDestination, FloorZ);
+	LeapDestination.Z = FloorZ + HalfHeight;
+
+	// 범위 중심 = 착지 지점 앞 ForwardOffset, 바닥보다 3cm 위
+	LockedCenter = LeapDestination + Direction * ForwardOffset;
+	LockedCenter.Z = FloorZ + 3.f;
 	bHasLockedCenter = true;
 }
 
@@ -323,20 +347,63 @@ void USGA_BossAttack::StartLeap()
 	// 몽타주 시간 → 실제 시간. 히트스톱 중에는 모션만 느려져 착지가 조금 먼저 끝날 수 있음 (0.06초 수준이라 무시)
 	const float Duration = FMath::Max((LeapEndTime - LeapStartTime) / MontagePlayRate, 0.05f);
 
-	// 걷기 모드 그대로 수평 이동 (뛰는 높이는 애니의 골반이 보여 줌, 캡슐은 바닥에)
+	// 이동하는 동안만 비행 모드: 걷기 모드는 바닥에 붙어 높이가 무시됨 → 기둥 위에서 바닥으로 내려오거나 포물선을 그리려면 필요
+	// (태스크가 끝나면 원래 모드로 되돌림. 평지·포물선 0이면 걷기 때와 같은 수평 이동)
 	UAbilityTask_ApplyRootMotionMoveToForce* LeapTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
 		this,
 		NAME_None,
 		LeapDestination,
 		Duration,
+		true,
+		MOVE_Flying,
 		false,
-		MOVE_Walking,
-		false,
-		nullptr,
+		GetLeapArcCurve(),
 		ERootMotionFinishVelocityMode::SetVelocity,
 		FVector::ZeroVector,
 		0.f);
 	LeapTask->ReadyForActivation();
+}
+
+bool USGA_BossAttack::FindGroundZ(const FVector& Location, float& OutZ) const
+{
+	const UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+
+	// 위에서 아래로, 고정 물체(바닥·기둥)만. 보스·플레이어 캡슐은 맞지 않음
+	const FVector TraceStart = Location + FVector(0.f, 0.f, 1000.f);
+	const FVector TraceEnd = Location - FVector(0.f, 0.f, 5000.f);
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(BossLeapGround), false, GetAvatarActorFromActorInfo());
+	FHitResult Hit;
+	if (!World->LineTraceSingleByObjectType(Hit, TraceStart, TraceEnd, FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+	{
+		return false;
+	}
+	OutZ = Hit.ImpactPoint.Z;
+	return true;
+}
+
+UCurveVector* USGA_BossAttack::GetLeapArcCurve()
+{
+	if (LeapArcHeight <= 0.f)
+	{
+		return nullptr;
+	}
+
+	if (!LeapArcCurve || LeapArcCurveHeight != LeapArcHeight)
+	{
+		// 가로축 = 진행 비율(0~1), 값 = 직선 경로에 더할 위치(cm). Z만 써서 위로 볼록하게
+		LeapArcCurve = NewObject<UCurveVector>(this);
+		FRichCurve& Height = LeapArcCurve->FloatCurves[2];
+		Height.AddKey(0.f, 0.f);
+		Height.AddKey(0.5f, LeapArcHeight);
+		Height.AddKey(1.f, 0.f);
+		Height.AutoSetTangents();
+		LeapArcCurveHeight = LeapArcHeight;
+	}
+	return LeapArcCurve;
 }
 
 float USGA_BossAttack::GetTelegraphProgress(float AttackTime) const

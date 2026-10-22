@@ -7,6 +7,7 @@
 class ASBossTelegraph;
 class UAnimMontage;
 class UCameraShakeBase;
+class UCurveVector;
 class UNiagaraSystem;
 
 // 공격 범위 모양
@@ -83,6 +84,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Hit", meta = (ClampMin = "0"))
 	float DamageMultiplier = 2.f;
 
+	// 피해를 주는지. 끄면 이펙트·흔들림만 (등장신 착지)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Hit")
+	bool bDealDamage = true;
+
 	// 맞은 플레이어 경직 시간(초). 0이면 없음. 경직 중엔 이동·공격·회피 불가, 교체로만 빠져나옴 (경직은 캐릭터마다 따로)
 	// 무적(회피·완벽 회피)으로 피한 경우는 걸지 않음
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Hit", meta = (ClampMin = "0"))
@@ -103,6 +108,10 @@ protected:
 	// 최대 이동 거리(cm). 표적이 더 멀면 그 방향으로 여기까지만
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Leap", meta = (EditCondition = "bLeapToTarget", ClampMin = "0"))
 	float MaxLeapDistance = 800.f;
+
+	// 포물선 높이(cm): 직선 경로 가운데에서 이만큼 위로 솟음. 0이면 직선 (높은 곳에서 뛰어내릴 때도 직선으로 내려옴)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Leap", meta = (EditCondition = "bLeapToTarget", ClampMin = "0"))
+	float LeapArcHeight = 0.f;
 
 	// 맞는 순간 범위 중심에 생기는 이펙트 (나이아가라 풀 사용). 비우면 없음
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Feedback")
@@ -151,9 +160,16 @@ private:
 	// 범위 중심 (보스 위치 + 앞으로 ForwardOffset, 발밑 높이). 도약 공격은 발동할 때 정한 착지 쪽 지점
 	FVector GetShapeCenter() const;
 
-	// 도약: 착지 지점·범위 중심을 정함 (발동할 때) / 이동 시작 (공격 시계가 LeapStartTime을 지날 때)
-	void PlanLeap(const AActor* Target);
+	// 도약: 착지 지점·범위 중심을 정함 (발동할 때, AimLocation = 손이 떨어질 곳) / 이동 시작 (공격 시계가 LeapStartTime을 지날 때)
+	void PlanLeap(const FVector& AimLocation);
 	void StartLeap();
+
+	// Location 아래 바닥 높이 (위에서 아래로 선을 쏴서 처음 닿는 고정 물체). 못 찾으면 false
+	// 높은 곳(기둥 위)에서 뛰어내릴 때 착지·판정 높이를 보스가 서 있던 높이가 아니라 바닥으로
+	bool FindGroundZ(const FVector& Location, float& OutZ) const;
+
+	// LeapArcHeight로 포물선 높이 커브를 만듦 (처음 한 번, 높이가 바뀌면 다시). 0이면 nullptr
+	UCurveVector* GetLeapArcCurve();
 
 	// 지난 타격(첫 타격이면 0초)부터 다음 타격까지 몇 % 왔는지 (예고가 가득 = 맞는 순간). 바닥 예고와 디버그 선이 같이 씀
 	float GetTelegraphProgress(float AttackTime) const;
@@ -189,4 +205,11 @@ private:
 	bool bHasLockedCenter = false;
 	FVector LeapDestination = FVector::ZeroVector;
 	FVector LockedCenter = FVector::ZeroVector;
+
+	// 포물선 높이 커브 (에셋 없이 코드로, 전사 내려찍기와 같은 방식). X·Y는 0, Z만 0 → 높이 → 0
+	UPROPERTY(Transient)
+	TObjectPtr<UCurveVector> LeapArcCurve;
+
+	// LeapArcCurve를 만들 때의 높이 (높이가 바뀌었는지 확인용)
+	float LeapArcCurveHeight = -1.f;
 };
