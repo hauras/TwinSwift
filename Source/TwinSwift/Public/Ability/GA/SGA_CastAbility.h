@@ -13,6 +13,8 @@ class UNiagaraSystem;
  * - OnCast에는 손(MuzzleBone) 위치와 손 → 커서 방향(수평)을 넘김. 자식은 "신호가 오면 무엇을 하나"만 씀
  * - 시전 후 RecoveryTime이 지나면 다시 움직일 수 있음. 자식의 효과(IsCastFinished)도 끝나면 능력 종료
  *   (얼음 쇄도처럼 효과가 오래가도 캐릭터는 RecoveryTime 뒤 움직임)
+ * - 확정 시점 = 시전 신호: 그 전에는 교체·회피로 취소, 그 뒤에는 취소 불가(SetCanBeCanceled) → 시전 직후 교체해도 번개·얼음은 끝까지
+ *   몽타주의 행동 허용 창(ANS_ActionWindow)도 시전 신호부터 열림
  * - 화염탄 중에 다른 시전 능력을 누르면 화염탄을 끊고 시전
  */
 UCLASS(Abstract)

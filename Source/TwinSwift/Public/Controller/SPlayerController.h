@@ -6,6 +6,7 @@
 #include "UI/DamageTextActor.h"
 #include "SPlayerController.generated.h"
 
+class APlayerCharacter;
 class ASProjectile;
 class UCameraShakeBase;
 class UInputAction;
@@ -13,8 +14,10 @@ class UInputMappingContext;
 class USCameraConfig;
 class USInputConfig;
 class USAbilitySystemComponent;
+class USInputBufferComponent;
 class USTwinHUDWidget;
 struct FInputActionValue;
+enum class ETwinSlot : uint8;
 
 UCLASS()
 class TWINSWIFT_API ASPlayerController : public APlayerController
@@ -63,6 +66,10 @@ public:
 	// 단독 실행 인자 -Bench=60,20 이면 시작 3초 뒤 자동, -BenchQuit이면 끝나고 종료
 	UFUNCTION(Exec)
 	void BenchProjectiles(float PerSecond, float Seconds);
+
+	// 능력·교체 입력을 실제로 실행 (입력 버퍼가 "지금 해도 된다"고 판단한 뒤 부름)
+	// 교체(InputTag.Swap)면 교체, 나머지는 그 입력을 받을 캐릭터의 ASC로 (상대 캐릭터 스킬 키면 먼저 교체)
+	void ExecuteAbilityInput(const FGameplayTag& InputTag);
 
 protected:
 	virtual void BeginPlay() override;
@@ -153,7 +160,7 @@ private:
 	void WalkCompleted_Input();
 	void Swap_Input();
 
-	// 능력 키 → 입력 태그 → 그 입력을 받을 캐릭터의 ASC (상대 캐릭터 스킬 키면 먼저 교체)
+	// 능력 키 → 입력 태그 → 입력 버퍼 (지금 되면 바로, 공격 중이라 안 되면 잠깐 들고 있다가 ExecuteAbilityInput)
 	void AbilityInputTagPressed(FGameplayTag InputTag);
 	void AbilityInputTagReleased(FGameplayTag InputTag);
 
@@ -180,6 +187,21 @@ private:
 	// 한 번만 만들고, 다시 빙의해도 연결만 바꿈 (1차: 교체·빙의마다 위젯이 쌓였음)
 	UPROPERTY()
 	TObjectPtr<USTwinHUDWidget> HUDWidget;
+
+	// 입력 버퍼: 공격의 끊으면 안 되는 구간에 누른 회피·교체·스킬을 잠깐 들고 있다가 창이 열리면 실행
+	UPROPERTY(VisibleAnywhere, Category = "Input")
+	TObjectPtr<USInputBufferComponent> InputBuffer;
+
+	// 캐릭터를 잡은 직후: 버퍼를 지금 캐릭터 ASC에 연결하고 교체 알림 구독
+	void SetupInputBuffer();
+
+	// 교체되면 버퍼를 비우고(전 캐릭터로 누른 입력) 새 캐릭터 ASC에 다시 연결
+	void OnActiveSlotChanged(ETwinSlot NewSlot);
+
+	FDelegateHandle ActiveSlotChangedHandle;
+
+	// 교체 알림을 구독한 캐릭터 (다른 캐릭터에 다시 빙의하면 이전 구독을 끊고 새로 구독)
+	TWeakObjectPtr<APlayerCharacter> InputBufferCharacter;
 
 	int32 CurrentCameraIndex = 0;
 

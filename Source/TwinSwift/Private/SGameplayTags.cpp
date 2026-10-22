@@ -9,6 +9,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill1, "InputTag.Mage.Skill1", "마법사 냉기탄 (지금 키: 3, 전사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill2, "InputTag.Mage.Skill2", "마법사 낙뢰 (지금 키: 4, 전사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Dodge, "InputTag.Dodge", "회피 (지금 키: Space)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Swap, "InputTag.Swap", "교체 (Tab)");
 
 	// 능력
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Warrior_Combo, "Ability.Warrior.Combo", "전사 3타 콤보");

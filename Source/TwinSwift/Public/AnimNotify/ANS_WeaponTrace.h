@@ -62,6 +62,12 @@ private:
 	// 칼날 시작·끝 (무기 메시 기준 좌표). 소켓이 있으면 소켓, 없으면 BladeStartRatio로 계산
 	void GetBladeLocal(const UStaticMeshComponent* Weapon, FVector& OutStart, FVector& OutEnd) const;
 
+	// 칼날 선분 하나를 구로 쓸어서 Pawn을 OutHits에 더함
+	void SweepBlade(UWorld* World, const FVector& From, const FVector& To, const FCollisionQueryParams& Params, TArray<FHitResult>& OutHits) const;
+
 	// 노티파이 객체는 같은 몽타주를 쓰는 모든 캐릭터가 공유 → 이미 맞은 적은 메시별로 따로 보관
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSet<TWeakObjectPtr<AActor>>> HitActorsByMesh;
+
+	// 지난 프레임의 칼날 시작·끝 (월드). 프레임 사이에 칼이 지나간 면을 검사할 때 씀 (메시별로 따로)
+	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TPair<FVector, FVector>> LastBladeByMesh;
 };

@@ -46,6 +46,8 @@ AActor* USActorPool::AcquireActor(
 			false,
 			nullptr,
 			ETeleportType::TeleportPhysics);
+		// 크기도 이번 요청대로 (처음 생성할 때는 Transform 전체를 쓰므로, 재사용도 같게)
+		Actor->SetActorScale3D(Transform.GetScale3D());
 		Actor->SetOwner(Owner);
 		Actor->SetInstigator(InInstigator);
 		if (ISPoolable* Poolable = Cast<ISPoolable>(Actor))

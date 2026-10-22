@@ -4,6 +4,7 @@
 #include "SGameplayTags.h"
 #include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayTag.h"
 #include "Abilities/Tasks/AbilityTask_WaitInputPress.h"
 #include "Animation/AnimInstance.h"
 
@@ -57,6 +58,15 @@ void UGA_AttackBase::ActivateAbility(
 	HitTask->EventReceived.AddDynamic(this, &ThisClass::OnHitEvent);
 	HitTask->ReadyForActivation();
 
+	// 타마다 열리는 Window.Combo 창도 능력이 끝날 때까지 계속 받음 (한 번만 받고 끝내지 않음)
+	UAbilityTask_WaitGameplayTagAdded* ComboWindowTask = UAbilityTask_WaitGameplayTagAdded::WaitGameplayTagAdd(
+		this,
+		SGameplayTags::Window_Combo,
+		nullptr,
+		false);
+	ComboWindowTask->Added.AddDynamic(this, &ThisClass::OnComboWindowOpened);
+	ComboWindowTask->ReadyForActivation();
+
 	PlayCurrentStep();
 }
 
@@ -78,13 +88,22 @@ void UGA_AttackBase::PlayCurrentStep()
 		MontageTask->EndTask();
 	}
 
-	MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, NAME_None, Montage);
+	MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+		this,
+		NAME_None,
+		Montage,
+		ComboSteps[CurrentStep].PlayRate);
 	MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnStepBlendOut);
 	MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnStepBlendOut);
 	MontageTask->OnInterrupted.AddDynamic(this, &ThisClass::OnStepCancelled);
 	MontageTask->OnCancelled.AddDynamic(this, &ThisClass::OnStepCancelled);
 	MontageTask->ReadyForActivation();
 
+	WaitComboInput();
+}
+
+void UGA_AttackBase::WaitComboInput()
+{
 	// 다음 타가 있으면 입력 대기. 능력 실행 중에 같은 키를 또 누르면 ASC가 InputPressed 이벤트를 보내 줌
 	if (InputTask)
 	{
@@ -102,6 +121,58 @@ void UGA_AttackBase::PlayCurrentStep()
 void UGA_AttackBase::OnComboInputPressed(float TimeWaited)
 {
 	bNextStepQueued = true;
+	NextStepQueuedTime = GetWorld()->GetRealTimeSeconds();
+
+	// 창이 이미 열려 있으면 바로 다음 타 (창이 아직이면 열리는 순간 OnComboWindowOpened에서)
+	const int32 StepBefore = CurrentStep;
+	TryAdvanceCombo();
+
+	// 같은 타에 머물렀으면 다시 받을 준비 (WaitInputPress는 한 번 받으면 끝남)
+	// 안 하면 일찍 누른 예약이 0.3초 뒤 만료된 다음 다시 눌러도 받을 곳이 없어 다음 타가 안 나감
+	// 다음 타로 넘어갔으면 PlayCurrentStep이 새 타의 대기를 이미 등록함
+	if (CurrentStep == StepBefore && IsActive())
+	{
+		WaitComboInput();
+	}
+}
+
+void UGA_AttackBase::OnComboWindowOpened()
+{
+	TryAdvanceCombo();
+}
+
+bool UGA_AttackBase::HasValidQueue()
+{
+	if (!bNextStepQueued)
+	{
+		return false;
+	}
+
+	// 실제 시간 기준 (완벽 회피 슬로 중에도 0.3초가 늘지 않게, 입력 버퍼와 같음)
+	if (GetWorld()->GetRealTimeSeconds() - NextStepQueuedTime > ComboInputBufferTime)
+	{
+		bNextStepQueued = false;
+		return false;
+	}
+	return true;
+}
+
+void UGA_AttackBase::TryAdvanceCombo()
+{
+	if (!HasValidQueue() || !ComboSteps.IsValidIndex(CurrentStep + 1))
+	{
+		return;
+	}
+
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!ASC || !ASC->HasMatchingGameplayTag(SGameplayTags::Window_Combo))
+	{
+		return;
+	}
+
+	// 후딜을 끊고 다음 타. PlayCurrentStep이 예약을 지우므로, 이전 몽타주의 창이 닫히며 다시 불려도 두 타를 건너뛰지 않음
+	CurrentStep++;
+	PlayCurrentStep();
 }
 
 void UGA_AttackBase::OnStepBlendOut()
@@ -111,7 +182,7 @@ void UGA_AttackBase::OnStepBlendOut()
 		return;
 	}
 
-	if (bNextStepQueued && ComboSteps.IsValidIndex(CurrentStep + 1))
+	if (HasValidQueue() && ComboSteps.IsValidIndex(CurrentStep + 1))
 	{
 		CurrentStep++;
 		PlayCurrentStep();

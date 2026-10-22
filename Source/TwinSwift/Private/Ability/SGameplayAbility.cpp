@@ -167,14 +167,17 @@ void USGameplayAbility::FindEnemiesInRadius(const FVector& Center, float Radius,
 
 void USGameplayAbility::ApplyTimedTagTo(AActor* Target, const FGameplayTag& Tag, float Duration) const
 {
-	if (!Target || !Tag.IsValid() || Duration <= 0.f)
+	if (!Target)
 	{
 		return;
 	}
+	ApplyTimedTagToASC(UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target), Tag, Duration);
+}
 
-	UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
+void USGameplayAbility::ApplyTimedTagToASC(UAbilitySystemComponent* TargetASC, const FGameplayTag& Tag, float Duration) const
+{
 	UAbilitySystemComponent* SourceASC = GetAbilitySystemComponentFromActorInfo();
-	if (!TargetASC || !SourceASC)
+	if (!TargetASC || !SourceASC || !Tag.IsValid() || Duration <= 0.f)
 	{
 		return;
 	}

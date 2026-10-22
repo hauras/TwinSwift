@@ -216,14 +216,19 @@ void USGA_BossAttack::DoHit()
 			continue;
 		}
 
-		// 피해를 주기 전에 무적인지 봐 둠 (피해는 무적이어도 GE가 들어가서 AttributeSet이 버림 → 결과로는 구분 못 함)
-		const UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
+		// 맞는 캐릭터의 ASC를 피해 전에 잡아 둠: 이 피해로 쓰러지면 피해 처리 안에서 강제 교체돼 "지금 ASC"가 바뀜
+		// 무적 여부도 피해 전에 봐 둠 (피해는 무적이어도 GE가 들어가서 AttributeSet이 버림 → 결과로는 구분 못 함)
+		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
 		const bool bDodged = TargetASC && TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Invincible);
 
 		// 플레이어 공격과 같은 경로 → AttributeSet에서 무적·완벽 회피 판정을 거침
-		if (ApplyDamageTo(Target, DamageMultiplier) && !bDodged && HitStunDuration > 0.f)
+		const bool bDamaged = ApplyDamageTo(Target, DamageMultiplier);
+
+		// 경직은 맞은 그 ASC에만, 그 캐릭터가 살아 있을 때만 (쓰러진 전사 대신 교체돼 나온 마법사가 경직되지 않게)
+		const bool bTargetDied = TargetASC && TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Dead);
+		if (bDamaged && !bDodged && !bTargetDied && HitStunDuration > 0.f)
 		{
-			ApplyTimedTagTo(Target, SGameplayTags::State_Stun, HitStunDuration);
+			ApplyTimedTagToASC(TargetASC, SGameplayTags::State_Stun, HitStunDuration);
 		}
 	}
 

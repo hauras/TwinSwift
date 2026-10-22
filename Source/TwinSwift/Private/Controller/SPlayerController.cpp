@@ -25,6 +25,7 @@
 #include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
 #include "EngineUtils.h"
+#include "Input/SInputBufferComponent.h"
 #include "Input/SInputConfig.h"
 #include "SGameplayTags.h"
 #include "State/SPlayerState.h"
@@ -72,6 +73,8 @@ ASPlayerController::ASPlayerController()
 	// C++ 클래스라 에셋 경로 없이 기본값으로 넣음 (BP에서 다른 흔들림으로 바꿀 수 있음)
 	MarkCameraShake = USCameraShake_Shatter::StaticClass();
 	HurtCameraShake = USCameraShake_Shatter::StaticClass();
+
+	InputBuffer = CreateDefaultSubobject<USInputBufferComponent>("InputBuffer");
 }
 
 void ASPlayerController::BeginPlay()
@@ -152,6 +155,39 @@ void ASPlayerController::AcknowledgePossession(APawn* P)
 	// 캐릭터를 잡은 직후 불림 → 카메라 설정·HUD 연결은 여기서
 	ApplyCurrentCameraConfig();
 	SetupHUD();
+	SetupInputBuffer();
+}
+
+void ASPlayerController::SetupInputBuffer()
+{
+	APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>();
+	if (!PlayerCharacter || !InputBuffer)
+	{
+		return;
+	}
+
+	// 교체 알림은 캐릭터마다 한 번만 구독 (같은 캐릭터에 다시 빙의해도 쌓이지 않게)
+	// 다른 캐릭터면 이전 캐릭터 구독을 끊고 새로 → 핸들만 보면 새 캐릭터를 놓침
+	if (InputBufferCharacter.Get() != PlayerCharacter)
+	{
+		if (APlayerCharacter* OldCharacter = InputBufferCharacter.Get())
+		{
+			OldCharacter->OnActiveSlotChanged.Remove(ActiveSlotChangedHandle);
+		}
+		ActiveSlotChangedHandle = PlayerCharacter->OnActiveSlotChanged.AddUObject(this, &ThisClass::OnActiveSlotChanged);
+		InputBufferCharacter = PlayerCharacter;
+	}
+
+	// 새 캐릭터의 지금 ASC를 듣고, 전 캐릭터로 누른 입력은 버림
+	InputBuffer->Clear();
+	InputBuffer->BindToASC(GetSAbilitySystemComponent());
+}
+
+void ASPlayerController::OnActiveSlotChanged(ETwinSlot NewSlot)
+{
+	// 전 캐릭터로 누른 입력이 새 캐릭터로 실행되지 않게 버리고, 새 캐릭터의 창·공격 태그를 들음
+	InputBuffer->Clear();
+	InputBuffer->BindToASC(GetSAbilitySystemComponent());
 }
 
 void ASPlayerController::SetupHUD()
@@ -246,14 +282,27 @@ void ASPlayerController::WalkCompleted_Input()
 
 void ASPlayerController::Swap_Input()
 {
-	if (APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>())
-	{
-		PlayerCharacter->SwapCharacter();
-	}
+	// 교체도 다른 능력 입력과 같이 버퍼를 거침 (공격의 끊으면 안 되는 구간이면 창이 열릴 때까지 기다림)
+	InputBuffer->HandleInput(SGameplayTags::InputTag_Swap);
 }
 
 void ASPlayerController::AbilityInputTagPressed(FGameplayTag InputTag)
 {
+	// 받기만 하고 실행은 버퍼가 판단 (평타처럼 막을 필요 없는 입력은 버퍼가 바로 ExecuteAbilityInput)
+	InputBuffer->HandleInput(InputTag);
+}
+
+void ASPlayerController::ExecuteAbilityInput(const FGameplayTag& InputTag)
+{
+	if (InputTag == SGameplayTags::InputTag_Swap)
+	{
+		if (APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>())
+		{
+			PlayerCharacter->SwapCharacter();
+		}
+		return;
+	}
+
 	APlayerCharacter* PlayerCharacter = GetPawn<APlayerCharacter>();
 	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
 	if (!PlayerCharacter || !SPlayerState || PlayerCharacter->IsDefeated())

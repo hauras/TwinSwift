@@ -45,6 +45,9 @@ void USGA_CastAbility::ActivateAbility(
 	bCastFired = false;
 	bRecoveryDone = false;
 
+	// 시전 전에는 교체·회피로 취소될 수 있음 (확정 시점 전). 시전 신호에서 취소 불가로 바뀜
+	SetCanBeCanceled(true);
+
 	// 시전 중에는 이동 입력을 막음. 시전 후 효과가 오래가도 RecoveryTime 뒤에는 풀려야 해서 ActivationOwnedTags 대신 직접 붙임
 	SetAttacking(true);
 
@@ -156,6 +159,10 @@ void USGA_CastAbility::OnCastEvent(FGameplayEventData Payload)
 	}
 	bCastFired = true;
 
+	// 확정 시점: 손을 뻗은 뒤의 효과(낙뢰 번개, 얼음 쇄도)는 교체·회피로 취소되지 않고 끝까지 진행
+	// CancelAllAbilities(교체)·CancelAbilities(회피)는 취소 불가 능력을 건너뜀 → 시전 직후 바로 교체해도 번개가 떨어짐
+	SetCanBeCanceled(false);
+
 	// 시전 순간 다시 커서를 봄 (시전 중 커서가 움직였을 수 있음)
 	FaceAimPoint();
 
@@ -194,6 +201,12 @@ void USGA_CastAbility::OnMontageBlendOut()
 
 void USGA_CastAbility::OnMontageInterrupted()
 {
+	// 시전한 뒤에 몽타주만 끊긴 경우(같은 몸에서 회피 몽타주 등)는 효과를 계속 → 회복 시간·효과가 끝나면 TryFinishCast가 종료
+	if (bCastFired)
+	{
+		return;
+	}
+
 	if (IsActive())
 	{
 		EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);

@@ -94,6 +94,12 @@ void USGA_DashSlash::ActivateAbility(
 	// 출발 자리에 붙어 있는 적도 맞도록 시작 위치에서 한 번 검사
 	LastSweepLocation = Character->GetActorLocation();
 	SweepPath();
+
+	// 첫 검사의 피해(산산조각 등)가 이어져 능력이 이미 끝났을 수 있음 → 끝났으면 타이머를 켜지 않음 (켜면 끝난 능력이 계속 벰)
+	if (!IsActive())
+	{
+		return;
+	}
 	GetWorld()->GetTimerManager().SetTimer(SweepTimer, this, &ThisClass::SweepPath, SweepInterval, true);
 }
 
@@ -118,7 +124,7 @@ void USGA_DashSlash::SweepPath()
 {
 	ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo());
 	UWorld* World = GetWorld();
-	if (!Character || !World)
+	if (!IsActive() || !Character || !World)
 	{
 		return;
 	}

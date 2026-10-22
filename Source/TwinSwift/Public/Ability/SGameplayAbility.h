@@ -92,6 +92,10 @@ protected:
 	// 같은 편 검사는 하지 않음 (부르는 쪽에서 이미 거름)
 	void ApplyTimedTagTo(AActor* Target, const FGameplayTag& Tag, float Duration) const;
 
+	// 같은 일을 정해진 ASC에. 플레이어는 ASC가 둘이라 액터로 다시 찾으면 "지금 캐릭터"가 나옴
+	// → 피해로 쓰러져 강제 교체된 직후라면 맞지 않은 캐릭터에게 붙음. 맞은 ASC를 먼저 잡아 두고 이걸로
+	void ApplyTimedTagToASC(UAbilitySystemComponent* TargetASC, const FGameplayTag& Tag, float Duration) const;
+
 	// [빙결]이 있으면 지우고 추가 피해 + 경직 + 파편. ApplyDamageTo가 데미지를 준 뒤 부름. 깼으면 true
 	bool TryShatterFrost(AActor* Target, UAbilitySystemComponent* TargetASC) const;
 
