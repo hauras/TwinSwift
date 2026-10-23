@@ -1,5 +1,6 @@
 #include "Game/SBossEncounter.h"
 
+#include "Bullet/SBulletManager.h"
 #include "Character/BossCharacter.h"
 #include "Character/PlayerCharacter.h"
 #include "Components/BoxComponent.h"
@@ -348,6 +349,12 @@ void ASBossEncounter::FinishFight(EBossEncounterState Result)
 	UE_LOG(LogTemp, Display, TEXT("[보스전] %s %.1f초"),
 		Result == EBossEncounterState::Victory ? TEXT("클리어") : TEXT("패배"),
 		GetFightSeconds());
+
+	// 결과 화면 위로 탄이 계속 날아다니지 않게
+	if (ASBulletManager* BulletManager = ASBulletManager::Get(this))
+	{
+		BulletManager->ClearAllBullets();
+	}
 
 	SetState(Result);
 	BindRestartKey();

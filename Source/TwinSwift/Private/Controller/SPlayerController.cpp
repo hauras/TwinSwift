@@ -21,6 +21,7 @@
 #include "UObject/UObjectArray.h"
 #include <atomic>
 #include "AI/SBossPatternComponent.h"
+#include "Bullet/SBulletManager.h"
 #include "Character/BossCharacter.h"
 #include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
@@ -41,6 +42,27 @@ namespace
 	public:
 		std::atomic<int32> Count{ 0 };
 
+		// 세기 시작·끝. 엔진은 같은 알림을 두 번 등록하거나 등록 안 된 것을 해제하면 멈춤(check) → 등록 여부를 기억
+		// (측정 중에 PIE를 끄면 끝 처리가 안 돼 등록이 남음 → 다음 측정에서 두 번 등록되던 문제)
+		void Start()
+		{
+			Count = 0;
+			if (!bRegistered)
+			{
+				GUObjectArray.AddUObjectCreateListener(this);
+				bRegistered = true;
+			}
+		}
+
+		void Stop()
+		{
+			if (bRegistered)
+			{
+				GUObjectArray.RemoveUObjectCreateListener(this);
+				bRegistered = false;
+			}
+		}
+
 		virtual void NotifyUObjectCreated(const UObjectBase* Object, int32 Index) override
 		{
 			Count.fetch_add(1, std::memory_order_relaxed);
@@ -48,8 +70,11 @@ namespace
 
 		virtual void OnUObjectArrayShutdown() override
 		{
-			GUObjectArray.RemoveUObjectCreateListener(this);
+			Stop();
 		}
+
+	private:
+		bool bRegistered = false;
 	};
 	FBenchObjectCreateCounter BenchObjectCounter;
 
@@ -480,6 +505,272 @@ void ASPlayerController::BossPatternSim(int32 Count)
 	UE_LOG(LogTemp, Warning, TEXT("[패턴 시뮬레이션] 맵에 보스가 없음"));
 }
 
+void ASPlayerController::DebugBulletSpiral(float Seconds, int32 Arms, float Speed)
+{
+	TActorIterator<ABossCharacter> BossIt(GetWorld());
+	if (!ASBulletManager::Get(this) || !BossIt || !GetPawn())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[탄막 시험] 탄 매니저(BP_BulletManager)·보스·플레이어 중 없는 것이 있음"));
+		return;
+	}
+
+	DebugSpiralBoss = *BossIt;
+	DebugSpiralEndTime = GetWorld()->GetTimeSeconds() + Seconds;
+	DebugSpiralAngle = 0.f;
+	DebugSpiralArms = FMath::Max(Arms, 1);
+	DebugSpiralSpeed = Speed;
+
+	// 0.08초마다 한 줄씩 → 팔 하나당 초당 12.5발. 각도를 돌려서 휘어진 팔로 보임
+	GetWorldTimerManager().SetTimer(DebugSpiralTimer, this, &ThisClass::FireDebugSpiral, 0.08f, true);
+	UE_LOG(LogTemp, Log, TEXT("[탄막 시험] %.0f초, 팔 %d개, 속도 %.0f"), Seconds, DebugSpiralArms, DebugSpiralSpeed);
+}
+
+void ASPlayerController::BenchBullets(int32 Count, int32 UseActors, float Seconds)
+{
+	// 측정 중에 또 시작하면 알림이 겹쳐 등록됨 → 끝날 때까지 막음
+	if (GetWorldTimerManager().IsTimerActive(BenchBulletTimer) || GetWorldTimerManager().IsTimerActive(BenchTimer))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[탄막 벤치] 이미 측정 중"));
+		return;
+	}
+
+	ASBulletManager* Manager = ASBulletManager::Get(this);
+	const bool bActors = UseActors != 0;
+	if (Count <= 0 || Seconds <= 0.f || !GetPawn() || (bActors ? !BenchProjectileClass : !Manager))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[탄막 벤치] BenchBullets 탄수 방식(0 매니저, 1 액터) 초. 매니저 배치·BenchProjectileClass 확인"));
+		return;
+	}
+
+	// 떠 있는 탄 수 = 초당 발수 × 수명. 두 방식 모두 화염탄 수명으로 맞춤 → 탄 수·초당 생성 수가 같아 비교가 공정
+	// (처음엔 매니저 6초·화염탄 1.5초로 달라서 액터 쪽이 4배 많이 생성했음)
+	const float LifeTime = BenchProjectileClass
+		? BenchProjectileClass->GetDefaultObject<ASProjectile>()->GetMaxLifeTime()
+		: Manager->GetBulletLifeTime();
+	BenchBulletLifeTime = LifeTime;
+
+	// 액터 방식은 가장 좋은 조건으로: 풀 한도(기본 64)를 탄 수만큼 올림
+	// (처음 측정에서 한 프레임에 반납이 64개를 넘으면 지우고 다시 만들어, 느려질수록 더 느려졌음). 끝나면 되돌림
+	if (IConsoleVariable* PoolMax = IConsoleManager::Get().FindConsoleVariable(TEXT("ts.Pool.MaxFreePerClass")))
+	{
+		BenchSavedPoolMax = PoolMax->GetInt();
+		if (bActors)
+		{
+			PoolMax->Set(FMath::Max(Count, BenchSavedPoolMax), ECVF_SetByConsole);
+		}
+	}
+	constexpr float FireInterval = 0.05f;
+
+	bBenchBulletActors = bActors;
+	BenchBulletCount = Count;
+	BenchBulletPerTick = Count / LifeTime * FireInterval;
+	BenchBulletCarry = 0.f;
+	BenchBulletAngle = 0.f;
+
+	// 경기장 위 15m: 아무것도 안 맞는 높이 (보스·플레이어와 충돌하면 탄이 사라져 탄 수가 달라짐)
+	BenchBulletOrigin = Manager ? Manager->GetActorLocation() : GetPawn()->GetActorLocation();
+	BenchBulletOrigin.Z += 1500.f;
+
+	const double Now = GetWorld()->GetTimeSeconds();
+	BenchBulletRecordStart = Now + LifeTime;
+	BenchBulletEnd = BenchBulletRecordStart + Seconds;
+
+	BenchFired = 0;
+	BenchSpawnSeconds = 0.0;
+	BenchMaxSpawnSeconds = 0.0;
+	BenchFrameTimes.Reset();
+	BenchManagerSeconds = 0.0;
+	BenchManagerMaxSeconds = 0.0;
+	BenchManagerFrames = 0;
+	BenchPeakBullets = 0;
+	BenchGCCount = 0;
+	BenchGCSeconds = 0.0;
+	BenchGCMaxSeconds = 0.0;
+	// 새 UObject 세기는 지금 등록하고(끝에서 FinishBench가 해제), 기록 시작 순간에 0으로 되돌림
+	BenchObjectCounter.Start();
+
+	// 탄 수가 다 찬 뒤부터 프레임·매니저 시간 기록
+	BenchFrameHandle = FCoreDelegates::OnEndFrame.AddWeakLambda(this, [this]()
+	{
+		if (GetWorld()->GetTimeSeconds() < BenchBulletRecordStart)
+		{
+			return;
+		}
+		if (BenchFrameTimes.IsEmpty())
+		{
+			// 차오르는 동안 만든 것은 빼고 기록 시작부터 셈
+			BenchObjectCounter.Count = 0;
+		}
+		BenchFrameTimes.Add(FApp::GetDeltaTime());
+		if (const ASBulletManager* BulletManager = ASBulletManager::Get(this))
+		{
+			if (!bBenchBulletActors)
+			{
+				const double ManagerSeconds = BulletManager->GetLastUpdateSeconds();
+				BenchManagerSeconds += ManagerSeconds;
+				BenchManagerMaxSeconds = FMath::Max(BenchManagerMaxSeconds, ManagerSeconds);
+				++BenchManagerFrames;
+				BenchPeakBullets = FMath::Max(BenchPeakBullets, BulletManager->GetBulletCount());
+			}
+		}
+	});
+	BenchPreGCHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddWeakLambda(this, [this]()
+	{
+		BenchGCStart = FPlatformTime::Seconds();
+	});
+	BenchPostGCHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddWeakLambda(this, [this]()
+	{
+		if (GetWorld()->GetTimeSeconds() < BenchBulletRecordStart)
+		{
+			return;
+		}
+		const double Elapsed = FPlatformTime::Seconds() - BenchGCStart;
+		++BenchGCCount;
+		BenchGCSeconds += Elapsed;
+		BenchGCMaxSeconds = FMath::Max(BenchGCMaxSeconds, Elapsed);
+	});
+
+	UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 시작: %s, 탄 %d발 유지 (수명 %.1f초, 초당 %.0f발), 차오름 %.1f초 + 측정 %.0f초"),
+		bActors ? TEXT("액터 풀") : TEXT("탄 매니저"),
+		Count,
+		LifeTime,
+		Count / LifeTime,
+		LifeTime,
+		Seconds);
+	GetWorldTimerManager().SetTimer(BenchBulletTimer, this, &ThisClass::FireBenchBullets, FireInterval, true);
+}
+
+void ASPlayerController::FireBenchBullets()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now >= BenchBulletEnd)
+	{
+		FinishBenchBullets();
+		return;
+	}
+
+	// 생성 시간·발수도 기록 구간만 (새 UObject와 같은 구간 → 1발당 개수가 맞음)
+	const bool bRecording = Now >= BenchBulletRecordStart;
+
+	UAbilitySystemComponent* ASC = GetSAbilitySystemComponent();
+	ASBulletManager* Manager = ASBulletManager::Get(this);
+	USActorPool* Pool = GetWorld()->GetSubsystem<USActorPool>();
+
+	// 소수점 발수는 다음 묶음으로 넘김 (초당 발수를 정확히 맞추려고)
+	BenchBulletCarry += BenchBulletPerTick;
+	const int32 ToFire = FMath::FloorToInt(BenchBulletCarry);
+	BenchBulletCarry -= ToFire;
+
+	// 액터 방식은 실제 화염탄처럼 데미지 스펙을 들고 날아감
+	FGameplayEffectSpecHandle Spec;
+	if (bBenchBulletActors && ASC)
+	{
+		Spec = ASC->MakeOutgoingSpec(USGE_Damage::StaticClass(), 1.f, ASC->MakeEffectContext());
+	}
+
+	// 같은 나선: 한 발마다 37도씩 돌림
+	for (int32 Index = 0; Index < ToFire; ++Index)
+	{
+		const FVector Direction = FRotator(0.f, BenchBulletAngle, 0.f).Vector();
+		BenchBulletAngle += 37.f;
+
+		const double Start = FPlatformTime::Seconds();
+		if (bBenchBulletActors)
+		{
+			ASProjectile* Projectile = Pool ? Pool->Acquire<ASProjectile>(
+				BenchProjectileClass,
+				FTransform(Direction.Rotation(), BenchBulletOrigin),
+				GetPawn(),
+				GetPawn()) : nullptr;
+			if (Projectile)
+			{
+				Projectile->InitializeProjectile(ASC, { Spec });
+				Projectile->Launch();
+			}
+		}
+		else if (Manager)
+		{
+			Manager->SpawnBullet(
+				BenchBulletOrigin,
+				Direction * 600.f,
+				Index % 2 == 0 ? EBulletColor::Orange : EBulletColor::Blue,
+				ASC,
+				1.f,
+				BenchBulletLifeTime);
+		}
+		if (bRecording)
+		{
+			const double Elapsed = FPlatformTime::Seconds() - Start;
+			BenchSpawnSeconds += Elapsed;
+			BenchMaxSpawnSeconds = FMath::Max(BenchMaxSpawnSeconds, Elapsed);
+			++BenchFired;
+		}
+	}
+}
+
+void ASPlayerController::FinishBenchBullets()
+{
+	GetWorldTimerManager().ClearTimer(BenchBulletTimer);
+
+	if (IConsoleVariable* PoolMax = IConsoleManager::Get().FindConsoleVariable(TEXT("ts.Pool.MaxFreePerClass")))
+	{
+		PoolMax->Set(BenchSavedPoolMax, ECVF_SetByConsole);
+	}
+
+	// 탄 매니저 처리 시간 (액터 방식은 액터마다 Tick이라 한곳에서 못 잼 → 프레임 시간과 Insights로 비교)
+	if (!bBenchBulletActors && BenchManagerFrames > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 탄 매니저 처리: 평균 %.3f ms, 최대 %.3f ms, 최대 탄 %d발"),
+			BenchManagerSeconds / BenchManagerFrames * 1e3,
+			BenchManagerMaxSeconds * 1e3,
+			BenchPeakBullets);
+	}
+	UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 방식: %s, 목표 탄 %d발"), bBenchBulletActors ? TEXT("액터 풀") : TEXT("탄 매니저"), BenchBulletCount);
+
+	// 프레임·GC·새 UObject·생성 시간은 기존 측정과 같은 형식으로
+	FinishBench();
+
+	if (ASBulletManager* Manager = ASBulletManager::Get(this))
+	{
+		Manager->ClearAllBullets();
+	}
+}
+
+void ASPlayerController::FireDebugSpiral()
+{
+	ASBulletManager* Manager = ASBulletManager::Get(this);
+	ABossCharacter* Boss = DebugSpiralBoss.Get();
+	const APawn* ControlledPawn = GetPawn();
+	if (!Manager || !Boss || !ControlledPawn || GetWorld()->GetTimeSeconds() >= DebugSpiralEndTime)
+	{
+		GetWorldTimerManager().ClearTimer(DebugSpiralTimer);
+		if (Manager)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[탄막 시험] 끝. 남은 탄 %d"), Manager->GetBulletCount());
+		}
+		return;
+	}
+
+	// 보스 발밑 대신 플레이어 몸 가운데 높이에서 수평으로
+	FVector Origin = Boss->GetActorLocation();
+	Origin.Z = ControlledPawn->GetActorLocation().Z;
+
+	const float ArmStep = 360.f / DebugSpiralArms;
+	for (int32 Arm = 0; Arm < DebugSpiralArms; ++Arm)
+	{
+		const float Yaw = DebugSpiralAngle + Arm * ArmStep;
+		const FVector Direction = FRotator(0.f, Yaw, 0.f).Vector();
+		Manager->SpawnBullet(
+			Origin + Direction * 150.f,
+			Direction * DebugSpiralSpeed,
+			// 팔마다 색을 번갈아 (주황은 전사, 파랑은 마법사가 막음)
+			Arm % 2 == 0 ? EBulletColor::Orange : EBulletColor::Blue,
+			Boss->GetAbilitySystemComponent(),
+			1.f);
+	}
+	DebugSpiralAngle += 7.f;
+}
+
 void ASPlayerController::DebugMarkAll(const FString& MarkName)
 {
 	FGameplayTag MarkTag;
@@ -570,8 +861,7 @@ void ASPlayerController::BenchProjectiles(float PerSecond, float Seconds)
 	BenchGCMaxSeconds = 0.0;
 
 	// 새로 만들어진 UObject 수 세기 시작
-	BenchObjectCounter.Count = 0;
-	GUObjectArray.AddUObjectCreateListener(&BenchObjectCounter);
+	BenchObjectCounter.Start();
 
 	// 프레임 시간과 GC 시간을 측정하는 동안만 기록
 	BenchFrameHandle = FCoreDelegates::OnEndFrame.AddWeakLambda(this, [this]()
@@ -594,13 +884,34 @@ void ASPlayerController::BenchProjectiles(float PerSecond, float Seconds)
 	GetWorldTimerManager().SetTimer(BenchTimer, this, &ThisClass::BenchFireOne, 1.f / PerSecond, true);
 }
 
+void ASPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 탄막 측정 중이었으면 올려 둔 풀 한도를 되돌림
+	if (GetWorldTimerManager().IsTimerActive(BenchBulletTimer))
+	{
+		if (IConsoleVariable* PoolMax = IConsoleManager::Get().FindConsoleVariable(TEXT("ts.Pool.MaxFreePerClass")))
+		{
+			PoolMax->Set(BenchSavedPoolMax, ECVF_SetByConsole);
+		}
+	}
+	GetWorldTimerManager().ClearTimer(BenchTimer);
+	GetWorldTimerManager().ClearTimer(BenchBulletTimer);
+	GetWorldTimerManager().ClearTimer(DebugSpiralTimer);
+	FCoreDelegates::OnEndFrame.Remove(BenchFrameHandle);
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(BenchPreGCHandle);
+	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(BenchPostGCHandle);
+	BenchObjectCounter.Stop();
+
+	Super::EndPlay(EndPlayReason);
+}
+
 void ASPlayerController::FinishBench()
 {
 	GetWorldTimerManager().ClearTimer(BenchTimer);
 	FCoreDelegates::OnEndFrame.Remove(BenchFrameHandle);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(BenchPreGCHandle);
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(BenchPostGCHandle);
-	GUObjectArray.RemoveUObjectCreateListener(&BenchObjectCounter);
+	BenchObjectCounter.Stop();
 
 	// 프레임 시간: 평균, 최대, 상위 1% (느린 쪽 1%의 경계 = 끊김 정도)
 	TArray<float> Sorted = BenchFrameTimes;

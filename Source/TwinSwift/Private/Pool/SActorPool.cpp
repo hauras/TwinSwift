@@ -11,6 +11,13 @@ namespace
 		TEXT("ts.Pool.Enabled"),
 		1,
 		TEXT("1: 오브젝트 풀 사용 (액터 풀 + 나이아가라 이펙트 풀), 0: 매번 생성·삭제"));
+
+	// 클래스마다 쌓아 둘 최대 개수. 넘치면 반납 대신 지움 (풀이 끝없이 커지지 않게)
+	// 플레이어 마법(수십 발)은 64면 충분. 탄막 측정(1000발)은 반납이 몰려 넘침 → 측정 명령이 잠깐 올림
+	TAutoConsoleVariable<int32> CVarPoolMaxFreePerClass(
+		TEXT("ts.Pool.MaxFreePerClass"),
+		64,
+		TEXT("액터 풀이 클래스마다 쌓아 둘 최대 개수"));
 }
 
 bool USActorPool::IsPoolingEnabled()
@@ -101,7 +108,7 @@ void USActorPool::Release(AActor* Actor)
 
 	// 자리가 있으면 스택에 쌓고, 꽉 찼으면 그냥 지움 (풀이 끝없이 커지지 않게)
 	FSActorFreeList& List = FreeLists.FindOrAdd(Actor->GetClass());
-	if (List.Items.Num() < MaxFreePerClass)
+	if (List.Items.Num() < CVarPoolMaxFreePerClass.GetValueOnGameThread())
 	{
 		List.Items.Push(Actor);
 	}

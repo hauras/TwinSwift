@@ -56,7 +56,4 @@ private:
 	// 클래스별 빈 칸 스택 (투사체 종류·데미지 숫자가 섞이지 않게)
 	UPROPERTY()
 	TMap<TSubclassOf<AActor>, FSActorFreeList> FreeLists;
-
-	// 클래스마다 쌓아 둘 최대 개수. 넘치면 반납 대신 지움
-	static constexpr int32 MaxFreePerClass = 64;
 };

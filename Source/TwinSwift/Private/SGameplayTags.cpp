@@ -52,8 +52,8 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Window_Skill, "Window.Skill", "스킬로 끊어도 되는 구간");
 
 	// 캐릭터
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_Warrior, "Character.Warrior", "지금 전사를 조작 중");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_Mage, "Character.Mage", "지금 마법사를 조작 중");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_Warrior, "Character.Warrior", "전사의 ASC (PlayerState가 처음 한 번 붙임)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Character_Mage, "Character.Mage", "마법사의 ASC (PlayerState가 처음 한 번 붙임)");
 
 	// 쿨다운
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Warrior_DashSlash, "Cooldown.Warrior.DashSlash", "돌진 베기 쿨다운");

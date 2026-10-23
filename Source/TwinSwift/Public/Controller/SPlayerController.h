@@ -6,6 +6,7 @@
 #include "UI/DamageTextActor.h"
 #include "SPlayerController.generated.h"
 
+class ABossCharacter;
 class APlayerCharacter;
 class ASProjectile;
 class UCameraShakeBase;
@@ -61,6 +62,17 @@ public:
 	UFUNCTION(Exec)
 	void BossPatternSim(int32 Count = 1000);
 
+	// [시험] 맵의 첫 보스 위치에서 Seconds초 동안 나선 탄막 (콘솔: DebugBulletSpiral 5 6 500). 탄 매니저 표시·피해·교체 무적 통과 확인용
+	// 팔 Arms개가 일정 간격으로 돌며 Speed(cm/초)로 쏨. 높이는 플레이어 몸 가운데 (보스 캡슐 높이로 쏘면 머리 위로 지나감)
+	UFUNCTION(Exec)
+	void DebugBulletSpiral(float Seconds = 5.f, int32 Arms = 6, float Speed = 500.f);
+
+	// [측정] 탄 Count발이 계속 떠 있게 나선으로 쏘며 Seconds초 동안 잼 (콘솔: BenchBullets 1000 0 / BenchBullets 1000 1)
+	// UseActors 0 = 탄 매니저(배열), 1 = 액터 풀 투사체(BenchProjectileClass). 같은 패턴·같은 탄 수로 비교
+	// 경기장 위 공중에서 쏴서 아무것도 안 맞음 (이동·충돌 검사·그리기 비용만). 탄 수가 차오를 때까지(수명만큼)는 기록 안 함
+	UFUNCTION(Exec)
+	void BenchBullets(int32 Count = 1000, int32 UseActors = 0, float Seconds = 10.f);
+
 	// [측정] 투사체를 초당 PerSecond발씩 Seconds초 동안 자동 발사 (콘솔: BenchProjectiles 60 20)
 	// 오브젝트 풀 전후 비교용: 매번 같은 개수·같은 방향(가장 가까운 적 쪽, 고정 시드). 끝나면 생성 시간·프레임·GC를 로그로
 	// 단독 실행 인자 -Bench=60,20 이면 시작 3초 뒤 자동, -BenchQuit이면 끝나고 종료
@@ -77,6 +89,9 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	// 측정 중에 PIE를 꺼도 측정 알림(프레임·GC·객체 생성)이 남지 않게 정리
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void SetupInputComponent() override;
 	virtual void AcknowledgePossession(APawn* P) override;
 	virtual void PlayerTick(float DeltaTime) override;
@@ -157,6 +172,40 @@ private:
 
 	// 측정 끝: 알림 해제, 결과 로그, -BenchQuit이면 게임 종료
 	void FinishBench();
+
+	// [시험] DebugBulletSpiral: 한 번 쏠 때마다 팔 수만큼, 각도를 조금씩 돌림. 시간이 다 되면 멈춤
+	void FireDebugSpiral();
+
+	// [측정] BenchBullets: 0.05초마다 한 묶음 발사 / 끝
+	void FireBenchBullets();
+	void FinishBenchBullets();
+
+	FTimerHandle BenchBulletTimer;
+	bool bBenchBulletActors = false;
+	int32 BenchBulletCount = 0;
+	FVector BenchBulletOrigin = FVector::ZeroVector;
+	float BenchBulletAngle = 0.f;
+	float BenchBulletPerTick = 0.f;
+	float BenchBulletCarry = 0.f;
+	float BenchBulletLifeTime = 0.f;
+
+	// 측정 전 풀 한도 (끝나면 되돌림)
+	int32 BenchSavedPoolMax = 64;
+	double BenchBulletRecordStart = 0.0;
+	double BenchBulletEnd = 0.0;
+
+	// 탄 매니저 처리 시간 합계·최대(초)와 잰 프레임 수 / 기록 중 최대 탄 수
+	double BenchManagerSeconds = 0.0;
+	double BenchManagerMaxSeconds = 0.0;
+	int32 BenchManagerFrames = 0;
+	int32 BenchPeakBullets = 0;
+
+	FTimerHandle DebugSpiralTimer;
+	TWeakObjectPtr<ABossCharacter> DebugSpiralBoss;
+	double DebugSpiralEndTime = 0.0;
+	float DebugSpiralAngle = 0.f;
+	int32 DebugSpiralArms = 6;
+	float DebugSpiralSpeed = 500.f;
 
 	void Move_Input(const FInputActionValue& InputValue);
 	void MoveCompleted_Input();

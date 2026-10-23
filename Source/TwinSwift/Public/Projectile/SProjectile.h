@@ -43,6 +43,9 @@ public:
 	// 끄기: 숨기기, 충돌·이동·이펙트 끄기, 타이머 정리, 지난 발의 상태 비우기 (풀이 반납받을 때)
 	void ResetForPool();
 
+	// 아무것도 안 맞을 때 사라지기까지(초). 측정 명령이 떠 있는 탄 수를 맞출 때
+	float GetMaxLifeTime() const { return MaxLifeTime; }
+
 	// ISPoolable: 풀이 만든 투사체 표시 / 반납 때 끄기
 	virtual void OnCreatedByPool() override;
 	virtual void OnReleasedToPool() override;

@@ -2,6 +2,7 @@
 
 #include "Ability/SAbilitySystemComponent.h"
 #include "Ability/SAttributeSet.h"
+#include "SGameplayTags.h"
 #include "Character/PlayerCharacter.h"
 
 ASPlayerState::ASPlayerState()
@@ -21,6 +22,10 @@ void ASPlayerState::PostInitializeComponents()
 
 	MageAttributeSet = NewObject<USAttributeSet>(this, TEXT("MageAttributeSet"));
 	MageASC->AddAttributeSetSubobject(MageAttributeSet.Get());
+
+	// 어느 캐릭터의 ASC인지 태그로 (한 번만 → 쌓이지 않음). 탄 색 막기처럼 "맞은 쪽이 누구인가"를 태그로 판단
+	WarriorASC->AddLooseGameplayTag(SGameplayTags::Character_Warrior);
+	MageASC->AddLooseGameplayTag(SGameplayTags::Character_Mage);
 }
 
 UAbilitySystemComponent* ASPlayerState::GetAbilitySystemComponent() const
