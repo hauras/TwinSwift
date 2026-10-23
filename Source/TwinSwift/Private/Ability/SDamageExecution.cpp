@@ -5,6 +5,10 @@
 
 namespace
 {
+	// 갑옷(State.Armored) 중 받는 피해 배율 / 큰 경직(State.Groggy) 중 받는 피해 배율
+	constexpr float ArmoredDamageScale = 0.2f;
+	constexpr float GroggyDamageScale = 1.5f;
+
 	// 계산에 쓸 속성 목록 (공격자의 AttackPower를 GE를 만든 순간 값으로 캡처)
 	struct FSDamageStatics
 	{
@@ -45,7 +49,21 @@ void USDamageExecution::Execute_Implementation(
 	// 스킬마다 다른 배율. 안 넣었으면 1배
 	const float Multiplier = Spec.GetSetByCallerMagnitude(SGameplayTags::SetByCaller_DamageMultiplier, false, 1.f);
 
-	const float Damage = AttackPower * Multiplier;
+	float Damage = AttackPower * Multiplier;
+
+	// 맞는 쪽 상태: 갑옷(대지의 분노 충전 중)이면 크게 줄고, 큰 경직(갑옷이 깨진 뒤)이면 더 들어감
+	// → 갑옷은 평타로 버티지 말고 표식 폭발로 깨라는 신호, 깨면 보상
+	if (EvaluateParams.TargetTags)
+	{
+		if (EvaluateParams.TargetTags->HasTag(SGameplayTags::State_Armored))
+		{
+			Damage *= ArmoredDamageScale;
+		}
+		else if (EvaluateParams.TargetTags->HasTag(SGameplayTags::State_Groggy))
+		{
+			Damage *= GroggyDamageScale;
+		}
+	}
 	if (Damage > 0.f)
 	{
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(

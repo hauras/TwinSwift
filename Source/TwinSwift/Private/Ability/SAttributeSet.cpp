@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerState.h"
 #include "SGameplayTags.h"
 #include "Character/PlayerCharacter.h"
+#include "Character/BossCharacter.h"
 
 USAttributeSet::USAttributeSet()
 {
@@ -63,7 +64,16 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 				PlayerCharacter->NotifyDamaged(Damage);
 			}
 
-			// 사망은 이후 단계에서
+			// 표식 폭발(산산조각·균열 폭발)이 보스에게 들어갔으면 보스에 알림 → 갑옷 깨기 횟수
+			// 위에서 체력이 0이 돼 쓰러졌을 수 있음 → 보스 쪽에서 사망·갑옷 여부를 다시 봄
+			const FGameplayTagContainer& DamageTags = Data.EffectSpec.GetDynamicAssetTags();
+			if (DamageTags.HasTagExact(SGameplayTags::Damage_Shatter) || DamageTags.HasTagExact(SGameplayTags::Damage_CrackBurst))
+			{
+				if (ABossCharacter* Boss = Cast<ABossCharacter>(TargetASC.GetAvatarActor()))
+				{
+					Boss->NotifyMarkBurst();
+				}
+			}
 		}
 	}
 	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())

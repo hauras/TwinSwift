@@ -59,6 +59,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Animation", meta = (ClampMin = "0.1"))
 	float MontagePlayRate = 1.f;
 
+	// 충전: 몽타주를 ChargeUntilTime(초, 몽타주 시간)까지 느리게 재생해 ChargeDuration초 동안 끈 뒤 MontagePlayRate로 (대지의 분노: 팔을 든 채 버팀)
+	// 공격 시계가 몽타주 위치라 재생 속도를 바꿔도 HitTimes·예고가 모션과 맞음. 둘 중 하나라도 0이면 충전 없음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Animation", meta = (ClampMin = "0"))
+	float ChargeUntilTime = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Animation", meta = (ClampMin = "0"))
+	float ChargeDuration = 0.f;
+
 	// 맞는 순간들(초, 몽타주 시간 기준 = 재생 속도 1일 때). 2번 치면 2개, 작은 순서대로
 	// 몽타주 블렌드 아웃이 시작되면 능력이 끝나므로 (몽타주 길이 - 블렌드 아웃 시간)보다 앞이어야 함
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Hit")
@@ -187,6 +195,13 @@ private:
 	// 몽타주 끝·끊김·취소 → EndAbility
 	UFUNCTION()
 	void OnMontageEnded();
+
+	// 충전 설정이 있는지 / 충전 중 재생 속도 (ChargeUntilTime을 ChargeDuration초에 지나가는 속도)
+	bool HasCharge() const;
+	float GetChargePlayRate() const;
+
+	// 이번 발동의 충전이 끝나 원래 속도로 돌아갔는지
+	bool bChargeFinished = true;
 
 	// 이번 발동에서 다음에 칠 HitTimes 번호
 	int32 HitIndex = 0;

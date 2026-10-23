@@ -58,6 +58,7 @@ void USGA_BossAttack::ActivateAbility(
 	ActivateTime = GetWorld()->GetTimeSeconds();
 	bLeapStarted = false;
 	bHasLockedCenter = false;
+	bChargeFinished = !HasCharge();
 
 	// 노릴 위치: 보스가 정해 둔 위치(등장신 착지)가 있으면 그것, 없으면 표적, 표적도 없으면 앞쪽
 	FVector AimLocation = Character->GetActorLocation() + Character->GetActorForwardVector() * (MaxLeapDistance + ForwardOffset);
@@ -101,7 +102,7 @@ void USGA_BossAttack::ActivateAbility(
 			this,
 			NAME_None,
 			AttackMontage,
-			MontagePlayRate);
+			bChargeFinished ? MontagePlayRate : GetChargePlayRate());
 		// 1차 교훈: 끝나기 시작(BlendOut)·끊김·취소 모두 종료 경로로
 		MontageTask->OnBlendOut.AddDynamic(this, &ThisClass::OnMontageEnded);
 		MontageTask->OnCompleted.AddDynamic(this, &ThisClass::OnMontageEnded);
@@ -148,6 +149,16 @@ AActor* USGA_BossAttack::GetTargetActor() const
 	return Blackboard ? Cast<AActor>(Blackboard->GetValueAsObject(TargetKeyName)) : nullptr;
 }
 
+bool USGA_BossAttack::HasCharge() const
+{
+	return AttackMontage && ChargeUntilTime > 0.f && ChargeDuration > 0.f;
+}
+
+float USGA_BossAttack::GetChargePlayRate() const
+{
+	return FMath::Max(ChargeUntilTime / ChargeDuration, 0.01f);
+}
+
 float USGA_BossAttack::GetAttackTime() const
 {
 	// 몽타주 재생 위치 = 보스 자신의 시간 (히트스톱·재생 속도가 이미 반영됨)
@@ -169,6 +180,16 @@ void USGA_BossAttack::OnAttackTick()
 	}
 
 	const float AttackTime = GetAttackTime();
+
+	// 충전 끝: 원래 속도로 (판정과 같은 공격 시계)
+	if (!bChargeFinished && AttackTime >= ChargeUntilTime)
+	{
+		bChargeFinished = true;
+		if (UAnimInstance* AnimInstance = GetActorInfo().GetAnimInstance())
+		{
+			AnimInstance->Montage_SetPlayRate(AttackMontage, MontagePlayRate);
+		}
+	}
 
 	// 도약 시작 (판정과 같은 공격 시계)
 	if (bLeapToTarget && !bLeapStarted && AttackTime >= LeapStartTime)

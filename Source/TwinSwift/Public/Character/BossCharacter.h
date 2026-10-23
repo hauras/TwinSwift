@@ -12,8 +12,27 @@ class UGameplayEffect;
 class UBehaviorTree;
 class USBossPatternComponent;
 class UAnimMontage;
+class UCameraShakeBase;
+class UMaterialInstanceDynamic;
+class UMaterialInterface;
+class UNiagaraSystem;
+struct FAbilityEndedData;
+
+// 갑옷(대지의 분노) 알림 종류
+enum class EBossArmorEvent : uint8
+{
+	// 갑옷을 두름 (충전 시작)
+	Raised,
+	// 표식 폭발에 한 번 맞음
+	Hit,
+	// 다 맞아서 깨짐 → 큰 경직
+	Broken,
+	// 못 깨고 강타가 나감 (또는 충전이 끊김)
+	Expired,
+};
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossDied, ABossCharacter*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossArmorChanged, EBossArmorEvent);
 UCLASS()
 class TWINSWIFT_API ABossCharacter : public AEnemyCharacter
 {
@@ -53,7 +72,16 @@ public:
 	// 도약 공격이 노릴 위치를 한 번만 정해 둠 (등장신 착지 등). 공격이 발동할 때 가져가고 비워짐
 	bool ConsumeLeapTargetOverride(FVector& OutLocation);
 
+	// 표식 폭발(산산조각·균열 폭발)이 이 보스에게 들어감 (AttributeSet이 부름). 갑옷 중이면 깨기 횟수 1
+	void NotifyMarkBurst();
+
+	// 갑옷을 깨려면 남은 표식 폭발 수 / 필요한 수 (HUD)
+	int32 GetArmorHitsLeft() const { return ArmorHitsLeft; }
+	int32 GetArmorHitsRequired() const { return ArmorHitsRequired; }
+
 	FOnBossDied OnBossDied;
+
+	FOnBossArmorChanged OnArmorChanged;
 protected:
 	virtual void BeginPlay() override;
 
@@ -83,6 +111,65 @@ protected:
 	// 등장 능력의 태그 (StartupAbilities에 그 능력이 있어야 함. 패턴 선택기 목록에는 넣지 않음)
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Intro", meta = (Categories = "Ability.Boss"))
 	FGameplayTag IntroAbilityTag;
+
+	// ---------- 2페이즈: 대지의 분노 ----------
+	// 체력이 이 비율 이하가 되면 한 번: 하던 공격을 끊고 갑옷을 두른 채 RageAbilityTag 능력(충전 → 경기장 전체 강타)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0", ClampMax = "1"))
+	float PhaseTwoHealthRatio = 0.4f;
+
+	// 충전 → 강타 능력 (StartupAbilities에 있어야 함, 패턴 선택기 목록에는 넣지 않음). 비우면 2페이즈 없음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (Categories = "Ability.Boss"))
+	FGameplayTag RageAbilityTag;
+
+	// 갑옷을 깨는 데 필요한 표식 폭발 수
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "1"))
+	int32 ArmorHitsRequired = 1;
+
+	// 표식 폭발을 한 번으로 세는 최소 간격(초). 균열 연쇄처럼 한 번에 여러 번 들어와도 1번
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0"))
+	float ArmorHitInterval = 0.5f;
+
+	// 갑옷이 깨진 뒤 큰 경직 시간(초). 이 동안 받는 피해 증가 (SDamageExecution)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0.1"))
+	float GroggyDuration = 4.f;
+
+	// 큰 경직 몽타주. 비우면 사망 몽타주를 쓰고 GroggyPoseTime에서 멈춤 (쓰러지기 직전 자세)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	TObjectPtr<UAnimMontage> GroggyMontage;
+
+	// 큰 경직 몽타주를 멈출 시간(초, 몽타주 시간). 0이면 멈추지 않음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0"))
+	float GroggyPoseTime = 0.8f;
+
+	// 큰 경직이 끝날 때 원래 자세로 돌아오는 시간(초)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0"))
+	float GroggyRecoverBlendTime = 0.5f;
+
+	// 대지의 분노가 끝난 뒤(깨든 못 깨든) 걷기 속도 배율
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0.1"))
+	float PhaseTwoSpeedScale = 1.3f;
+
+	// 갑옷 겉껍질 (메시 위에 한 겹 더 그리는 오버레이 재질, M_GolemArmor). 비우면 겉모습 변화 없음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	TObjectPtr<UMaterialInterface> ArmorOverlayMaterial;
+
+	// 오버레이 재질의 밝기 파라미터 이름. 남은 갑옷 비율(1 → 0)을 넣음 → 맞을수록 흐려짐
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	FName ArmorGlowParameter = TEXT("Glow");
+
+	// 갑옷이 깨질 때 가슴 높이 이펙트 / 크기 / 높이(발밑 기준 cm)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	TObjectPtr<UNiagaraSystem> ArmorBreakEffect;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0.1"))
+	float ArmorBreakEffectScale = 2.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	float ArmorBreakEffectHeight = 250.f;
+
+	// 갑옷이 깨질 때 화면 흔들림 (기본 USCameraShake_BossImpact)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	TSubclassOf<UCameraShakeBase> ArmorBreakShake;
 private:
 	// ConsumeLeapTargetOverride가 가져갈 위치 (없으면 표적을 노림)
 	TOptional<FVector> LeapTargetOverride;
@@ -101,4 +188,58 @@ private:
 
 	FDelegateHandle HealthChangedHandle;
 	FDelegateHandle GroggyTagHandle;
+
+	// ---------- 2페이즈 ----------
+	// 대지의 분노 시작 (체력 알림 다음 틱): 공격 취소 → 갑옷 → 충전 능력. 능력 발동에 실패하면 갑옷 없이 2페이즈로
+	void StartEarthRage();
+
+	// 갑옷 끝: 깨졌으면(bBroken) 이펙트 + 큰 경직, 아니면 갑옷만 벗음. 어느 쪽이든 2페이즈(속도 증가)
+	void EndArmor(bool bBroken);
+
+	// 갑옷 겉모습 켜기·끄기 / 밝기를 남은 횟수에 맞춤
+	void SetArmorVisible(bool bVisible);
+	void RefreshArmorGlow();
+
+	// 행동 트리·이동만 멈춤 / 전투 중이면 행동 트리를 처음부터 다시 실행 (대지의 분노·큰 경직 동안 걸어 다니지 않게)
+	void StopAI();
+	void ResumeAI();
+
+	// 큰 경직: State.Groggy(공격 취소) + 행동 트리 정지 + 몽타주. GroggyDuration 뒤 EndGroggy
+	void BeginGroggy();
+	void HoldGroggyPose();
+	void EndGroggy();
+
+	// 큰 경직 타이머·태그 정리 (사망·전투 중지). bStopMontage면 몽타주도 멈춤 (사망은 같은 몽타주를 이어 가서 안 멈춤)
+	void ClearGroggy(bool bStopMontage);
+
+	// 능력이 끝날 때마다 GAS가 부름 → 대지의 분노가 끝났는데 갑옷이 남아 있으면 못 깬 것
+	void OnAbilityEnded(const FAbilityEndedData& Data);
+
+	// 큰 경직에 쓰는 몽타주 (GroggyMontage, 없으면 DeathMontage)
+	UAnimMontage* GetGroggyMontage() const;
+
+	// 대지의 분노를 시작했는지 (한 번만)
+	bool bRageTriggered = false;
+
+	// 속도 증가를 넣었는지 (한 번만)
+	bool bPhaseTwoApplied = false;
+
+	// 큰 경직 중인지 (State.Groggy를 이 코드가 붙였는지)
+	bool bGroggyActive = false;
+
+	// 전투 중인지 (StartCombat ~ StopCombat). 큰 경직이 끝날 때 전투 중일 때만 행동 트리를 다시 움직임
+	bool bInCombat = false;
+
+	int32 ArmorHitsLeft = 0;
+
+	// 마지막으로 센 표식 폭발 시각 (월드 시간)
+	double LastArmorHitTime = 0.0;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> ArmorOverlayInstance;
+
+	FTimerHandle RageStartTimer;
+	FTimerHandle GroggyPoseTimer;
+	FTimerHandle GroggyEndTimer;
+	FDelegateHandle AbilityEndedHandle;
 };

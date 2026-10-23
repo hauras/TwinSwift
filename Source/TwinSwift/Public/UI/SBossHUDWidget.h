@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "GameplayEffectTypes.h"
 #include "Game/SBossEncounter.h"
+#include "Character/BossCharacter.h"
 #include "SBossHUDWidget.generated.h"
 
 class UAbilitySystemComponent;
@@ -45,6 +46,14 @@ protected:
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> IntroTitleText;
 
+	// 갑옷 안내 (체력바 아래): "대지의 분노 · 표식 폭발로 갑옷 깨기 1 / 2" → 깨지면 "갑옷 파괴!". 없으면 생략
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> ArmorText;
+
+	// "갑옷 파괴!"를 보여 주는 시간(초)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss HUD", meta = (ClampMin = "0.1"))
+	float ArmorBrokenTextDuration = 2.5f;
+
 	// 등장이 시작되고 이름 카드가 나올 때까지(초, 보스 착지 직후) / 떠 있는 시간(초)
 	UPROPERTY(EditDefaultsOnly, Category = "Boss HUD", meta = (ClampMin = "0"))
 	float IntroTitleDelay = 1.8f;
@@ -67,6 +76,15 @@ private:
 	void HideIntroTitle();
 
 	FTimerHandle IntroTitleTimer;
+
+	// 보스 갑옷 알림 → 안내 글자
+	void OnBossArmorChanged(EBossArmorEvent Event);
+	void HideArmorText();
+
+	FTimerHandle ArmorTextTimer;
+
+	TWeakObjectPtr<ABossCharacter> Boss;
+	FDelegateHandle ArmorChangedHandle;
 
 	TWeakObjectPtr<ASBossEncounter> Encounter;
 	TWeakObjectPtr<UAbilitySystemComponent> BossASC;

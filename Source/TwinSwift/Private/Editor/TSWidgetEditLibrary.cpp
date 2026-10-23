@@ -150,6 +150,22 @@ UWidget* UTSWidgetEditLibrary::WrapWithOverlay(UObject* WidgetBlueprint, FName W
 void UTSWidgetEditLibrary::MarkModified(UObject* WidgetBlueprint)
 {
 #if WITH_EDITOR
+	// 코드로 넣은 변수 위젯은 GUID 표가 비어 있음 → 컴파일 때 ensure ("was added but did not get a GUID")
+	// 에디터에서 위젯을 추가할 때처럼 표에 등록 (이미 넣은 위젯도 여기서 채워짐)
+	if (UWidgetBlueprint* WBP = Cast<UWidgetBlueprint>(WidgetBlueprint))
+	{
+		if (WBP->WidgetTree)
+		{
+			WBP->WidgetTree->ForEachWidget([WBP](UWidget* Widget)
+			{
+				if (Widget && Widget->bIsVariable && !WBP->WidgetVariableNameToGuidMap.Contains(Widget->GetFName()))
+				{
+					WBP->OnVariableAdded(Widget->GetFName());
+				}
+			});
+		}
+	}
+
 	if (UBlueprint* Blueprint = Cast<UBlueprint>(WidgetBlueprint))
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);

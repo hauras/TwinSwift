@@ -27,6 +27,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Punch, "Ability.Boss.Golem.Punch", "골렘 손등 치기 (내려치기보다 빠름, 앞쪽 넓은 부채꼴)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_JumpSlam, "Ability.Boss.Golem.JumpSlam", "골렘 점프 내려찍기 (멀리 있는 플레이어에게 뛰어듦)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_Intro, "Ability.Boss.Golem.Intro", "골렘 등장: 경기장 가장자리에서 가운데로 뛰어내려 착지 (피해 없음, 패턴 선택기 밖)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Golem_EarthRage, "Ability.Boss.Golem.EarthRage", "골렘 대지의 분노: 체력 40%에서 한 번, 갑옷을 두르고 충전 → 경기장 전체 강타 (패턴 선택기 밖)");
 
 	// 몽타주 이벤트
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_Hit, "Event.Montage.Hit", "타격 판정 프레임");
@@ -42,6 +43,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Stun, "State.Stun", "경직·기절");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "큰 경직: 진행 중인 보스 공격 취소 (작은 경직 State.Stun은 공격 중 무시 = 슈퍼아머)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Armored, "State.Armored", "보스 갑옷: 받는 피해 감소. 표식 폭발(산산조각·균열 폭발)로만 깸");
 
 	// ---------- 행동 허용 창 ----------
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Window_Combo, "Window.Combo", "다음 평타로 이어도 되는 구간");

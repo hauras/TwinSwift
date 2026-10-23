@@ -36,6 +36,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Punch);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_JumpSlam);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_Intro);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Golem_EarthRage);
 
 	// ---------- 몽타주 이벤트 (Notify → 능력에 신호) ----------
 	// 칼이 닿는 프레임 → 타격 판정
@@ -55,6 +56,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
 	// 큰 경직 (보스 갑옷 파괴 등). 작은 경직(State.Stun)과 달리 진행 중인 보스 공격을 취소
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Groggy);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Armored);
 
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Window_Combo);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Window_Dodge);
