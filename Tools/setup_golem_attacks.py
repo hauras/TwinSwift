@@ -12,9 +12,9 @@ tools = unreal.AssetToolsHelpers.get_asset_tools()
 ANIM_DIR = "/Game/Assets/Characters/Boss/Golem/Animations"
 MONTAGE_DIR = "/Game/Assets/Characters/Boss/Golem/Montages"
 GA_DIR = "/Game/Abilities/Boss"
-BOSS_BP = "/Game/Blueprints/Enemy/BP_Boss_Golem"
+BOSS_BP = "/Game/Blueprints/Boss/BP_Boss_Golem"
 PARENT = unreal.load_class(None, "/Script/TwinSwift.SGA_BossAttack")
-GOLEM_SLAM_FX = "/Game/Assets/VFX/Boss/NS_GolemSlam"
+GOLEM_SLAM_FX = "/Game/Assets/VFX/Boss/Golem/NS_GolemSlam"
 
 # 골렘 스탯 (시작할 때 한 번 덮어씀). 조정은 여기만
 # 체력: 지금은 테스트용으로 낮게 (영상용 2~3분 전투는 약 3000). 공격력 15 → 내려치기 37 · 손등 22 · 점프 45

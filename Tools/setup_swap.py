@@ -34,7 +34,7 @@ key.set_editor_property("key_name", SWAP_KEY)
 imc.map_key(ia, key)
 eal.save_loaded_asset(imc, only_if_is_dirty=False)
 
-pc_bp = load("/Game/Blueprints/BP_PlayerController")
+pc_bp = load("/Game/Blueprints/Core/BP_PlayerController")
 pc_cdo = unreal.get_default_object(pc_bp.generated_class())
 pc_cdo.set_editor_property("swap_action", ia)
 unreal.BlueprintEditorLibrary.compile_blueprint(pc_bp)
@@ -62,7 +62,7 @@ eal.save_loaded_asset(mage_mat, only_if_is_dirty=False)
 print("임시 마법사 재질:", mage_mat_path, "(원래 기본 색 노드:", base_node.get_name() if base_node else None, ")")
 
 # ---------- 3. BP_Player의 마법사 몸 ----------
-bp = load("/Game/Blueprints/BP_Player")
+bp = load("/Game/Blueprints/Characters/BP_Player")
 cdo = unreal.get_default_object(bp.generated_class())
 warrior_mesh = cdo.get_editor_property("mesh")
 mage_mesh = cdo.get_editor_property("mage_mesh")

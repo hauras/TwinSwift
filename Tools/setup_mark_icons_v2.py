@@ -94,7 +94,7 @@ u.BlueprintEditorLibrary.compile_blueprint(bp)
 assert bp.generated_class()
 assert eal.save_loaded_asset(bp, only_if_is_dirty=False)
 
-enemy = u.load_asset('/Game/Blueprints/Enemy/BP_Dummy')
+enemy = u.load_asset('/Game/Blueprints/Debug/BP_Dummy')
 indicator = u.get_default_object(enemy.generated_class()).get_editor_property('mark_indicator')
 indicator.set_editor_property('crack_icon', materials['Crack'])
 indicator.set_editor_property('frost_icon', materials['Frost'])

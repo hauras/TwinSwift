@@ -15,9 +15,9 @@ eal = unreal.EditorAssetLibrary
 MEL = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-GHOST = "/Game/Assets/VFX/Assist/M_AssistGhost"
+GHOST = "/Game/Assets/VFX/Common/Assist/M_AssistGhost"
 ASSIST_BP = "/Game/Blueprints/Assist/BP_Assist_Warrior"
-PLAYER_BP = "/Game/Blueprints/BP_Player"
+PLAYER_BP = "/Game/Blueprints/Characters/BP_Player"
 SWORD_WAVE_BP = "/Game/Blueprints/Projectile/BP_SwordWave"
 # 콤보 마무리와 같은 금색 반달. 밝게 쓸고 지나가는 건 처음 0.17초뿐 → 날아가는 동안 WAVE_REPEAT초마다 다시 띄움
 SWORD_WAVE_FX = "/Game/Assets/External/VFX/Knife_light/VFX/NE_attack05"

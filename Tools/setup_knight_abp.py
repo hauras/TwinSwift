@@ -21,7 +21,7 @@ unreal.BlueprintEditorLibrary.compile_blueprint(abp)
 eal.save_loaded_asset(abp, only_if_is_dirty=False)
 
 # ---------- BP_Player: Single Node → 애님 BP ----------
-bp_player = eal.load_asset("/Game/Blueprints/BP_Player")
+bp_player = eal.load_asset("/Game/Blueprints/Characters/BP_Player")
 cdo = unreal.get_default_object(bp_player.generated_class())
 mesh = cdo.get_editor_property("mesh")
 mesh.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_BLUEPRINT)

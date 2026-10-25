@@ -9,7 +9,7 @@ ABILITIES = [
     "/Game/Abilities/Warrior/GA_Warrior_DashSlash",
     "/Game/Abilities/Warrior/GA_Warrior_GroundSlam",
 ]
-SHATTER_FX = "/Game/Assets/VFX/Marks/NS_FrostShatter"
+SHATTER_FX = "/Game/Assets/VFX/Common/Marks/NS_FrostShatter"
 
 effect = unreal.load_asset(SHATTER_FX)
 if not effect:

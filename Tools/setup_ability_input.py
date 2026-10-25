@@ -73,7 +73,7 @@ cfg.set_editor_property("ability_input_actions", entries)
 eal.save_loaded_asset(cfg, only_if_is_dirty=False)
 
 # ---------- BP_PlayerController에 연결 ----------
-bp = unreal.load_asset("/Game/Blueprints/BP_PlayerController.BP_PlayerController")
+bp = unreal.load_asset("/Game/Blueprints/Core/BP_PlayerController.BP_PlayerController")
 cdo = unreal.get_default_object(bp.generated_class())
 cdo.set_editor_property("ability_input_config", cfg)
 unreal.BlueprintEditorLibrary.compile_blueprint(bp)

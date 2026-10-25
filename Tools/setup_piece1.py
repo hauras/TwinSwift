@@ -110,7 +110,7 @@ cam_third = make_camera(
 def make_bp(name, parent):
     factory = unreal.BlueprintFactory()
     factory.set_editor_property("parent_class", parent)
-    return make(name, "/Game/Blueprints", unreal.Blueprint, factory)
+    return make(name, "/Game/Blueprints/Core", unreal.Blueprint, factory)
 
 
 bp_pc = make_bp("BP_PlayerController", unreal.SPlayerController)

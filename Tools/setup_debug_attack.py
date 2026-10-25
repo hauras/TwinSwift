@@ -5,7 +5,7 @@ import unreal
 
 ENABLE = True
 
-bp = unreal.load_asset("/Game/Blueprints/Enemy/BP_Dummy.BP_Dummy")
+bp = unreal.load_asset("/Game/Blueprints/Debug/BP_Dummy.BP_Dummy")
 cdo = unreal.get_default_object(bp.generated_class())
 cdo.set_editor_property("debug_auto_attack", ENABLE)
 unreal.BlueprintEditorLibrary.compile_blueprint(bp)

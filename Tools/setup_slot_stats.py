@@ -45,7 +45,7 @@ def make_stats_ge(path, max_health, attack_power):
 
 ge = {key: make_stats_ge(*value) for key, value in STATS.items()}
 
-player_bp = unreal.load_asset("/Game/Blueprints/BP_Player.BP_Player")
+player_bp = unreal.load_asset("/Game/Blueprints/Characters/BP_Player.BP_Player")
 cdo = unreal.get_default_object(player_bp.generated_class())
 attack = unreal.load_asset("/Game/Abilities/Warrior/GA_Warrior_Attack.GA_Warrior_Attack")
 configs = {

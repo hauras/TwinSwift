@@ -13,9 +13,9 @@ eal = unreal.EditorAssetLibrary
 MEL = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-MAT_DIR = "/Game/Assets/VFX/Boss"
+MAT_DIR = "/Game/Assets/VFX/Boss/Common"
 MAT_NAME = "M_BossTelegraph"
-BP_DIR = "/Game/Blueprints/Enemy"
+BP_DIR = "/Game/Blueprints/Boss"
 BP_NAME = "BP_BossTelegraph"
 GA_DIR = "/Game/Abilities/Boss"
 PLANE_MESH = "/Engine/BasicShapes/Plane"

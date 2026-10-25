@@ -12,7 +12,7 @@ eal = unreal.EditorAssetLibrary
 lib = unreal.TSWidgetEditLibrary
 HUD_PATH = "/Game/UI/WBP_BossHUD"
 TWIN_HUD = "/Game/UI/WBP_TwinHUD"
-BOSS_BP = "/Game/Blueprints/Enemy/BP_Boss_Golem"
+BOSS_BP = "/Game/Blueprints/Boss/BP_Boss_Golem"
 PARENT = unreal.load_class(None, "/Script/TwinSwift.SBossHUDWidget")
 
 # ---------- WBP 만들기 ----------

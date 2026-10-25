@@ -60,7 +60,7 @@ for path, cfg in DODGES.items():
           "몽타주", cdo.get_editor_property("dodge_montage"))
 
 # ---------- 시작 능력에 추가 (이미 있으면 그대로) ----------
-player_bp = load("/Game/Blueprints/BP_Player")
+player_bp = load("/Game/Blueprints/Characters/BP_Player")
 player = unreal.get_default_object(player_bp.generated_class())
 for prop, ability in (("warrior_config", abilities["GA_Warrior_Roll"]), ("mage_config", abilities["GA_Mage_Blink"])):
     config = player.get_editor_property(prop)

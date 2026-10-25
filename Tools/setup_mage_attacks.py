@@ -175,7 +175,7 @@ abilities = [
 ]
 
 # ---------- 마법사 시작 능력에 추가 (이미 있으면 그대로) ----------
-player_bp = load("/Game/Blueprints/BP_Player")
+player_bp = load("/Game/Blueprints/Characters/BP_Player")
 player = unreal.get_default_object(player_bp.generated_class())
 config = player.get_editor_property("mage_config")
 text = config.export_text()

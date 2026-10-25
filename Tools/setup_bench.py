@@ -5,7 +5,7 @@ import unreal
 if unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor():
     raise RuntimeError("PIE를 끄고 다시 실행")
 
-CONTROLLER_BP = "/Game/Blueprints/BP_PlayerController"
+CONTROLLER_BP = "/Game/Blueprints/Core/BP_PlayerController"
 FIREBOLT_BP = "/Game/Blueprints/Projectile/BP_Projectile_FireBolt"
 
 bp = unreal.load_asset(CONTROLLER_BP)

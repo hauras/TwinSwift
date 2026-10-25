@@ -26,20 +26,20 @@ unreal.BlueprintEditorLibrary.compile_blueprint(ga_bp)
 eal.save_loaded_asset(ga_bp, only_if_is_dirty=False)
 
 # ---------- 3. BP_Player 시작 능력 ----------
-player_bp = load("/Game/Blueprints/BP_Player")
+player_bp = load("/Game/Blueprints/Characters/BP_Player")
 player_cdo = unreal.get_default_object(player_bp.generated_class())
 player_cdo.set_editor_property("startup_abilities", [ga_bp.generated_class()])
 unreal.BlueprintEditorLibrary.compile_blueprint(player_bp)
 eal.save_loaded_asset(player_bp, only_if_is_dirty=False)
 
 # ---------- 4. 허수아비 BP_Dummy (부모 C++ EnemyCharacter, 기사 메시 + Idle) ----------
-dummy_path = "/Game/Blueprints/Enemy/BP_Dummy"
+dummy_path = "/Game/Blueprints/Debug/BP_Dummy"
 if eal.does_asset_exist(dummy_path):
     dummy_bp = load(dummy_path)
 else:
     factory = unreal.BlueprintFactory()
     factory.set_editor_property("parent_class", unreal.EnemyCharacter)
-    dummy_bp = tools.create_asset("BP_Dummy", "/Game/Blueprints/Enemy", unreal.Blueprint, factory)
+    dummy_bp = tools.create_asset("BP_Dummy", "/Game/Blueprints/Debug", unreal.Blueprint, factory)
     print("만듦:", dummy_path)
 dummy_cdo = unreal.get_default_object(dummy_bp.generated_class())
 mesh = dummy_cdo.get_editor_property("mesh")

@@ -4,7 +4,7 @@
 import unreal
 
 eal = unreal.EditorAssetLibrary
-ENEMIES = ["/Game/Blueprints/Enemy/BP_Dummy"]
+ENEMIES = ["/Game/Blueprints/Debug/BP_Dummy"]
 
 for path in ENEMIES:
     bp = unreal.load_asset(path)

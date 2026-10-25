@@ -61,7 +61,7 @@ eal.save_loaded_asset(knight, only_if_is_dirty=False)
 eal.save_loaded_asset(knight.skeleton, only_if_is_dirty=False)
 
 # ---------- 2. BP_Player: 칼 메시만 지정, 위치는 소켓 그대로 ----------
-bp = unreal.load_asset("/Game/Blueprints/BP_Player.BP_Player")
+bp = unreal.load_asset("/Game/Blueprints/Characters/BP_Player.BP_Player")
 cdo = unreal.get_default_object(bp.generated_class())
 weapon = cdo.get_editor_property("weapon_mesh")
 weapon.set_static_mesh(unreal.load_asset("/Game/Assets/Characters/Warrior/base_basic_shaded"))

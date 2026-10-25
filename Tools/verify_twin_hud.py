@@ -24,7 +24,7 @@ u.BlueprintEditorLibrary.compile_blueprint(bp)
 assert bp.generated_class()
 print('HUD_COMPILED_CLASS',bp.generated_class().get_path_name())
 assert u.EditorAssetLibrary.save_loaded_asset(bp,only_if_is_dirty=False)
-cdo=u.get_default_object(u.load_asset('/Game/Blueprints/BP_PlayerController').generated_class())
+cdo=u.get_default_object(u.load_asset('/Game/Blueprints/Core/BP_PlayerController').generated_class())
 assert cdo.get_editor_property('hud_widget_class') == bp.generated_class()
 for name in ['WarriorAttack','DashSlash','GroundSlam','Roll','MagicBolt','FrostBolt','Thunder','Blink']:
     assert u.load_asset('/Game/UI/Icons/M_UI_'+name)

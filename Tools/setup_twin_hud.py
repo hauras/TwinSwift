@@ -53,7 +53,7 @@ for i,name in enumerate(names):
     materials[name]=material
 
 if eal.does_asset_exist(ASSET):
-    backup='/Game/Backups/HUD_BeforeSkillLayout/WBP_TwinHUD'
+    backup='/Game/Developers/Shared/Backups/HUD_BeforeSkillLayout/WBP_TwinHUD'
     if not eal.does_asset_exist(backup): assert eal.duplicate_asset(ASSET,backup)
     bp=u.load_asset(ASSET)
 else:
@@ -169,9 +169,9 @@ text(panel,'AssistText','교체 어시스트: 냉기 장판 [예정]',734,185,20
 
 u.BlueprintEditorLibrary.compile_blueprint(bp)
 assert eal.save_loaded_asset(bp,only_if_is_dirty=False)
-controller=u.load_asset('/Game/Blueprints/BP_PlayerController')
-backup='/Game/Backups/HUD_BeforeSkillLayout/BP_PlayerController'
-if not eal.does_asset_exist(backup): assert eal.duplicate_asset('/Game/Blueprints/BP_PlayerController',backup)
+controller=u.load_asset('/Game/Blueprints/Core/BP_PlayerController')
+backup='/Game/Developers/Shared/Backups/HUD_BeforeSkillLayout/BP_PlayerController'
+if not eal.does_asset_exist(backup): assert eal.duplicate_asset('/Game/Blueprints/Core/BP_PlayerController',backup)
 cdo=u.get_default_object(controller.generated_class())
 cdo.set_editor_property('hud_widget_class',bp.generated_class())
 u.BlueprintEditorLibrary.compile_blueprint(controller)

@@ -19,9 +19,9 @@ def make_asset(path, cls):
         factory.set_editor_property('data_asset_class', cls)
     return tools.create_asset(name, folder, cls, factory)
 
-bb = make_asset('/Game/Blueprints/AI/BB_Boss', u.BlackboardData)
+bb = make_asset('/Game/Blueprints/AI/Golem/BB_Boss', u.BlackboardData)
 u.get_editor_subsystem(u.AssetEditorSubsystem).open_editor_for_assets([bb])
-tree = make_asset('/Game/Blueprints/AI/BT_Golem', u.BehaviorTree)
+tree = make_asset('/Game/Blueprints/AI/Golem/BT_Golem', u.BehaviorTree)
 assert bb and tree
 result = u.TSBossAIEditLibrary.configure_tree(tree, bb)
 print('TREE_SETUP', result)
@@ -31,7 +31,7 @@ assert eal.save_loaded_asset(bb, only_if_is_dirty=False)
 u.get_editor_subsystem(u.AssetEditorSubsystem).open_editor_for_assets([tree])
 assert eal.save_loaded_asset(tree, only_if_is_dirty=False)
 
-boss = u.load_asset('/Game/Blueprints/Enemy/BP_Boss_Golem')
+boss = u.load_asset('/Game/Blueprints/Boss/BP_Boss_Golem')
 assert boss
 cdo = u.get_default_object(boss.generated_class())
 cdo.set_editor_property('behavior_tree', tree)

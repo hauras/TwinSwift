@@ -9,7 +9,7 @@ if unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor
 
 eal = unreal.EditorAssetLibrary
 SOURCE = "/Game/Assets/VFX/Mage/NS_MageBolt_Impact"
-TARGET = "/Game/Assets/VFX/Assist/NS_SwordWave_Hit"
+TARGET = "/Game/Assets/VFX/Common/Assist/NS_SwordWave_Hit"
 SWORD_WAVE_BP = "/Game/Blueprints/Projectile/BP_SwordWave"
 
 # 금색 (색상환 42도)

@@ -6,7 +6,7 @@
 import unreal
 
 THUNDER = "/Game/Abilities/Mage/GA_Mage_Thunder"
-DUMMY_BP = "/Game/Blueprints/Enemy/BP_Dummy"
+DUMMY_BP = "/Game/Blueprints/Debug/BP_Dummy"
 
 # 눈으로 단계를 구분하기 쉬운 간격 (C++ 기본 0.12). 느낌을 본 뒤 줄임
 CHAIN_STEP_DELAY = 0.25

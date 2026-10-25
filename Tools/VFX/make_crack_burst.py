@@ -6,7 +6,7 @@ import unreal
 
 eal = unreal.EditorAssetLibrary
 SOURCE = "/Game/Assets/External/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Dark_Stone_Impact"
-TARGET = "/Game/Assets/VFX/Marks/NS_CrackBurst"
+TARGET = "/Game/Assets/VFX/Common/Marks/NS_CrackBurst"
 THUNDER = "/Game/Abilities/Mage/GA_Mage_Thunder"
 
 # 주황 (색상환 25도)

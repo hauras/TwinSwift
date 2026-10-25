@@ -6,13 +6,13 @@ asset_tools = unreal.AssetToolsHelpers.get_asset_tools()
 eal = unreal.EditorAssetLibrary
 
 # ---------- BP_Player ----------
-path = "/Game/Blueprints/BP_Player"
+path = "/Game/Blueprints/Characters/BP_Player"
 if eal.does_asset_exist(path):
     bp_player = eal.load_asset(path)
 else:
     factory = unreal.BlueprintFactory()
     factory.set_editor_property("parent_class", unreal.PlayerCharacter)
-    bp_player = asset_tools.create_asset("BP_Player", "/Game/Blueprints", unreal.Blueprint, factory)
+    bp_player = asset_tools.create_asset("BP_Player", "/Game/Blueprints/Characters", unreal.Blueprint, factory)
 
 cdo = unreal.get_default_object(bp_player.generated_class())
 mesh = cdo.get_editor_property("mesh")
@@ -31,7 +31,7 @@ mesh.set_editor_property("animation_data", anim_data)
 unreal.BlueprintEditorLibrary.compile_blueprint(bp_player)
 eal.save_loaded_asset(bp_player, only_if_is_dirty=False)
 
-bp_gm = eal.load_asset("/Game/Blueprints/BP_GameMode")
+bp_gm = eal.load_asset("/Game/Blueprints/Core/BP_GameMode")
 gm_cdo = unreal.get_default_object(bp_gm.generated_class())
 gm_cdo.set_editor_property("default_pawn_class", bp_player.generated_class())
 unreal.BlueprintEditorLibrary.compile_blueprint(bp_gm)

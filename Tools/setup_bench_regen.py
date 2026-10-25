@@ -43,7 +43,7 @@ eal.save_loaded_asset(bp, only_if_is_dirty=False)
 saved = cdo.get_editor_property("modifiers")[0].export_text()
 print("GE:", PATH, "| 주기", cdo.get_editor_property("period").export_text(), "| 수정자", saved[:220])
 
-player_bp = unreal.load_asset("/Game/Blueprints/BP_Player.BP_Player")
+player_bp = unreal.load_asset("/Game/Blueprints/Characters/BP_Player.BP_Player")
 player_cdo = unreal.get_default_object(player_bp.generated_class())
 try:
     player_cdo.set_editor_property("bench_regen_effect", bp.generated_class())

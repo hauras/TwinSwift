@@ -1,5 +1,5 @@
 # 공격 애니를 제자리로: 골반(spine)의 앞뒤(메시 +Y) 이동만 매 프레임 빼서 0으로
-# 좌우 흔들림·높이 변화·회전은 그대로. 원본은 /Game/Backups/InPlace/에 복사
+# 좌우 흔들림·높이 변화·회전은 그대로. 원본은 /Game/Developers/Shared/Backups/InPlace/에 복사
 # (믹사모 대검 공격 애니는 In Place 옵션이 없음)
 import unreal
 
@@ -13,7 +13,7 @@ ANIMS = [
 ]
 PELVIS = "spine"
 ROOT = "Knight_metarig_01"
-BACKUP_DIR = "/Game/Backups/InPlace"
+BACKUP_DIR = "/Game/Developers/Shared/Backups/InPlace"
 
 eal = unreal.EditorAssetLibrary
 lib = unreal.AnimationLibrary

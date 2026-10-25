@@ -18,9 +18,9 @@ MAT_NAME = "M_GolemArmor"
 GA_DIR = "/Game/Abilities/Boss"
 GA_NAME = "GA_Golem_EarthRage"
 SLAM_MONTAGE = "/Game/Assets/Characters/Boss/Golem/Montages/AM_Golem_Slam"
-TELEGRAPH_BP = "/Game/Blueprints/Enemy/BP_BossTelegraph"
-GOLEM_SLAM_FX = "/Game/Assets/VFX/Boss/NS_GolemSlam"
-BOSS_BP = "/Game/Blueprints/Enemy/BP_Boss_Golem"
+TELEGRAPH_BP = "/Game/Blueprints/Boss/BP_BossTelegraph"
+GOLEM_SLAM_FX = "/Game/Assets/VFX/Boss/Golem/NS_GolemSlam"
+BOSS_BP = "/Game/Blueprints/Boss/BP_Boss_Golem"
 HUD_PATH = "/Game/UI/WBP_BossHUD"
 PARENT = unreal.load_class(None, "/Script/TwinSwift.SGA_BossAttack")
 

@@ -4,7 +4,7 @@
 import unreal
 
 SOURCE = "/Game/Assets/External/VFX/Mixed_Magic_VFX_Pack/VFX/NS_Big_Hammer_Impact"
-TARGET = "/Game/Assets/VFX/Boss/NS_GolemSlam"
+TARGET = "/Game/Assets/VFX/Boss/Golem/NS_GolemSlam"
 HUE = 42.0
 
 eal = unreal.EditorAssetLibrary
