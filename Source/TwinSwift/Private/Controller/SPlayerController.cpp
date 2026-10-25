@@ -22,6 +22,8 @@
 #include <atomic>
 #include "AI/SBossPatternComponent.h"
 #include "Bullet/SBulletManager.h"
+#include "RenderTimer.h"
+#include "Game/SBossEncounter.h"
 #include "Character/BossCharacter.h"
 #include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
@@ -536,16 +538,20 @@ void ASPlayerController::BenchBullets(int32 Count, int32 UseActors, float Second
 
 	ASBulletManager* Manager = ASBulletManager::Get(this);
 	const bool bActors = UseActors != 0;
-	if (Count <= 0 || Seconds <= 0.f || !GetPawn() || (bActors ? !BenchProjectileClass : !Manager))
+
+	// 1 = 같은 외형의 액터 탄(구조 비교), 2 = 실제 화염탄(궤적 이펙트·속도가 달라 참고용)
+	BenchBulletClass = UseActors == 2 ? BenchProjectileClass : BenchBulletActorClass;
+	if (Count <= 0 || Seconds <= 0.f || !GetPawn() || !Manager || (bActors && !BenchBulletClass))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[탄막 벤치] BenchBullets 탄수 방식(0 매니저, 1 액터) 초. 매니저 배치·BenchProjectileClass 확인"));
+		UE_LOG(LogTemp, Warning, TEXT("[탄막 벤치] BenchBullets 탄수 방식(0 매니저, 1 같은 외형 액터, 2 화염탄) 초. 매니저 배치·BP_PlayerController의 Bench 클래스 확인"));
 		return;
 	}
 
-	// 떠 있는 탄 수 = 초당 발수 × 수명. 두 방식 모두 화염탄 수명으로 맞춤 → 탄 수·초당 생성 수가 같아 비교가 공정
+	// 떠 있는 탄 수 = 초당 발수 × 수명. 매니저도 비교 액터 탄과 같은 수명 → 탄 수·초당 생성 수가 같음
 	// (처음엔 매니저 6초·화염탄 1.5초로 달라서 액터 쪽이 4배 많이 생성했음)
-	const float LifeTime = BenchProjectileClass
-		? BenchProjectileClass->GetDefaultObject<ASProjectile>()->GetMaxLifeTime()
+	const TSubclassOf<ASProjectile> LifeSource = bActors ? BenchBulletClass : BenchBulletActorClass;
+	const float LifeTime = LifeSource
+		? LifeSource->GetDefaultObject<ASProjectile>()->GetMaxLifeTime()
 		: Manager->GetBulletLifeTime();
 	BenchBulletLifeTime = LifeTime;
 
@@ -583,6 +589,10 @@ void ASPlayerController::BenchBullets(int32 Count, int32 UseActors, float Second
 	BenchManagerMaxSeconds = 0.0;
 	BenchManagerFrames = 0;
 	BenchPeakBullets = 0;
+	BenchActorSampleTicks = 0;
+	BenchActorSamples = 0;
+	BenchActorAliveSum = 0;
+	BenchGameThreadMs = 0.0;
 	BenchGCCount = 0;
 	BenchGCSeconds = 0.0;
 	BenchGCMaxSeconds = 0.0;
@@ -602,6 +612,10 @@ void ASPlayerController::BenchBullets(int32 Count, int32 UseActors, float Second
 			BenchObjectCounter.Count = 0;
 		}
 		BenchFrameTimes.Add(FApp::GetDeltaTime());
+
+		// 엔진이 지난 프레임에 잰 게임 스레드 시간 (stat unit의 Game). 렌더 스레드 값은 편집기에서 0으로 나와서 안 씀
+		BenchGameThreadMs += FPlatformTime::ToMilliseconds(GGameThreadTime);
+
 		if (const ASBulletManager* BulletManager = ASBulletManager::Get(this))
 		{
 			if (!bBenchBulletActors)
@@ -631,7 +645,7 @@ void ASPlayerController::BenchBullets(int32 Count, int32 UseActors, float Second
 	});
 
 	UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 시작: %s, 탄 %d발 유지 (수명 %.1f초, 초당 %.0f발), 차오름 %.1f초 + 측정 %.0f초"),
-		bActors ? TEXT("액터 풀") : TEXT("탄 매니저"),
+		bActors ? *GetNameSafe(BenchBulletClass) : TEXT("탄 매니저"),
 		Count,
 		LifeTime,
 		Count / LifeTime,
@@ -651,6 +665,22 @@ void ASPlayerController::FireBenchBullets()
 
 	// 생성 시간·발수도 기록 구간만 (새 UObject와 같은 구간 → 1발당 개수가 맞음)
 	const bool bRecording = Now >= BenchBulletRecordStart;
+
+	// 액터 방식: 기록 구간에서 0.5초(발사 10번)마다 보이는(발사된) 탄 액터 수를 셈 → 목표 탄 수가 실제로 떠 있었는지
+	if (bBenchBulletActors && bRecording && ++BenchActorSampleTicks % 10 == 0)
+	{
+		int32 Alive = 0;
+		for (TActorIterator<ASProjectile> It(GetWorld(), BenchBulletClass); It; ++It)
+		{
+			if (!It->IsHidden())
+			{
+				++Alive;
+			}
+		}
+		BenchActorAliveSum += Alive;
+		++BenchActorSamples;
+		BenchPeakBullets = FMath::Max(BenchPeakBullets, Alive);
+	}
 
 	UAbilitySystemComponent* ASC = GetSAbilitySystemComponent();
 	ASBulletManager* Manager = ASBulletManager::Get(this);
@@ -678,7 +708,7 @@ void ASPlayerController::FireBenchBullets()
 		if (bBenchBulletActors)
 		{
 			ASProjectile* Projectile = Pool ? Pool->Acquire<ASProjectile>(
-				BenchProjectileClass,
+				BenchBulletClass,
 				FTransform(Direction.Rotation(), BenchBulletOrigin),
 				GetPawn(),
 				GetPawn()) : nullptr;
@@ -725,7 +755,20 @@ void ASPlayerController::FinishBenchBullets()
 			BenchManagerMaxSeconds * 1e3,
 			BenchPeakBullets);
 	}
-	UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 방식: %s, 목표 탄 %d발"), bBenchBulletActors ? TEXT("액터 풀") : TEXT("탄 매니저"), BenchBulletCount);
+	if (bBenchBulletActors && BenchActorSamples > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 떠 있는 액터 탄: 평균 %lld발, 최대 %d발 (%d번 셈)"),
+			BenchActorAliveSum / BenchActorSamples,
+			BenchPeakBullets,
+			BenchActorSamples);
+	}
+
+	const int32 RecordedFrames = BenchFrameTimes.Num();
+	if (RecordedFrames > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 게임 스레드 평균: %.2f ms"), BenchGameThreadMs / RecordedFrames);
+	}
+	UE_LOG(LogTemp, Log, TEXT("[탄막 벤치] 방식: %s, 목표 탄 %d발"), bBenchBulletActors ? *GetNameSafe(BenchBulletClass) : TEXT("탄 매니저"), BenchBulletCount);
 
 	// 프레임·GC·새 UObject·생성 시간은 기존 측정과 같은 형식으로
 	FinishBench();
@@ -741,7 +784,10 @@ void ASPlayerController::FireDebugSpiral()
 	ASBulletManager* Manager = ASBulletManager::Get(this);
 	ABossCharacter* Boss = DebugSpiralBoss.Get();
 	const APawn* ControlledPawn = GetPawn();
-	if (!Manager || !Boss || !ControlledPawn || GetWorld()->GetTimeSeconds() >= DebugSpiralEndTime)
+	// 전투가 끝났으면(승리·패배) 멈춤: 전투 진행 액터가 탄을 지워도 다음 주기에 다시 쏘지 않게
+	TActorIterator<ASBossEncounter> EncounterIt(GetWorld());
+	const bool bFightOver = EncounterIt && EncounterIt->GetState() != EBossEncounterState::Fighting;
+	if (!Manager || !Boss || !ControlledPawn || bFightOver || GetWorld()->GetTimeSeconds() >= DebugSpiralEndTime)
 	{
 		GetWorldTimerManager().ClearTimer(DebugSpiralTimer);
 		if (Manager)

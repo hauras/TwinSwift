@@ -71,4 +71,12 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Duration, "SetByCaller.Duration", "지속 시간(초): 공통 쿨다운 GE에 능력이 넣음");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_Shatter, "Damage.Shatter", "산산조각 추가 피해: [빙결]을 전사가 깸");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Damage_CrackBurst, "Damage.CrackBurst", "균열 폭발 피해: [균열]을 마법사 낙뢰가 터뜨림 (연쇄)");
+
+	// ---------- 보스 2 지휘자 패턴 ----------
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Ring, "Ability.Boss.Conductor.Ring", "지휘자 방사형: 사방으로 한 바퀴 (여러 번 쏘면 같은 방향으로 겹쳐 줄이 생김)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Ring, "Cooldown.Boss.Conductor.Ring", "지휘자 방사형 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Fan, "Ability.Boss.Conductor.Fan", "지휘자 조준 부채꼴: 표적 쪽으로 FanAngle 안에 고르게");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Fan, "Cooldown.Boss.Conductor.Fan", "지휘자 조준 부채꼴 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Spiral, "Ability.Boss.Conductor.Spiral", "지휘자 나선: 한 번 쏠 때마다 SpiralStep도씩 돌려 휘어진 팔");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Spiral, "Cooldown.Boss.Conductor.Spiral", "지휘자 나선 쿨다운");
 }

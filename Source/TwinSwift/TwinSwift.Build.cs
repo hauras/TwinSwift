@@ -25,6 +25,8 @@ public class TwinSwift : ModuleRules
 		// cpp에서만 쓰는 모듈
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
+			// 측정: 게임 스레드 시간 (GGameThreadTime)
+			"RenderCore",
 			"NavigationSystem",
 			"UMG",
 			"Slate",

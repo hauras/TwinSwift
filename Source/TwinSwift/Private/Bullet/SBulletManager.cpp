@@ -60,12 +60,14 @@ void ASBulletManager::SpawnBullet(
 	float DamageMultiplier,
 	float LifeTime)
 {
-	if (Bullets.Num() >= MaxBullets)
+	// 도는 중에 쏴서 아직 배열에 안 들어간 탄도 같이 셈 (안 세면 그 순간 한도를 넘음)
+	if (Bullets.Num() + PendingBullets.Num() >= MaxBullets)
 	{
 		return;
 	}
 
-	FSBullet& Bullet = Bullets.AddDefaulted_GetRef();
+	// 도는 중이면 따로 모았다가 끝나고 넣음 (배열이 늘며 메모리를 옮기면 돌던 참조가 깨짐)
+	FSBullet& Bullet = bIteratingBullets ? PendingBullets.AddDefaulted_GetRef() : Bullets.AddDefaulted_GetRef();
 	Bullet.Location = Location;
 	Bullet.Velocity = Velocity;
 	Bullet.Color = Color;
@@ -77,6 +79,15 @@ void ASBulletManager::SpawnBullet(
 
 void ASBulletManager::ClearAllBullets()
 {
+	// 충돌 처리 안(피해 → 패배 → 전투 끝)에서 불리면 지금 지우지 않음: 돌아간 루프가 없는 칸을 지우다 멈춤
+	if (bIteratingBullets)
+	{
+		bClearRequested = true;
+		return;
+	}
+
+	bClearRequested = false;
+	PendingBullets.Reset();
 	Bullets.Reset();
 	LastHitTimes.Reset();
 	UpdateInstances();
@@ -99,6 +110,7 @@ void ASBulletManager::Tick(float DeltaTime)
 
 void ASBulletManager::MoveBullets(float DeltaSeconds)
 {
+	LastMoveDeltaSeconds = DeltaSeconds;
 	for (FSBullet& Bullet : Bullets)
 	{
 		Bullet.Location += DeltaSeconds * Bullet.Velocity;
@@ -119,7 +131,9 @@ void ASBulletManager::HitPlayers()
 		}
 	}
 
-	for (int32 Index = Bullets.Num() - 1; Index >= 0; --Index)
+	// 피해 처리가 즉시 실행돼서 TryHit 안에서 패배·전투 끝까지 갈 수 있음 → 도는 동안은 배열을 지우거나 늘리지 않음
+	bIteratingBullets = true;
+	for (int32 Index = Bullets.Num() - 1; Index >= 0 && !bClearRequested; --Index)
 	{
 		FSBullet& Bullet = Bullets[Index];
 		if (Bullet.LifeRemaining <= 0.f)
@@ -137,11 +151,24 @@ void ASBulletManager::HitPlayers()
 			}
 		}
 	}
+	bIteratingBullets = false;
+
+	// 도는 중에 생긴 일을 이제 처리
+	if (bClearRequested)
+	{
+		ClearAllBullets();
+	}
+	else if (PendingBullets.Num() > 0)
+	{
+		Bullets.Append(PendingBullets);
+		PendingBullets.Reset();
+	}
 }
 
 bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 {
 	// 1. 닿았나: 수평 원 + 높이 범위 (캡슐이 위아래로 길어서). 제곱끼리 비교해 제곱근을 피함
+	// 지금 위치만 보면 빠른 탄·프레임 튐에서 한 번에 몸을 건너뜀 → 이번 프레임 이동 선분(이전 위치 → 지금 위치)에서 몸에 가장 가까운 점으로
 	const ACharacter* Character = Cast<ACharacter>(Target);
 	const UCapsuleComponent* Capsule = Character ? Character->GetCapsuleComponent() : nullptr;
 
@@ -151,8 +178,13 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 	}
 
 	const FVector BodyLocation = Character->GetActorLocation();
+	const FVector PreviousLocation = Bullet.Location - Bullet.Velocity * LastMoveDeltaSeconds;
+	const FVector ClosestOnPath = FMath::ClosestPointOnSegment(
+		FVector(BodyLocation.X, BodyLocation.Y, 0.f),
+		FVector(PreviousLocation.X, PreviousLocation.Y, 0.f),
+		FVector(Bullet.Location.X, Bullet.Location.Y, 0.f));
 	const float ReachRadius = Bullet.Radius + Capsule->GetScaledCapsuleRadius();
-	if (FVector::DistSquared2D(Bullet.Location, BodyLocation) > FMath::Square(ReachRadius))
+	if (FVector::DistSquared2D(ClosestOnPath, BodyLocation) > FMath::Square(ReachRadius))
 	{
 		return false;
 	}

@@ -68,7 +68,7 @@ public:
 	void DebugBulletSpiral(float Seconds = 5.f, int32 Arms = 6, float Speed = 500.f);
 
 	// [측정] 탄 Count발이 계속 떠 있게 나선으로 쏘며 Seconds초 동안 잼 (콘솔: BenchBullets 1000 0 / BenchBullets 1000 1)
-	// UseActors 0 = 탄 매니저(배열), 1 = 액터 풀 투사체(BenchProjectileClass). 같은 패턴·같은 탄 수로 비교
+	// UseActors 0 = 탄 매니저(배열), 1 = 액터 풀 탄(BenchBulletActorClass: 같은 외형·속도·수명), 2 = 실제 화염탄(BenchProjectileClass, 참고용)
 	// 경기장 위 공중에서 쏴서 아무것도 안 맞음 (이동·충돌 검사·그리기 비용만). 탄 수가 차오를 때까지(수명만큼)는 기록 안 함
 	UFUNCTION(Exec)
 	void BenchBullets(int32 Count = 1000, int32 UseActors = 0, float Seconds = 10.f);
@@ -139,6 +139,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Debug")
 	TSubclassOf<ASProjectile> BenchProjectileClass;
 
+	// [측정] BenchBullets 액터 방식의 탄 (BP_BenchBulletActor: 탄막과 같은 구 메시·속도, 나이아가라 없음) → 구조 차이만 비교
+	UPROPERTY(EditDefaultsOnly, Category = "Debug")
+	TSubclassOf<ASProjectile> BenchBulletActorClass;
+
 private:
 	// [측정] 한 발 생성 + 시간 기록. 다 쏘면 결과 로그
 	void BenchFireOne();
@@ -182,6 +186,9 @@ private:
 
 	FTimerHandle BenchBulletTimer;
 	bool bBenchBulletActors = false;
+
+	// 액터 방식에서 쏠 클래스 (BenchBulletActorClass 또는 BenchProjectileClass)
+	TSubclassOf<ASProjectile> BenchBulletClass;
 	int32 BenchBulletCount = 0;
 	FVector BenchBulletOrigin = FVector::ZeroVector;
 	float BenchBulletAngle = 0.f;
@@ -199,6 +206,14 @@ private:
 	double BenchManagerMaxSeconds = 0.0;
 	int32 BenchManagerFrames = 0;
 	int32 BenchPeakBullets = 0;
+
+	// 액터 방식의 실제로 떠 있는 탄 수: 0.5초마다 한 번 셈 (매 프레임 세면 그 비용이 측정에 섞임)
+	int32 BenchActorSampleTicks = 0;
+	int32 BenchActorSamples = 0;
+	int64 BenchActorAliveSum = 0;
+
+	// 기록 구간의 게임 스레드 시간 합계(ms). 프레임 시간은 가장 느린 쪽(GPU·편집기 포함)에 묶여 탄 처리 차이가 가려짐
+	double BenchGameThreadMs = 0.0;
 
 	FTimerHandle DebugSpiralTimer;
 	TWeakObjectPtr<ABossCharacter> DebugSpiralBoss;

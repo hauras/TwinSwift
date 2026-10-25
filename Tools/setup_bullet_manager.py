@@ -12,9 +12,9 @@ eal = unreal.EditorAssetLibrary
 MEL = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
-MAT_DIR = "/Game/Assets/VFX/Boss"
+MAT_DIR = "/Game/Assets/VFX/Boss/Conductor"
 MAT_NAME = "M_Bullet"
-BP_DIR = "/Game/Blueprints/Enemy"
+BP_DIR = "/Game/Blueprints/Boss"
 BP_NAME = "BP_BulletManager"
 SPHERE = "/Engine/BasicShapes/Sphere"
 
@@ -90,3 +90,41 @@ else:
     print("배치:", manager.get_actor_label(), location)
 
 print("BULLET_MANAGER_SETUP_COMPLETE")
+
+# ---------- 비교 측정용 액터 탄 ----------
+# BP_BenchBulletActor (부모 ASBenchBulletActor): 탄막과 같은 구 메시·재질·크기·속도(600)·수명(1.5초), 나이아가라 없음
+# BenchBullets 1 이 이걸 써서 "액터 하나씩 vs 배열" 구조 차이만 비교 (화염탄은 BenchBullets 2로 참고)
+BENCH_BP = "BP_BenchBulletActor"
+BENCH_SPEED = 600.0
+BENCH_LIFE = 1.5
+bench_path = f"{BP_DIR}/{BENCH_BP}"
+if eal.does_asset_exist(bench_path):
+    bench_bp = unreal.load_asset(bench_path)
+else:
+    factory = unreal.BlueprintFactory()
+    factory.set_editor_property("parent_class", unreal.load_class(None, "/Script/TwinSwift.SBenchBulletActor"))
+    bench_bp = tools.create_asset(BENCH_BP, BP_DIR, unreal.Blueprint, factory)
+unreal.BlueprintEditorLibrary.compile_blueprint(bench_bp)
+bench = unreal.get_default_object(bench_bp.generated_class())
+bench_mesh = bench.get_editor_property("bullet_mesh")
+bench_mesh.set_editor_property("static_mesh", unreal.load_asset(SPHERE))
+bench_mesh.set_material(0, mat)
+# 탄막 기본 반경 15cm = 지름 30 → 엔진 구(지름 100)의 0.3배
+bench_mesh.set_editor_property("relative_scale3d", unreal.Vector(0.3, 0.3, 0.3))
+bench.get_editor_property("flight_effect").set_editor_property("asset", None)
+bench.get_editor_property("collision").set_editor_property("sphere_radius", 15.0)
+movement = bench.get_editor_property("movement")
+movement.set_editor_property("initial_speed", BENCH_SPEED)
+movement.set_editor_property("max_speed", BENCH_SPEED)
+bench.set_editor_property("max_life_time", BENCH_LIFE)
+bench.set_editor_property("impact_effect", None)
+unreal.BlueprintEditorLibrary.compile_blueprint(bench_bp)
+eal.save_loaded_asset(bench_bp, only_if_is_dirty=False)
+
+pc_bp = unreal.load_asset("/Game/Blueprints/Core/BP_PlayerController")
+pc = unreal.get_default_object(pc_bp.generated_class())
+pc.set_editor_property("bench_bullet_actor_class", bench_bp.generated_class())
+unreal.BlueprintEditorLibrary.compile_blueprint(pc_bp)
+eal.save_loaded_asset(pc_bp, only_if_is_dirty=False)
+print("비교 액터 탄:", bench_bp.get_path_name(), "속도", movement.get_editor_property("initial_speed"), "수명", bench.get_editor_property("max_life_time"))
+print("BENCH_ACTOR_SETUP_COMPLETE")

@@ -65,7 +65,7 @@ public:
 		float DamageMultiplier,
 		float LifeTime = 0.f);
 
-	// 전부 지우기 (전투 끝, 측정 끝)
+	// 전부 지우기 (전투 끝, 측정 끝). 탄을 도는 중(충돌 처리 안에서 패배 등)에 불리면 그 처리가 끝난 뒤 지움
 	void ClearAllBullets();
 
 	// 지금 탄 수 (측정 로그)
@@ -81,7 +81,7 @@ protected:
 	// 이동 → 충돌 → 그리기
 	virtual void Tick(float DeltaSeconds) override;
 
-	// 탄 그리기 (모든 탄을 이 컴포넌트 하나로 = 그리기 1번)
+	// 탄 그리기: 탄마다 컴포넌트가 아니라 이 인스턴스 메시 하나로 묶어서 그림 (실제 드로우콜 수는 패스·뷰마다 따로, stat RHI로 측정)
 	UPROPERTY(VisibleAnywhere, Category = "Bullet")
 	TObjectPtr<UInstancedStaticMeshComponent> BulletMeshes;
 
@@ -110,11 +110,23 @@ private:
 
 	TArray<FTransform> InstanceTransforms;
 
-	// 인스턴스마다 색 값 1개 (주황 0, 파랑 1). 재질이 PerInstanceCustomData로 읽어 색을 고름 → 색이 섞여도 그리기 1번
+	// 인스턴스마다 색 값 1개 (주황 0, 파랑 1). 재질이 PerInstanceCustomData로 읽어 색을 고름 → 색마다 컴포넌트를 나누지 않음
 	TArray<float> InstanceColors;
 
 	// GetLastUpdateSeconds 값
 	double LastUpdateSeconds = 0.0;
+
+	// 지난 이동에 쓴 시간(초). 충돌 검사가 "이번 프레임 이동 선분"을 되짚을 때 (이전 위치 = 위치 - 속도 × 이 값)
+	float LastMoveDeltaSeconds = 0.f;
+
+	// 탄 배열을 도는 중인지 (HitPlayers). 이 사이에 배열을 비우거나 늘리면 돌던 칸·참조가 깨짐
+	bool bIteratingBullets = false;
+
+	// 도는 중에 ClearAllBullets가 불림 → 다 돈 뒤에 지움
+	bool bClearRequested = false;
+
+	// 도는 중에 쏜 탄 (피해 처리 안에서 쏘는 경우) → 다 돈 뒤에 배열에 넣음
+	TArray<FSBullet> PendingBullets;
 	
 	// 캐릭터(ASC)별 마지막으로 맞은 시각. 몸 하나에 ASC가 둘이라 액터가 아니라 ASC로 구분
 	TMap<TWeakObjectPtr<UAbilitySystemComponent>, double> LastHitTimes;
