@@ -13,6 +13,8 @@ enum class EBulletShape : uint8
 	Ring,
 	// 기준 방향 좌우로 Spread 각도 안에 고르게 (7발·70도면 -35 ~ +35도)
 	Fan,
+	// 기준 방향과 직각으로 WallWidth 폭에 일렬, 모든 탄이 같은 방향으로 밀려감 (32발·1600cm면 약 52cm 간격)
+	Wall,
 };
 
 // 발사 지시 한 줄: "몇 초에, 어떤 모양으로, 몇 발, 몇 번 반복"
@@ -42,9 +44,13 @@ struct FSBulletPatternEvent
 	UPROPERTY(EditAnywhere, Category = "Pattern")
 	float AngleOffset = 0.f;
 
-	// 부채꼴 전체 각도(도). 고리는 무시
+	// 부채꼴 전체 각도(도). 고리, 벽은 무시
 	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0", ClampMax = "360"))
 	float Spread = 70.f;
+
+	// 벽 폭(cm). 벽만 씀. 탄 간격 = 폭 / (탄 수 - 1)이 캐릭터 폭(약 70cm)보다 좁아야 못 빠져나감
+	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
+	float WallWidth = 1600.f;
 
 	// 주황은 전사, 파랑은 마법사가 막음
 	UPROPERTY(EditAnywhere, Category = "Pattern")

@@ -84,6 +84,8 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Spiral, "Cooldown.Boss.Conductor.Spiral", "지휘자 나선 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Shockwave, "Ability.Boss.Conductor.Shockwave", "지휘자 충격파");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Shockwave, "Cooldown.Boss.Conductor.Shockwave", "지휘자 충격파 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Wall, "Ability.Boss.Conductor.Wall", "지휘자 색 벽: 주황·파랑 벽이 번갈아 밀려옴, 그 색 캐릭터로 교체해야 통과");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Wall, "Cooldown.Boss.Conductor.Wall", "지휘자 색 벽 쿨다운");
 
 
 }

@@ -160,18 +160,38 @@ void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 	}
 
 	const int32 Count = FMath::Clamp(Event.BulletCount, 1, MaxBulletsPerVolley);
+
+	// 벽: 모든 탄이 기준 방향(Forward)으로 날아가고, 생기는 자리만 직각(Right)으로 늘어섬
+	const FVector Forward = FRotator(0.f, BaseYaw, 0.f).Vector();
+	const FVector Right = FRotator(0.f, BaseYaw + 90.f, 0.f).Vector();
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		// 고리: 한 바퀴를 고르게 / 부채꼴: -절반 ~ +절반을 고르게 (1발이면 가운데)
-		float Offset = Index * (360.f / Count);
-		if (Event.Shape == EBulletShape::Fan)
+		FVector Direction;
+		FVector SpawnLocation;
+
+		if (Event.Shape == EBulletShape::Wall)
 		{
-			Offset = Count == 1 ? 0.f : FMath::Lerp(-Event.Spread * 0.5f, Event.Spread * 0.5f, static_cast<float>(Index) / (Count - 1));
+			// 가운데에서 옆으로 몇 cm: -폭 절반 ~ +폭 절반을 고르게 (1발이면 가운데)
+			const float Side = Count == 1 ? 0.f : FMath::Lerp(-Event.WallWidth * 0.5f, Event.WallWidth * 0.5f, static_cast<float>(Index) / (Count - 1));
+			Direction = Forward;
+			SpawnLocation = Origin + Forward * MuzzleOffset + Right * Side;
+		}
+		else
+		{
+			// 고리: 한 바퀴를 고르게 / 부채꼴: -절반 ~ +절반을 고르게 (1발이면 가운데)
+			float Offset = Index * (360.f / Count);
+			if (Event.Shape == EBulletShape::Fan)
+			{
+				Offset = Count == 1 ? 0.f : FMath::Lerp(-Event.Spread * 0.5f, Event.Spread * 0.5f, static_cast<float>(Index) / (Count - 1));
+			}
+
+			// 한 점(보스 앞)에서 방향만 다르게
+			Direction = FRotator(0.f, BaseYaw + Offset, 0.f).Vector();
+			SpawnLocation = Origin + Direction * MuzzleOffset;
 		}
 
-		const FVector Direction = FRotator(0.f, BaseYaw + Offset, 0.f).Vector();
 		Manager->SpawnBullet(
-			Origin + Direction * MuzzleOffset,
+			SpawnLocation,
 			Direction * Event.Speed,
 			Color,
 			GetAbilitySystemComponentFromActorInfo(),
