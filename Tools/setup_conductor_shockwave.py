@@ -1,6 +1,6 @@
 # 지휘자 근접 대응 "충격파": 붙어 있으면 짧은 예고 뒤 주변으로 빠른 탄 고리, 금방 사라짐 (코드 없이 패턴 데이터로)
 # 1) AM_Conductor_Shockwave (두 손 범위 공격 애니)
-# 2) DA_Conductor_Shockwave: 고리 48발(틈 없음), 속도 1500, 수명 0.35초(약 5m까지만), 색 무작위(예고 재질은 setup_color_telegraph.py), 피해 2배, 밀기 600cm
+# 2) DA_Conductor_Shockwave: 고리 48발(틈 없음), 속도 1500, 수명 0.35초(약 5m까지만), 색 무작위(예고 재질은 setup_color_telegraph.py), 피해 2배, 밀기 600cm, 반격 가능
 # 3) GA_Conductor_Shockwave (부모 SGA_ConductorPattern), 쿨다운 4초
 # 4) BP_Boss_Conductor: 시작 능력 + 패턴 선택기에 추가 (거리 0~350, 가까우면 자주 나오게 가중치 높게)
 # 다시 실행해도 됨. 끝에서 에셋을 담은 변수를 비움 (에디터 파이썬이 에셋을 붙잡지 않게)
@@ -53,7 +53,7 @@ def run():
     row = unreal.SBulletPatternEvent()
     for k, v in dict(fire_time=fire_time, bullet_count=48, shape=unreal.BulletShape.RING, speed=1500.0,
                      color=unreal.BulletColor.ORANGE, repeat_count=1, damage_multiplier=2.0, life_time=0.35,
-                     knockback_strength=600.0, random_color=True).items():
+                     knockback_strength=600.0, random_color=True, counterable=True).items():
         row.set_editor_property(k, v)
     da.set_editor_property("events", [row])
     eal.save_loaded_asset(da, only_if_is_dirty=False)

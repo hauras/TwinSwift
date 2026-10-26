@@ -7,6 +7,7 @@
 #include "SGameplayTags.h"
 #include "Ability/SAbilityFunctionLibrary.h"
 #include "Ability/SGE_Damage.h"
+#include "Character/BossCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/Engine.h"
@@ -59,7 +60,8 @@ void ASBulletManager::SpawnBullet(
 	UAbilitySystemComponent* SourceASC,
 	float DamageMultiplier,
 	float LifeTime,
-	float KnockbackStrength)
+	float KnockbackStrength,
+	bool bCounterable)
 {
 	// 도는 중에 쏴서 아직 배열에 안 들어간 탄도 같이 셈 (안 세면 그 순간 한도를 넘음)
 	if (Bullets.Num() + PendingBullets.Num() >= MaxBullets)
@@ -77,6 +79,7 @@ void ASBulletManager::SpawnBullet(
 	Bullet.LifeRemaining = LifeTime > 0.f ? LifeTime : BulletLifeTime;
 	Bullet.Radius = BulletRadius;
 	Bullet.KnockbackStrength = KnockbackStrength;
+	Bullet.bCounterable = bCounterable;
 }
 
 void ASBulletManager::ClearAllBullets()
@@ -221,6 +224,7 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 		|| (Bullet.Color == EBulletColor::Blue && TargetASC->HasMatchingGameplayTag(SGameplayTags::Character_Mage));
 	if (bBlockedByColor)
 	{
+		TryCounter(Bullet, SourceASC, TargetASC);
 		return true;
 	}
 
@@ -246,6 +250,11 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 	SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
 	LastHitTimes.Add(TargetASC, Now);
 
+	if (bInvincible)
+	{
+		TryCounter(Bullet, SourceASC, TargetASC);
+	}
+
 	// 8. 밀어내기: 매니저는 신호만 보내고 미는 건 맞은 캐릭터의 능력(SGA_Knockback)이 함
 	// 무적이면 통과라 안 밂. 방금 피해로 쓰러졌을 수 있어 GE 뒤에 다시 확인
 	// 잡아 둔 TargetASC에 직접 보냄 (액터로 보내면 "지금 ASC"를 새로 찾아서, 강제 교체 뒤면 다른 캐릭터가 밀림)
@@ -263,6 +272,21 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 
 	// 9. 무적이면 탄 통과 (교체 무적으로 탄 벽을 뚫음), 아니면 몸에 맞고 사라짐
 	return !bInvincible;
+}
+
+void ASBulletManager::TryCounter(const FSBullet& Bullet, const UAbilitySystemComponent* SourceASC, const UAbilitySystemComponent* TargetASC) const
+{
+	// 완벽 회피 판정 = 교체·회피 직후 열리는 State.PerfectWindow (미리 바꿔 두고 기다리면 막기만, 터지는 순간 교체해야 반격)
+	if (!Bullet.bCounterable || !TargetASC->HasMatchingGameplayTag(SGameplayTags::State_PerfectWindow))
+	{
+		return;
+	}
+
+	// 큰 경직은 보스가 공격을 취소함 → 패턴 능력이 끝날 뿐 탄 배열은 건드리지 않아 도는 중에 불러도 됨
+	if (ABossCharacter* Boss = Cast<ABossCharacter>(SourceASC->GetAvatarActor()))
+	{
+		Boss->NotifyCountered();
+	}
 }
 
 void ASBulletManager::RemoveBulletAt(int32 Index)

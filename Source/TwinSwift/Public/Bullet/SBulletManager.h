@@ -39,6 +39,9 @@ struct FSBullet
 	// 맞으면 밀려나는 거리(cm). 0이면 안 밂
 	float KnockbackStrength = 0.f;
 
+	// 완벽 회피로 받으면 쏜 보스가 큰 경직
+	bool bCounterable = false;
+
 	// 쏜 쪽 ASC (피해 GE를 만들 때). 날아가는 동안 보스가 사라질 수 있어 약한 포인터 → 쓸 때 살아 있는지 확인
 	TWeakObjectPtr<UAbilitySystemComponent> SourceASC;
 };
@@ -62,6 +65,7 @@ public:
 	// 탄 1발 추가 (배열 끝에). MaxBullets를 넘으면 쏘지 않음
 	// LifeTime: 0 이하면 BulletLifeTime (측정에서 액터 투사체와 수명을 맞출 때만 넘김)
 	// KnockbackStrength: 0보다 크면 맞은 캐릭터를 이 거리(cm)만큼 밀어냄
+	// bCounterable: 완벽 회피로 받으면 쏜 보스가 큰 경직 (반격 기회)
 	void SpawnBullet(
 		const FVector& Location,
 		const FVector& Velocity,
@@ -69,7 +73,8 @@ public:
 		UAbilitySystemComponent* SourceASC,
 		float DamageMultiplier,
 		float LifeTime = 0.f,
-		float KnockbackStrength = 0.f);
+		float KnockbackStrength = 0.f,
+		bool bCounterable = false);
 
 	// 전부 지우기 (전투 끝, 측정 끝). 탄을 도는 중(충돌 처리 안에서 패배 등)에 불리면 그 처리가 끝난 뒤 지움
 	void ClearAllBullets();
@@ -145,6 +150,9 @@ private:
 
 	// 탄 하나 × 플레이어 하나. 맞아서 탄을 지워야 하면 true
 	bool TryHit(FSBullet& Bullet, APawn* Target);
+
+	// 반격 가능 탄을 완벽 회피로 받았으면 쏜 보스에 알림 (색으로 막았든 무적으로 통과했든)
+	void TryCounter(const FSBullet& Bullet, const UAbilitySystemComponent* SourceASC, const UAbilitySystemComponent* TargetASC) const;
 
 	// 3. 맨 끝 칸과 바꿔 지우기 (O(1), 대신 순서가 바뀜)
 	void RemoveBulletAt(int32 Index);

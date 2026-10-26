@@ -432,7 +432,25 @@ void ABossCharacter::EndArmor(bool bBroken)
 			4000.f);
 	}
 
-	BeginGroggy();
+	BeginGroggy(GroggyDuration);
+}
+
+void ABossCharacter::NotifyCountered()
+{
+	// 이미 누워 있으면(남은 탄이 연달아 들어옴) 늘리지 않음. 갑옷 중(대지의 분노)에는 갑옷 깨기가 우선
+	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
+	if (CounterGroggyDuration <= 0.f
+		|| IsDead()
+		|| bGroggyActive
+		|| !ASC
+		|| ASC->HasMatchingGameplayTag(SGameplayTags::State_Armored))
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("[보스] 반격당함 → 큰 경직 %.1f초"), CounterGroggyDuration);
+	OnArmorChanged.Broadcast(EBossArmorEvent::Countered);
+	BeginGroggy(CounterGroggyDuration);
 }
 
 void ABossCharacter::SetArmorVisible(bool bVisible)
@@ -469,7 +487,7 @@ UAnimMontage* ABossCharacter::GetGroggyMontage() const
 	return GroggyMontage ? GroggyMontage.Get() : DeathMontage.Get();
 }
 
-void ABossCharacter::BeginGroggy()
+void ABossCharacter::BeginGroggy(float Duration)
 {
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC || IsDead() || bGroggyActive)
@@ -492,7 +510,7 @@ void ABossCharacter::BeginGroggy()
 		}
 	}
 
-	GetWorldTimerManager().SetTimer(GroggyEndTimer, this, &ThisClass::EndGroggy, GroggyDuration, false);
+	GetWorldTimerManager().SetTimer(GroggyEndTimer, this, &ThisClass::EndGroggy, Duration, false);
 }
 
 void ABossCharacter::HoldGroggyPose()

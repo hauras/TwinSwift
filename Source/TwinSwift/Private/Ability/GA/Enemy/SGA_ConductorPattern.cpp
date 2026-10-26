@@ -177,7 +177,8 @@ void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 			GetAbilitySystemComponentFromActorInfo(),
 			Event.DamageMultiplier,
 			Event.LifeTime,
-			Event.KnockbackStrength);
+			Event.KnockbackStrength,
+			Event.bCounterable);
 	}
 }
 

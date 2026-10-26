@@ -185,7 +185,8 @@ void USBossHUDWidget::OnBossArmorChanged(EBossArmorEvent Event)
 		break;
 	}
 	case EBossArmorEvent::Broken:
-		ArmorText->SetText(FText::FromString(TEXT("갑옷 파괴!")));
+	case EBossArmorEvent::Countered:
+		ArmorText->SetText(FText::FromString(Event == EBossArmorEvent::Broken ? TEXT("갑옷 파괴!") : TEXT("반격!")));
 		ArmorText->SetVisibility(ESlateVisibility::HitTestInvisible);
 		if (GetWorld())
 		{

@@ -81,6 +81,10 @@ struct FSBulletPatternEvent
 	// 맞으면 밀려나는 거리(cm). 0이면 밀지 않음 (색을 못 맞춘 벌)
 	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
 	float KnockbackStrength = 0.f;
+
+	// 켜면 반격 가능: 완벽 회피(교체·회피 직후 0.25초)로 받으면 보스가 큰 경직 (탄이 많은 패턴에 켜면 너무 자주 눕음 → 큰 공격에만)
+	UPROPERTY(EditAnywhere, Category = "Pattern")
+	bool bCounterable = false;
 };
 
 // 지시를 반복까지 펼친 발사 한 번 (게임 중에만 쓰는 값이라 USTRUCT 없음)

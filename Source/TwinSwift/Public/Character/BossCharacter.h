@@ -27,6 +27,8 @@ enum class EBossArmorEvent : uint8
 	Hit,
 	// 다 맞아서 깨짐 → 큰 경직
 	Broken,
+	// (갑옷과 별개) 반격 가능 공격을 완벽 회피로 받음 → 큰 경직. HUD가 같은 안내 글자를 써서 여기에 둠
+	Countered,
 	// 못 깨고 강타가 나감 (또는 충전이 끊김)
 	Expired,
 };
@@ -74,6 +76,9 @@ public:
 
 	// 표식 폭발(산산조각·균열 폭발)이 이 보스에게 들어감 (AttributeSet이 부름). 갑옷 중이면 깨기 횟수 1
 	void NotifyMarkBurst();
+
+	// 반격 가능 공격(충격파 등)을 플레이어가 완벽 회피로 받음 (탄막 매니저가 부름) → CounterGroggyDuration 동안 큰 경직
+	void NotifyCountered();
 
 	// 갑옷을 깨려면 남은 표식 폭발 수 / 필요한 수 (HUD)
 	int32 GetArmorHitsLeft() const { return ArmorHitsLeft; }
@@ -170,6 +175,11 @@ protected:
 	// 갑옷이 깨질 때 화면 흔들림 (기본 USCameraShake_BossImpact)
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
 	TSubclassOf<UCameraShakeBase> ArmorBreakShake;
+
+	// ---------- 반격 기회 ----------
+	// 반격당했을 때 큰 경직 시간(초). 이 동안 받는 피해 증가 (SDamageExecution, 갑옷 파괴와 같은 배율). 0이면 반격 없음
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Counter", meta = (ClampMin = "0"))
+	float CounterGroggyDuration = 2.5f;
 private:
 	// ConsumeLeapTargetOverride가 가져갈 위치 (없으면 표적을 노림)
 	TOptional<FVector> LeapTargetOverride;
@@ -204,8 +214,8 @@ private:
 	void StopAI();
 	void ResumeAI();
 
-	// 큰 경직: State.Groggy(공격 취소) + 행동 트리 정지 + 몽타주. GroggyDuration 뒤 EndGroggy
-	void BeginGroggy();
+	// 큰 경직: State.Groggy(공격 취소) + 행동 트리 정지 + 몽타주. Duration 뒤 EndGroggy
+	void BeginGroggy(float Duration);
 	void HoldGroggyPose();
 	void EndGroggy();
 
