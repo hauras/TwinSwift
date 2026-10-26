@@ -18,28 +18,41 @@ def blueprint(path,parent):
     folder,name=path.rsplit('/',1)
     f=u.BlueprintFactory();f.set_editor_property('parent_class',parent)
     return T.create_asset(name,folder,u.Blueprint,f)
+# 패턴 = 데이터 에셋 (DA_Conductor_*). 지시 한 줄: 첫 발 시각, 탄 수, 모양, 반복 수·간격, 반복마다 돌릴 각도, 색
+# 방사형: 고리 16발 2번, 두 번째를 반 칸(11.25도) 돌려 앞 고리의 틈을 막음 / 부채꼴: 파랑 7발 70도 2번 / 나선: 고리 6발 8번, 12도씩
+PATTERN_DIR='/Game/Abilities/Boss/Patterns'
 specs=[
-    ('Ring','1HCastSpell_01',u.ConductorPattern.RING,16,2,.35,False,3.0),
-    ('Fan','2HCastSpell_01',u.ConductorPattern.AIMED_FAN,7,2,.35,True,4.0),
-    ('Spiral','2HMagicAreaAttack_01',u.ConductorPattern.SPIRAL,6,8,.15,False,5.0),
+    ('Ring','1HCastSpell_01',3.0,[dict(fire_time=.65,bullet_count=16,shape=u.BulletShape.RING,repeat_count=2,repeat_interval=.35,angle_step_per_repeat=360.0/16/2,color=u.BulletColor.ORANGE)]),
+    ('Fan','2HCastSpell_01',4.0,[dict(fire_time=.65,bullet_count=7,shape=u.BulletShape.FAN,spread=70.0,repeat_count=2,repeat_interval=.35,color=u.BulletColor.BLUE)]),
+    ('Spiral','2HMagicAreaAttack_01',5.0,[dict(fire_time=.65,bullet_count=6,shape=u.BulletShape.RING,repeat_count=8,repeat_interval=.15,angle_step_per_repeat=12.0,color=u.BulletColor.ORANGE)]),
 ]
+def pattern_data(name,events):
+    path=PATTERN_DIR+'/DA_Conductor_'+name
+    if E.does_asset_exist(path):da=u.load_asset(path)
+    else:
+        f=u.DataAssetFactory();f.set_editor_property('data_asset_class',u.SBulletPatternData)
+        da=T.create_asset('DA_Conductor_'+name,PATTERN_DIR,u.SBulletPatternData,f)
+    rows=[]
+    for e in events:
+        row=u.SBulletPatternEvent()
+        for k,v in dict(dict(speed=500.0,damage_multiplier=1.0),**e).items():row.set_editor_property(k,v)
+        rows.append(row)
+    da.set_editor_property('events',rows)
+    E.save_loaded_asset(da,only_if_is_dirty=False)
+    return da
 abilities=[];patterns=[]
-for name,anim,kind,count,volleys,interval,blue,cooldown in specs:
+for name,anim,cooldown,events in specs:
     mp=BASE+'/Montages/AM_Conductor_'+name
     if E.does_asset_exist(mp):montage=u.load_asset(mp)
     else:
         f=u.AnimMontageFactory();f.set_editor_property('source_animation',u.load_asset(BASE+'/Animations/A_Conductor_'+anim))
         montage=T.create_asset(mp.rsplit('/',1)[1],BASE+'/Montages',u.AnimMontage,f)
     E.save_loaded_asset(montage)
+    da=pattern_data(name,events)
     ga=blueprint('/Game/Abilities/Boss/GA_Conductor_'+name,PARENT)
     u.BlueprintEditorLibrary.compile_blueprint(ga)
     c=u.get_default_object(ga.generated_class())
-    props=dict(pattern=kind,cast_montage=montage,bullets_per_volley=count,volley_count=volleys,
-        first_shot_time=.65,volley_interval=interval,bullet_speed=500.0,fan_angle=70.0,
-        spiral_step=12.0,damage_multiplier=1.0,b_blue=blue,cooldown_duration=cooldown)
-    # Unreal Python은 bBlue를 blue로 노출한다.
-    props.pop('b_blue');props['blue']=blue
-    for k,v in props.items():c.set_editor_property(k,v)
+    for k,v in dict(cast_montage=montage,pattern_data=da,cooldown_duration=cooldown).items():c.set_editor_property(k,v)
     c.set_editor_property('cooldown_tags',tags('Cooldown.Boss.Conductor.'+name))
     assigned=False
     for field in ['asset_tags','ability_tags']:
@@ -51,7 +64,7 @@ for name,anim,kind,count,volleys,interval,blue,cooldown in specs:
     p=u.SBossPattern()
     for k,v in dict(ability_tag=tag('Ability.Boss.Conductor.'+name),min_range=0.0,max_range=6000.0,preferred_range=1000.0,weight=1.0).items():p.set_editor_property(k,v)
     patterns.append(p)
-    print('PATTERN_READY',name,montage.get_play_length(),count,volleys)
+    print('PATTERN_READY',name,'몽타주',round(montage.get_play_length(),2),'마지막 발사',round(da.get_last_shot_time(),2) if hasattr(da,'get_last_shot_time') else '-')
 bbpath='/Game/Blueprints/AI/Conductor/BB_Conductor'
 if E.does_asset_exist(bbpath):bb=u.load_asset(bbpath)
 else:bb=T.create_asset('BB_Conductor','/Game/Blueprints/AI/Conductor',u.BlackboardData,u.BlackboardDataFactory())
@@ -81,3 +94,6 @@ enc.set_editor_property('play_intro',False)
 enc.get_editor_property('trigger').set_box_extent(u.Vector(650,650,350))
 u.get_editor_subsystem(u.LevelEditorSubsystem).save_current_level()
 print('CONDUCTOR_COMBAT_CONNECTED',boss.get_path_name(),enc.get_path_name())
+# 에디터 파이썬에 에셋을 담은 변수가 남으면 에셋을 붙잡아 지우기·이름 바꾸기가 막힘 → 끝에서 비움
+for _name in [k for k, v in list(globals().items()) if isinstance(v, (u.Object, list))]:
+    del globals()[_name]

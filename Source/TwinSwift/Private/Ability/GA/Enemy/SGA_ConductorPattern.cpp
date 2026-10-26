@@ -48,9 +48,10 @@ void USGA_ConductorPattern::ActivateAbility(
 	const AActor* Target = Blackboard ? Cast<AActor>(Blackboard->GetValueAsObject(TEXT("TargetActor"))) : nullptr;
 
 	// 마지막 발사 전에 모션이 끝나는 설정은 발동 전에 거부 (발사가 잘려 나가는 대신 바로 알 수 있게)
-	const float LastShotTime = FirstShotTime + (FMath::Max(VolleyCount, 1) - 1) * VolleyInterval;
+	const float LastShotTime = PatternData ? PatternData->GetLastShotTime() : 0.f;
 	if (!Boss
 		|| !CastMontage
+		|| !PatternData
 		|| !ASBulletManager::Get(this)
 		|| !USAbilityFunctionLibrary::IsTargetable(Boss, Target)
 		|| LastShotTime >= CastMontage->GetPlayLength() - CastMontage->GetDefaultBlendOutTime()
@@ -60,8 +61,10 @@ void USGA_ConductorPattern::ActivateAbility(
 		return;
 	}
 
-	// 능력 인스턴스는 재사용되므로 매번 처음 상태로
-	NextVolley = 0;
+	// 능력 인스턴스는 재사용되므로 매번 처음 상태로: 지시를 펼쳐 시간순 목록을 만들고 커서는 맨 앞
+	PatternData->BuildShots(Shots);
+	NextShot = 0;
+	TargetActor = Target;
 
 	// 시작할 때 표적을 봄 (좌우만). 패턴 도중에는 돌지 않음 → 예고된 방향 그대로
 	StartYaw = (Target->GetActorLocation() - Boss->GetActorLocation()).Rotation().Yaw;
@@ -103,45 +106,60 @@ void USGA_ConductorPattern::UpdatePattern()
 		return;
 	}
 
-	// 지난 발사 시각을 모두 처리 (확인 주기 사이에 두 번이 지나가도 놓치지 않게 while)
+	// 정렬된 목록이라 "다음에 쏠 발사"는 항상 커서 칸. 지난 것을 모두 처리 (확인 주기 사이에 둘이 지나가도 놓치지 않게 while)
 	const float Position = AnimInstance->Montage_GetPosition(CastMontage);
-	while (NextVolley < FMath::Max(VolleyCount, 1) && Position >= FirstShotTime + NextVolley * VolleyInterval)
+	while (NextShot < Shots.Num() && Position >= Shots[NextShot].Time)
 	{
-		FireVolley();
-		++NextVolley;
+		FireShot(Shots[NextShot]);
+		++NextShot;
 	}
 }
 
-void USGA_ConductorPattern::FireVolley()
+void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 {
 	ASBulletManager* Manager = ASBulletManager::Get(this);
 	const AActor* Boss = GetAvatarActorFromActorInfo();
-	if (!Manager || !Boss || !HasAuthority(&CurrentActivationInfo))
+	if (!Manager || !Boss || !PatternData || !HasAuthority(&CurrentActivationInfo))
 	{
 		return;
 	}
 
+	// 이 발사가 어떤 지시에서 나왔는지 (모양·색·속도는 지시에 있음)
+	const FSBulletPatternEvent& Event = PatternData->GetEvent(Shot.EventIndex);
+
 	FVector Origin = Boss->GetActorLocation();
 	Origin.Z = BulletHeight;
 
-	const int32 Count = FMath::Clamp(BulletsPerVolley, 1, MaxBulletsPerVolley);
-	const float BaseYaw = StartYaw + (Pattern == EConductorPattern::Spiral ? NextVolley * SpiralStep : 0.f);
+	// 기준 방향: 시작 때 표적 쪽 (예고된 방향 그대로). 다시 조준하는 지시면 지금 표적 쪽
+	float BaseYaw = StartYaw;
+	if (Event.bReaim)
+	{
+		if (const AActor* Target = TargetActor.Get())
+		{
+			BaseYaw = (Target->GetActorLocation() - Boss->GetActorLocation()).Rotation().Yaw;
+		}
+	}
+
+	// 반복마다 돌림: 나선(12도씩), 방사형 엇갈림(반 칸)을 모양을 늘리지 않고 이 값 하나로
+	BaseYaw += Event.AngleOffset + Shot.RepeatIndex * Event.AngleStepPerRepeat;
+
+	const int32 Count = FMath::Clamp(Event.BulletCount, 1, MaxBulletsPerVolley);
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		// 부채꼴: -절반 ~ +절반을 고르게 / 방사형·나선: 한 바퀴를 고르게
+		// 고리: 한 바퀴를 고르게 / 부채꼴: -절반 ~ +절반을 고르게 (1발이면 가운데)
 		float Offset = Index * (360.f / Count);
-		if (Pattern == EConductorPattern::AimedFan)
+		if (Event.Shape == EBulletShape::Fan)
 		{
-			Offset = Count == 1 ? 0.f : FMath::Lerp(-FanAngle * 0.5f, FanAngle * 0.5f, static_cast<float>(Index) / (Count - 1));
+			Offset = Count == 1 ? 0.f : FMath::Lerp(-Event.Spread * 0.5f, Event.Spread * 0.5f, static_cast<float>(Index) / (Count - 1));
 		}
 
 		const FVector Direction = FRotator(0.f, BaseYaw + Offset, 0.f).Vector();
 		Manager->SpawnBullet(
 			Origin + Direction * MuzzleOffset,
-			Direction * BulletSpeed,
-			bBlue ? EBulletColor::Blue : EBulletColor::Orange,
+			Direction * Event.Speed,
+			Event.Color,
 			GetAbilitySystemComponentFromActorInfo(),
-			DamageMultiplier);
+			Event.DamageMultiplier);
 	}
 }
 

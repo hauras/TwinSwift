@@ -2,26 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "Ability/SGameplayAbility.h"
+#include "Bullet/SBulletPatternData.h"
 #include "SGA_ConductorPattern.generated.h"
 
 class UAnimMontage;
 
-// 지휘자 패턴 모양
-UENUM(BlueprintType)
-enum class EConductorPattern : uint8
-{
-	// 사방으로 한 바퀴 (같은 방향으로 여러 번 → 줄)
-	Ring,
-	// 표적 쪽 FanAngle 안에 고르게
-	AimedFan,
-	// 한 번 쏠 때마다 SpiralStep도씩 돌려 휘어진 팔
-	Spiral
-};
-
 /**
- * 보스 2 지휘자의 탄막 패턴 (BP로 패턴마다 값만 바꿈. Asset Tags에 Ability.Boss.Conductor.*)
+ * 보스 2 지휘자의 탄막 패턴 (BP마다 패턴 데이터만 바꿈. Asset Tags에 Ability.Boss.Conductor.*)
+ * 패턴 내용(언제·어떤 모양·몇 발·색)은 데이터 에셋(USBulletPatternData). 능력은 펼친 발사 목록을 커서로 차례대로 실행
  * 지휘 몽타주 재생 위치로 발사 시점을 잼 (골렘 공격과 같은 원칙: 히트스톱·재생 속도와 어긋나지 않음)
- * FirstShotTime 전까지가 예고(손을 드는 동작), 쉬는 시간은 행동 트리의 Wait
+ * 첫 발 전까지가 예고(손을 드는 동작), 쉬는 시간은 행동 트리의 Wait
  * 탄의 이동·충돌·그리기는 탄막 매니저(ASBulletManager)가 함
  */
 UCLASS()
@@ -46,63 +36,32 @@ public:
 		bool bWasCancelled) override;
 
 protected:
-	// 패턴 모양
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern")
-	EConductorPattern Pattern = EConductorPattern::Ring;
-
-	// 지휘 몽타주. 마지막 발사가 블렌드 아웃 전에 와야 함 (아니면 발동 거부)
+	// 지휘 몽타주. 패턴의 마지막 발사가 블렌드 아웃 전에 와야 함 (아니면 발동 거부)
 	UPROPERTY(EditDefaultsOnly, Category = "Pattern")
 	TObjectPtr<UAnimMontage> CastMontage;
 
-	// 한 번에 쏘는 탄 수
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "1"))
-	int32 BulletsPerVolley = 16;
-
-	// 몇 번 쏘는지
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "1"))
-	int32 VolleyCount = 1;
-
-	// 첫 발 시각(초, 몽타주 시간). 그 전까지가 예고
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "0"))
-	float FirstShotTime = 0.5f;
-
-	// 발사 간격(초, 몽타주 시간)
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "0.05"))
-	float VolleyInterval = 0.15f;
-
-	// 탄 속도(cm/초)
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "1"))
-	float BulletSpeed = 500.f;
-
-	// 조준 부채꼴 전체 각도(도)
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "0", ClampMax = "360"))
-	float FanAngle = 70.f;
-
-	// 나선: 한 번 쏠 때마다 돌리는 각도(도)
+	// 패턴 내용 (DA_Conductor_*). 능력 BP의 기본값이라 EditDefaultsOnly (데이터 에셋 안의 칸은 EditAnywhere)
 	UPROPERTY(EditDefaultsOnly, Category = "Pattern")
-	float SpiralStep = 12.f;
-
-	// 탄 1발 피해 = 보스 공격력 × 이 값
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern", meta = (ClampMin = "0"))
-	float DamageMultiplier = 1.f;
-
-	// 켜면 파랑 탄 (마법사가 막음), 끄면 주황 탄 (전사가 막음)
-	UPROPERTY(EditDefaultsOnly, Category = "Pattern")
-	bool bBlue = false;
+	TObjectPtr<USBulletPatternData> PatternData;
 
 private:
-	// 짧은 주기로 호출: 몽타주 위치가 다음 발사 시각을 지났으면 발사
+	// 짧은 주기로 호출: 몽타주 위치가 커서 칸의 발사 시각을 지났으면 쏘고 커서를 옮김
 	void UpdatePattern();
 
-	// 한 번 발사 (모양에 맞게 BulletsPerVolley발)
-	void FireVolley();
+	// 발사 한 번: 지시의 모양대로 탄 수만큼 방향을 나눠 탄막 매니저에 넣음
+	// 어떤 시계로 재는지와 상관없게 둠 → 나중에 능력 없이 쏘는 액터(악단 포탑)가 생기면 떼어 쓸 수 있게
+	void FireShot(const FSBulletShot& Shot);
 
 	// 몽타주 끝·끊김·취소 → EndAbility
 	UFUNCTION()
 	void OnMontageEnded();
 
-	// 이번 발동에서 다음에 쏠 번호
-	int32 NextVolley = 0;
+	// 이번 발동의 펼친 발사 목록 (시간순 정렬) / 다음에 쏠 칸 (커서)
+	TArray<FSBulletShot> Shots;
+	int32 NextShot = 0;
+
+	// 다시 조준하는 지시(bReaim)가 쓸 표적 (날아가는 동안 사라질 수 있어 약한 포인터)
+	TWeakObjectPtr<const AActor> TargetActor;
 
 	// 발동할 때 표적 쪽 방향(도)과 표적 몸 높이 (보스 캡슐 높이로 쏘면 머리 위로 지나감)
 	float StartYaw = 0.f;

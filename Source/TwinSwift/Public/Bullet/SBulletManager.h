@@ -9,6 +9,7 @@ class UGameplayEffect;
 class UInstancedStaticMeshComponent;
 
 // 탄 색: 주황은 전사가, 파랑은 마법사가 막음 (그 캐릭터로 교체해야 통과)
+UENUM(BlueprintType)
 enum class EBulletColor : uint8
 {
 	Orange,
