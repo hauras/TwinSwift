@@ -6,6 +6,7 @@
 #include "SGA_ConductorPattern.generated.h"
 
 class UAnimMontage;
+class UMaterialInterface;
 
 /**
  * 보스 2 지휘자의 탄막 패턴 (BP마다 패턴 데이터만 바꿈. Asset Tags에 Ability.Boss.Conductor.*)
@@ -44,6 +45,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Pattern")
 	TObjectPtr<USBulletPatternData> PatternData;
 
+	// 무작위 색 패턴의 예고: 손을 모으는 동안 보스 몸 위에 그 색으로 한 겹 더 그림 (오버레이 재질). 비우면 예고 없음
+	UPROPERTY(EditDefaultsOnly, Category = "Pattern|Telegraph")
+	TObjectPtr<UMaterialInterface> OrangeTelegraphMaterial;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Pattern|Telegraph")
+	TObjectPtr<UMaterialInterface> BlueTelegraphMaterial;
+
 private:
 	// 짧은 주기로 호출: 몽타주 위치가 커서 칸의 발사 시각을 지났으면 쏘고 커서를 옮김
 	void UpdatePattern();
@@ -51,6 +59,10 @@ private:
 	// 발사 한 번: 지시의 모양대로 탄 수만큼 방향을 나눠 탄막 매니저에 넣음
 	// 어떤 시계로 재는지와 상관없게 둠 → 나중에 능력 없이 쏘는 액터(악단 포탑)가 생기면 떼어 쓸 수 있게
 	void FireShot(const FSBulletShot& Shot);
+
+	// 보스 몸의 색 예고 켜기/끄기. 끌 때는 이 능력이 씌운 재질일 때만 지움 (다른 오버레이를 지우지 않게)
+	void ShowColorTelegraph();
+	void HideColorTelegraph();
 
 	// 몽타주 끝·끊김·취소 → EndAbility
 	UFUNCTION()
@@ -66,6 +78,9 @@ private:
 	// 발동할 때 표적 쪽 방향(도)과 표적 몸 높이 (보스 캡슐 높이로 쏘면 머리 위로 지나감)
 	float StartYaw = 0.f;
 	float BulletHeight = 0.f;
+
+	// 이번 발동의 무작위 색 (bRandomColor 지시가 씀). 발동마다 다시 뽑음
+	EBulletColor RolledColor = EBulletColor::Orange;
 
 	FTimerHandle PatternTimer;
 };

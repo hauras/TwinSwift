@@ -58,7 +58,8 @@ void ASBulletManager::SpawnBullet(
 	EBulletColor Color,
 	UAbilitySystemComponent* SourceASC,
 	float DamageMultiplier,
-	float LifeTime)
+	float LifeTime,
+	float KnockbackStrength)
 {
 	// 도는 중에 쏴서 아직 배열에 안 들어간 탄도 같이 셈 (안 세면 그 순간 한도를 넘음)
 	if (Bullets.Num() + PendingBullets.Num() >= MaxBullets)
@@ -75,6 +76,7 @@ void ASBulletManager::SpawnBullet(
 	Bullet.SourceASC = SourceASC;
 	Bullet.LifeRemaining = LifeTime > 0.f ? LifeTime : BulletLifeTime;
 	Bullet.Radius = BulletRadius;
+	Bullet.KnockbackStrength = KnockbackStrength;
 }
 
 void ASBulletManager::ClearAllBullets()
@@ -244,7 +246,22 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 	SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
 	LastHitTimes.Add(TargetASC, Now);
 
-	// 8. 무적이면 탄 통과 (교체 무적으로 탄 벽을 뚫음), 아니면 몸에 맞고 사라짐
+	// 8. 밀어내기: 매니저는 신호만 보내고 미는 건 맞은 캐릭터의 능력(SGA_Knockback)이 함
+	// 무적이면 통과라 안 밂. 방금 피해로 쓰러졌을 수 있어 GE 뒤에 다시 확인
+	// 잡아 둔 TargetASC에 직접 보냄 (액터로 보내면 "지금 ASC"를 새로 찾아서, 강제 교체 뒤면 다른 캐릭터가 밀림)
+	if (Bullet.KnockbackStrength > 0.f
+		&& !bInvincible
+		&& !TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Dead))
+	{
+		FGameplayEventData Payload;
+		Payload.EventTag = SGameplayTags::Event_Knockback;
+		Payload.Instigator = SourceASC->GetAvatarActor();
+		Payload.Target = Target;
+		Payload.EventMagnitude = Bullet.KnockbackStrength;
+		TargetASC->HandleGameplayEvent(SGameplayTags::Event_Knockback, &Payload);
+	}
+
+	// 9. 무적이면 탄 통과 (교체 무적으로 탄 벽을 뚫음), 아니면 몸에 맞고 사라짐
 	return !bInvincible;
 }
 

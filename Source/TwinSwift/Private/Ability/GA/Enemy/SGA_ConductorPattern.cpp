@@ -8,6 +8,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Character.h"
 #include "Bullet/SBulletManager.h"
 #include "GameFramework/Pawn.h"
 
@@ -65,6 +67,13 @@ void USGA_ConductorPattern::ActivateAbility(
 	PatternData->BuildShots(Shots);
 	NextShot = 0;
 	TargetActor = Target;
+
+	// 무작위 색: 발동마다 한 번 뽑고, 쏘기 전(손을 모으는 동안) 보스 몸에 보여 줌 → 보고 교체할 시간
+	RolledColor = FMath::RandBool() ? EBulletColor::Orange : EBulletColor::Blue;
+	if (PatternData->HasRandomColor())
+	{
+		ShowColorTelegraph();
+	}
 
 	// 시작할 때 표적을 봄 (좌우만). 패턴 도중에는 돌지 않음 → 예고된 방향 그대로
 	StartYaw = (Target->GetActorLocation() - Boss->GetActorLocation()).Rotation().Yaw;
@@ -143,6 +152,13 @@ void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 	// 반복마다 돌림: 나선(12도씩), 방사형 엇갈림(반 칸)을 모양을 늘리지 않고 이 값 하나로
 	BaseYaw += Event.AngleOffset + Shot.RepeatIndex * Event.AngleStepPerRepeat;
 
+	// 무작위 색 지시면 이번 발동에 뽑은 색. 쐈으니 예고는 끔
+	const EBulletColor Color = Event.bRandomColor ? RolledColor : Event.Color;
+	if (Event.bRandomColor)
+	{
+		HideColorTelegraph();
+	}
+
 	const int32 Count = FMath::Clamp(Event.BulletCount, 1, MaxBulletsPerVolley);
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
@@ -157,9 +173,36 @@ void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 		Manager->SpawnBullet(
 			Origin + Direction * MuzzleOffset,
 			Direction * Event.Speed,
-			Event.Color,
+			Color,
 			GetAbilitySystemComponentFromActorInfo(),
-			Event.DamageMultiplier);
+			Event.DamageMultiplier,
+			Event.LifeTime,
+			Event.KnockbackStrength);
+	}
+}
+
+void USGA_ConductorPattern::ShowColorTelegraph()
+{
+	const ACharacter* Boss = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	UMaterialInterface* Material = RolledColor == EBulletColor::Blue ? BlueTelegraphMaterial.Get() : OrangeTelegraphMaterial.Get();
+	if (Boss && Material)
+	{
+		Boss->GetMesh()->SetOverlayMaterial(Material);
+	}
+}
+
+void USGA_ConductorPattern::HideColorTelegraph()
+{
+	const ACharacter* Boss = Cast<ACharacter>(GetAvatarActorFromActorInfo());
+	if (!Boss)
+	{
+		return;
+	}
+
+	const UMaterialInterface* Current = Boss->GetMesh()->GetOverlayMaterial();
+	if (Current && (Current == OrangeTelegraphMaterial || Current == BlueTelegraphMaterial))
+	{
+		Boss->GetMesh()->SetOverlayMaterial(nullptr);
 	}
 }
 
@@ -183,6 +226,9 @@ void USGA_ConductorPattern::EndAbility(
 	{
 		World->GetTimerManager().ClearTimer(PatternTimer);
 	}
+
+	// 쏘기 전에 끊겨도(그로기 등) 색이 몸에 남지 않게
+	HideColorTelegraph();
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

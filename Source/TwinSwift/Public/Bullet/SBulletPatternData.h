@@ -50,6 +50,10 @@ struct FSBulletPatternEvent
 	UPROPERTY(EditAnywhere, Category = "Pattern")
 	EBulletColor Color = EBulletColor::Orange;
 
+	// 켜면 Color 대신 발동마다 주황/파랑 중 하나 (한 발동 안의 무작위 지시는 모두 같은 색). 예고 동안 보스 몸에 그 색이 보임
+	UPROPERTY(EditAnywhere, Category = "Pattern")
+	bool bRandomColor = false;
+
 	// 몇 번 쏘나
 	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "1"))
 	int32 RepeatCount = 1;
@@ -69,6 +73,14 @@ struct FSBulletPatternEvent
 	// 1발 피해 = 보스 공격력 × 이 값
 	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
 	float DamageMultiplier = 1.f;
+
+	// 탄 수명(초). 0이면 매니저 기본값 (짧게 하면 가까이에만 닿는 탄)
+	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
+	float LifeTime = 0.f;
+
+	// 맞으면 밀려나는 거리(cm). 0이면 밀지 않음 (색을 못 맞춘 벌)
+	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
+	float KnockbackStrength = 0.f;
 };
 
 // 지시를 반복까지 펼친 발사 한 번 (게임 중에만 쓰는 값이라 USTRUCT 없음)
@@ -98,6 +110,9 @@ public:
 
 	// 마지막 발사 시각 (몽타주보다 늦게 쏘는 설정을 능력이 거부할 때)
 	float GetLastShotTime() const;
+
+	// 무작위 색 지시가 하나라도 있나 (능력이 예고 색을 띄울지)
+	bool HasRandomColor() const;
 
 	// 발사할 때 지시 읽기
 	const FSBulletPatternEvent& GetEvent(int32 Index) const { return Events[Index]; }

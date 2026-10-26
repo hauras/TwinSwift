@@ -31,7 +31,10 @@ namespace SGameplayTags
 
 	// 몽타주 이벤트
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Montage_Hit, "Event.Montage.Hit", "타격 판정 프레임");
-	
+
+	// 피격 이벤트
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Knockback, "Event.Knockback", "밀려남 (EventMagnitude = 거리 cm, Instigator = 민 쪽)");
+
 	// 표식
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Mark_Crack, "Mark.Crack", "균열: 전사가 걸고 마법사가 터뜨림");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Mark_Frost, "Mark.Frost", "빙결: 마법사가 걸고 전사가 터뜨림");
@@ -79,4 +82,8 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Fan, "Cooldown.Boss.Conductor.Fan", "지휘자 조준 부채꼴 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Spiral, "Ability.Boss.Conductor.Spiral", "지휘자 나선: 한 번 쏠 때마다 SpiralStep도씩 돌려 휘어진 팔");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Spiral, "Cooldown.Boss.Conductor.Spiral", "지휘자 나선 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Shockwave, "Ability.Boss.Conductor.Shockwave", "지휘자 충격파");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Shockwave, "Cooldown.Boss.Conductor.Shockwave", "지휘자 충격파 쿨다운");
+
+
 }

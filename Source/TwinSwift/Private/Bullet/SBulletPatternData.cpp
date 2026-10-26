@@ -34,3 +34,11 @@ float USBulletPatternData::GetLastShotTime() const
 	
 	return LastTime; 
 }
+
+bool USBulletPatternData::HasRandomColor() const
+{
+	return Events.ContainsByPredicate([](const FSBulletPatternEvent& Event)
+	{
+		return Event.bRandomColor;
+	});
+}

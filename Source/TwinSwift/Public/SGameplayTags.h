@@ -42,6 +42,10 @@ namespace SGameplayTags
 	// 칼이 닿는 프레임 → 타격 판정
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Montage_Hit);
 
+	// ---------- 피격 이벤트 (서버 → 맞은 캐릭터의 능력에 신호) ----------
+	// 밀려남. EventMagnitude = 거리(cm), Instigator = 민 쪽
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Knockback);
+
 	// ---------- 표식 (확정 표식, 상대 캐릭터가 터뜨림) ----------
 	// 전사 → 마법사 낙뢰가 터뜨림
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Mark_Crack);
@@ -92,4 +96,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Conductor_Fan);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Conductor_Spiral);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Conductor_Spiral);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Boss_Conductor_Shockwave);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Boss_Conductor_Shockwave);
+
 }
