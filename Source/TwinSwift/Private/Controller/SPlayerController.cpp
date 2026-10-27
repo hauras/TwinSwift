@@ -1085,8 +1085,14 @@ void ASPlayerController::ApplyCurrentCameraConfig()
 		PlayerCameraManager->ViewPitchMax = Config->MaxPitch;
 	}
 
-	// 커서로 겨냥하는 시점에서만 커서를 보여 줌
-	const bool bUseCursor = Config->AimMode == ESAimMode::Cursor;
+	ApplyGameInputMode();
+}
+
+void ASPlayerController::ApplyGameInputMode()
+{
+	// 커서로 겨냥하는 시점에서만 커서를 보여 줌. 게임 모드도 카드 화면을 닫을 때 이걸로 되돌림 (GameOnly로 돌리면 첫 클릭이 화면 잡기에 먹히고 커서 겨냥이 어긋남)
+	const USCameraConfig* Config = GetCurrentCameraConfig();
+	const bool bUseCursor = Config && Config->AimMode == ESAimMode::Cursor;
 	SetShowMouseCursor(bUseCursor);
 	if (bUseCursor)
 	{

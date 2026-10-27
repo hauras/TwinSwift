@@ -32,6 +32,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Aim")
 	FVector GetAimPoint() const;
 
+	// 지금 시점에 맞는 입력 모드·커서 (커서 겨냥이면 GameAndUI + 누르는 동안 커서 보임). UI 화면(강화 카드)을 닫은 뒤 되돌릴 때
+	void ApplyGameInputMode();
+
 	// HUD 키 표시는 실제 입력 매핑에서 읽는다.
 	const USInputConfig* GetHUDInputConfig() const { return AbilityInputConfig; }
 	const UInputMappingContext* GetHUDMappingContext() const { return DefaultMappingContext; }
