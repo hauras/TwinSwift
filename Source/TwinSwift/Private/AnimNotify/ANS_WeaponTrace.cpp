@@ -3,7 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "DrawDebugHelpers.h"
 #include "SGameplayTags.h"
-#include "Character/PlayerCharacter.h"
+#include "Character/CharacterBase.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
@@ -38,8 +38,9 @@ void UANS_WeaponTrace::NotifyTick(
 		return;
 	}
 
-	const APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(Owner);
-	const UStaticMeshComponent* Weapon = PlayerCharacter ? PlayerCharacter->GetWeaponMesh() : nullptr;
+	// 칼은 캐릭터에게 물음 (플레이어·거울 보스가 같은 공격 몽타주를 씀)
+	const ACharacterBase* Character = Cast<ACharacterBase>(Owner);
+	const UStaticMeshComponent* Weapon = Character ? Character->GetWeaponMesh() : nullptr;
 	if (!Weapon || !Weapon->GetStaticMesh())
 	{
 		return;

@@ -53,7 +53,7 @@ public:
 
 	UCameraComponent* GetCamera() const { return Camera; }
 
-	UStaticMeshComponent* GetWeaponMesh() const { return WeaponMesh; }
+	virtual UStaticMeshComponent* GetWeaponMesh() const override { return WeaponMesh; }
 
 	// ---------- 태그 교체 ----------
 

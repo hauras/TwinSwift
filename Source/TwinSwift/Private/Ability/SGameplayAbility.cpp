@@ -262,6 +262,13 @@ FVector USGameplayAbility::GetAimPoint() const
 		{
 			return PlayerController->GetAimPoint();
 		}
+
+		FVector AimPoint;
+		const ACharacterBase* Character = Cast<ACharacterBase>(Avatar);
+		if (Character && Character->GetAbilityAimPoint(AimPoint))
+		{
+			return AimPoint;
+		}
 	}
 	return Avatar->GetActorLocation() + Avatar->GetActorForwardVector() * 100.f;
 }

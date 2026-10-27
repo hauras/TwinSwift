@@ -124,6 +124,16 @@ FVector USGA_Dodge::GetDodgeDirection() const
 	{
 		Direction = PlayerController->GetDesiredMoveDirection();
 	}
+
+	// ② 비어 있으면 캐릭터가 정한 방향 (거울 보스)
+	if (Direction.IsNearlyZero())
+	{
+		if (const ACharacterBase* CharacterBase = Cast<ACharacterBase>(Character))
+		{
+			CharacterBase->GetAbilityMoveDirection(Direction);
+		}
+	}
+	
 	if (Direction.IsNearlyZero())
 	{
 		Direction = Character->GetLastMovementInputVector();

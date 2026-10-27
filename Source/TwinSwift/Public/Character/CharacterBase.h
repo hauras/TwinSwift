@@ -6,12 +6,9 @@
 #include "CharacterBase.generated.h"
 
 class UAbilitySystemComponent;
+class UStaticMeshComponent;
 class USAttributeSet;
 
-/**
- * 플레이어·적 공통 부모
- * ASC는 플레이어면 PlayerState, 적이면 캐릭터 자신이 가짐. 여기서는 포인터만 들고 있음
- */
 UCLASS(Abstract)
 class TWINSWIFT_API ACharacterBase : public ACharacter, public IAbilitySystemInterface
 {
@@ -22,21 +19,27 @@ public:
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
+	// 능력이 겨냥할 곳을 캐릭터가 정할 때 (입력이 없는 거울 보스). true면 OutAimPoint를 씀
+	// 플레이어는 컨트롤러가 정해서 재정의 안 함 (능력이 컨트롤러에게 먼저 물음)
+	virtual bool GetAbilityAimPoint(FVector& OutAimPoint) const { return false; }
+
+	// 회피처럼 누르고 있는 방향이 필요한 능력용. 입력이 없는 캐릭터가 재정의. true면 OutDirection을 씀
+	virtual bool GetAbilityMoveDirection(FVector& OutDirection) const { return false; }
+
+	// 칼 판정(ANS_WeaponTrace)이 쓰는 무기. 없으면 nullptr (칼을 든 캐릭터가 재정의: 플레이어, 거울 보스)
+	virtual UStaticMeshComponent* GetWeaponMesh() const { return nullptr; }
+
 	USAttributeSet* GetAttributeSet() const { return AttributeSet; }
 
-	// 히트스톱: Duration(실제 시간 초) 동안 이 캐릭터만 거의 멈춤. 도중에 또 걸면 시간이 처음부터 다시 시작
 	void ApplyHitStop(float Duration);
 
 	bool IsInHitStop() const { return bInHitStop; }
 
 protected:
-	// ASC에 "주인(Owner)과 몸(Avatar)"을 알려 줌. 자식이 구현
 	virtual void InitAbilityActorInfo() {}
 
-	// 히트스톱이 아닐 때의 시간 배율. 다른 연출(완벽 회피 슬로)이 배율을 바꾸면 자식이 재정의
 	virtual float GetNormalTimeDilation() const { return 1.f; }
 
-	// 지금 상태(히트스톱 / 평소)에 맞게 CustomTimeDilation을 다시 정함. 배율을 바꾸는 곳은 모두 이걸 부름
 	void RefreshTimeDilation();
 
 	UPROPERTY()
