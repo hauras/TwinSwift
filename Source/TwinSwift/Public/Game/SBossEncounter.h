@@ -19,10 +19,14 @@ enum class EBossEncounterState : uint8
 	Intro,
 	Fighting,
 	Victory,
-	Defeat
+	Defeat,
+	// 중간 보스 처치: 결과 화면 없이 다음 보스를 기다림 (게임 모드가 다음 보스를 넘김)
+	Cleared
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEncounterStateChanged, EBossEncounterState);
+DECLARE_MULTICAST_DELEGATE(FOnEncounterPlayerEntered);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEncounterBossChanged, ABossCharacter*);
 
 UCLASS()
 class TWINSWIFT_API ASBossEncounter : public AActor
@@ -39,7 +43,19 @@ public:
 	// 전투 시간(초): 전투 중이면 지금까지, 결과가 나왔으면 결과 순간에 멈춘 값 (결과 글자에 클리어 시간)
 	float GetFightSeconds() const;
 
+	// 게임 모드가 생성한 보스로 한 판 시작 (등장부터). bLastBoss면 이겼을 때 결과 화면, 아니면 Cleared로 다음 보스를 기다림
+	void StartWithBoss(ABossCharacter* NewBoss, bool bInLastBoss);
+
+	// 보스를 생성할 자리: 경기장 가운데에서 플레이어 반대쪽 가장자리, 플레이어를 바라봄 (골렘은 여기서 가운데로 뛰어듦)
+	FTransform GetBossSpawnTransform() const;
+
 	FOnEncounterStateChanged OnEncounterStateChanged;
+
+	// 플레이어가 처음 경기장에 들어옴 (한 번만) → 게임 모드가 첫 보스를 생성
+	FOnEncounterPlayerEntered OnPlayerEntered;
+
+	// 보스가 바뀜 → HUD가 이름·체력바를 새 보스로 다시 묶음
+	FOnEncounterBossChanged OnBossChanged;
 
 protected:
 	virtual void BeginPlay() override;
@@ -50,9 +66,13 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Encounter")
 	TObjectPtr<UBoxComponent> Trigger;
 
-	// 이 경기장의 보스 (레벨에 놓은 보스를 지정)
-	UPROPERTY(EditInstanceOnly, Category = "Encounter")
+	// 지금 싸우는 보스 (게임 모드가 생성해서 StartWithBoss로 넘김. 레벨에 보스를 놓지 않음)
+	UPROPERTY(Transient)
 	TObjectPtr<ABossCharacter> Boss;
+
+	// 가운데에서 보스 생성 자리까지 거리(cm). 진입 상자 반경(1500) 안쪽
+	UPROPERTY(EditAnywhere, Category = "Encounter", meta = (ClampMin = "0"))
+	float BossSpawnDistance = 1200.f;
 
 	// 보스 HUD (WBP_BossHUD). 비우면 HUD 없이 진행
 	UPROPERTY(EditDefaultsOnly, Category = "Encounter|UI")
@@ -119,6 +139,9 @@ private:
 
 	void BeginEncounter();
 
+	// 플레이어가 들어옴 (겹침 또는 처음부터 상자 안) → OnPlayerEntered 한 번
+	void NotifyPlayerEntered();
+
 	void StartFight();
 
 	void OnBossDied(ABossCharacter* DeadBoss);
@@ -129,6 +152,10 @@ private:
 	void RestartLevel();
 
 	EBossEncounterState State = EBossEncounterState::Waiting;
+
+	// 지금 보스가 마지막인지 (StartWithBoss가 정함) / 플레이어가 이미 들어왔는지
+	bool bLastBoss = true;
+	bool bPlayerEntered = false;
 
 	// 전투 시작·결과 시각 (클리어 시간 계산). 결과 전에는 끝 시각이 음수
 	double FightStartTime = 0.0;

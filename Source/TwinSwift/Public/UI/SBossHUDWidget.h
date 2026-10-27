@@ -64,6 +64,10 @@ protected:
 private:
 	void Unbind();
 
+	// 보스 이름·체력·갑옷·페이즈 알림을 묶음 / 풂 (보스가 바뀔 때마다)
+	void BindBoss(ABossCharacter* NewBoss);
+	void UnbindBoss();
+
 	void OnEncounterStateChanged(EBossEncounterState NewState);
 
 	void OnBossHealthChanged(const FOnAttributeChangeData& Data);
@@ -94,6 +98,7 @@ private:
 	TWeakObjectPtr<UAbilitySystemComponent> BossASC;
 
 	FDelegateHandle StateChangedHandle;
+	FDelegateHandle BossChangedHandle;
 	FDelegateHandle HealthChangedHandle;
 	FDelegateHandle MaxHealthChangedHandle;
 };

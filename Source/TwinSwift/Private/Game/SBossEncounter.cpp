@@ -34,13 +34,6 @@ void ASBossEncounter::BeginPlay()
 		return;
 	}
 
-	if (!Boss)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[보스전] %s: Boss가 비어 있음 (레벨에서 지정)"), *GetName());
-		return;
-	}
-
-	BossDiedHandle = Boss->OnBossDied.AddUObject(this, &ThisClass::OnBossDied);
 	Trigger->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnTriggerBeginOverlap);
 
 	// 보스 HUD: 처음부터 만들어 두고 상태에 따라 보이기만 바꿈 (대기 중에는 숨김)
@@ -63,7 +56,7 @@ void ASBossEncounter::BeginPlay()
 		Trigger->GetOverlappingActors(Overlapping, APlayerCharacter::StaticClass());
 		if (!Overlapping.IsEmpty())
 		{
-			BeginEncounter();
+			NotifyPlayerEntered();
 		}
 	}));
 }
@@ -116,8 +109,61 @@ void ASBossEncounter::OnTriggerBeginOverlap(
 {
 	if (OtherActor && OtherActor->IsA<APlayerCharacter>())
 	{
-		BeginEncounter();
+		NotifyPlayerEntered();
 	}
+}
+
+void ASBossEncounter::NotifyPlayerEntered()
+{
+	// 상자를 나갔다 다시 들어와도 한 번만 (보스 생성은 게임 모드가)
+	if (bPlayerEntered)
+	{
+		return;
+	}
+	bPlayerEntered = true;
+	OnPlayerEntered.Broadcast();
+}
+
+void ASBossEncounter::StartWithBoss(ABossCharacter* NewBoss, bool bInLastBoss)
+{
+	if (!IsValid(NewBoss))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[보스전] %s: 넘겨받은 보스가 없음"), *GetName());
+		return;
+	}
+
+	// 이전 보스의 사망 알림은 풀고 새 보스에 묶음 (지운 보스의 알림이 남지 않게)
+	if (Boss)
+	{
+		Boss->OnBossDied.Remove(BossDiedHandle);
+	}
+	Boss = NewBoss;
+	bLastBoss = bInLastBoss;
+	BossDiedHandle = Boss->OnBossDied.AddUObject(this, &ThisClass::OnBossDied);
+
+	// 대기로 돌린 뒤(HUD가 숨김) 보스를 알리고 등장부터
+	SetState(EBossEncounterState::Waiting);
+	OnBossChanged.Broadcast(Boss);
+	BeginEncounter();
+}
+
+FTransform ASBossEncounter::GetBossSpawnTransform() const
+{
+	// 플레이어 → 가운데 방향으로 BossSpawnDistance 더 간 곳 (플레이어 반대쪽 가장자리). 플레이어가 없으면 이 액터의 뒤쪽
+	const FVector Center = GetIntroLanding();
+	FVector Away = -GetActorForwardVector();
+	if (const APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0))
+	{
+		const FVector ToCenter = (Center - PlayerPawn->GetActorLocation()).GetSafeNormal2D();
+		if (!ToCenter.IsNearlyZero())
+		{
+			Away = ToCenter;
+		}
+	}
+
+	// 바닥보다 조금 위 (캡슐 크기는 보스마다 달라 생성할 때 겹치면 위로 밀어 올림)
+	const FVector Location = Center + Away * BossSpawnDistance + FVector(0.f, 0.f, 200.f);
+	return FTransform((-Away).Rotation(), Location);
 }
 
 void ASBossEncounter::BeginEncounter()
@@ -128,8 +174,9 @@ void ASBossEncounter::BeginEncounter()
 		return;
 	}
 
-	// 패배 알림 구독 (지금은 플레이어 1명. 2인이면 플레이어 목록을 돌아야 함)
-	if (APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)))
+	// 패배 알림 구독은 한 번만 (보스가 바뀌어도 플레이어는 같음. 지금은 1명. 2인이면 플레이어 목록을 돌아야 함)
+	APlayerCharacter* PlayerCharacter = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	if (PlayerCharacter && !PlayerDefeatedHandle.IsValid())
 	{
 		Player = PlayerCharacter;
 		PlayerDefeatedHandle = PlayerCharacter->OnDefeated.AddUObject(this, &ThisClass::OnPlayerDefeated);
@@ -362,6 +409,13 @@ void ASBossEncounter::FinishFight(EBossEncounterState Result)
 	if (ASBulletManager* BulletManager = ASBulletManager::Get(this))
 	{
 		BulletManager->ClearAllBullets();
+	}
+
+	// 중간 보스를 이김: 결과 화면 없이 다음 보스를 기다림 (게임 모드가 사망 연출 뒤 다음 보스를 넘김)
+	if (Result == EBossEncounterState::Victory && !bLastBoss)
+	{
+		SetState(EBossEncounterState::Cleared);
+		return;
 	}
 
 	SetState(Result);
