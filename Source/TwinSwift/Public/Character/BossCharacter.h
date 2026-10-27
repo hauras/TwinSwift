@@ -35,6 +35,7 @@ enum class EBossArmorEvent : uint8
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossDied, ABossCharacter*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossArmorChanged, EBossArmorEvent);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBossPhaseChanged, int32);
 UCLASS()
 class TWINSWIFT_API ABossCharacter : public AEnemyCharacter
 {
@@ -87,6 +88,12 @@ public:
 	FOnBossDied OnBossDied;
 
 	FOnBossArmorChanged OnArmorChanged;
+
+	// 페이즈가 바뀜 (새 페이즈 번호). HUD가 안내 글자를 띄움
+	FOnBossPhaseChanged OnPhaseChanged;
+
+	// 2페이즈 안내 글자 (비우면 안 띄움: 골렘은 갑옷 안내가 대신함)
+	const FText& GetPhaseTwoMessage() const { return PhaseTwoMessage; }
 protected:
 	virtual void BeginPlay() override;
 
@@ -117,12 +124,21 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Intro", meta = (Categories = "Ability.Boss"))
 	FGameplayTag IntroAbilityTag;
 
-	// ---------- 2페이즈: 대지의 분노 ----------
-	// 체력이 이 비율 이하가 되면 한 번: 하던 공격을 끊고 갑옷을 두른 채 RageAbilityTag 능력(충전 → 경기장 전체 강타)
+	// ---------- 2페이즈 ----------
+	// 체력이 이 비율 이하가 되면 한 번 2페이즈: 패턴 선택기를 2페이즈로 (MinPhase 2 패턴이 섞임)
+	// RageAbilityTag가 있으면 그 능력까지 (골렘: 하던 공격을 끊고 갑옷을 두른 채 충전 → 경기장 전체 강타). 0이면 2페이즈 없음
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0", ClampMax = "1"))
 	float PhaseTwoHealthRatio = 0.4f;
 
-	// 충전 → 강타 능력 (StartupAbilities에 있어야 함, 패턴 선택기 목록에는 넣지 않음). 비우면 2페이즈 없음
+	// 2페이즈 안내 글자 (지휘자: "지휘자가 템포를 올린다"). 비우면 안 띄움
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	FText PhaseTwoMessage;
+
+	// 2페이즈에 들어갈 때 화면 흔들림 (비우면 없음)
+	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2")
+	TSubclassOf<UCameraShakeBase> PhaseTwoShake;
+
+	// 2페이즈에 들어갈 때 켤 능력 (충전 → 강타, StartupAbilities에 있어야 함, 패턴 선택기 목록에는 넣지 않음). 비우면 패턴만 바뀜
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (Categories = "Ability.Boss"))
 	FGameplayTag RageAbilityTag;
 
@@ -150,7 +166,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0"))
 	float GroggyRecoverBlendTime = 0.5f;
 
-	// 대지의 분노가 끝난 뒤(깨든 못 깨든) 걷기 속도 배율
+	// 2페이즈 걷기 속도 배율. 진입 능력이 있으면 그 능력이 끝난 뒤(깨든 못 깨든), 없으면 진입 즉시
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|Phase2", meta = (ClampMin = "0.1"))
 	float PhaseTwoSpeedScale = 1.3f;
 
@@ -200,8 +216,14 @@ private:
 	FDelegateHandle GroggyTagHandle;
 
 	// ---------- 2페이즈 ----------
-	// 대지의 분노 시작 (체력 알림 다음 틱): 공격 취소 → 갑옷 → 충전 능력. 능력 발동에 실패하면 갑옷 없이 2페이즈로
+	// 2페이즈 진입 (체력 알림 다음 틱): 패턴 선택기 페이즈 2 → 진입 능력이 있으면 대지의 분노, 없으면 속도만
+	void EnterPhaseTwo();
+
+	// 대지의 분노 시작: 공격 취소 → 갑옷 → 충전 능력. 능력 발동에 실패하면 갑옷 없이 2페이즈로
 	void StartEarthRage();
+
+	// 2페이즈 걷기 속도 (한 번만)
+	void ApplyPhaseTwoSpeed();
 
 	// 갑옷 끝: 깨졌으면(bBroken) 이펙트 + 큰 경직, 아니면 갑옷만 벗음. 어느 쪽이든 2페이즈(속도 증가)
 	void EndArmor(bool bBroken);
@@ -228,8 +250,8 @@ private:
 	// 큰 경직에 쓰는 몽타주 (GroggyMontage, 없으면 DeathMontage)
 	UAnimMontage* GetGroggyMontage() const;
 
-	// 대지의 분노를 시작했는지 (한 번만)
-	bool bRageTriggered = false;
+	// 2페이즈에 들어갔는지 (한 번만)
+	bool bPhaseTwoEntered = false;
 
 	// 속도 증가를 넣었는지 (한 번만)
 	bool bPhaseTwoApplied = false;
@@ -248,7 +270,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> ArmorOverlayInstance;
 
-	FTimerHandle RageStartTimer;
+	FTimerHandle PhaseTwoTimer;
 	FTimerHandle GroggyPoseTimer;
 	FTimerHandle GroggyEndTimer;
 	FDelegateHandle AbilityEndedHandle;

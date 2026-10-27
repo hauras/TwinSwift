@@ -31,6 +31,14 @@ struct FSBossPattern
 	// 기본 가중치 (자주 쓸수록 크게)
 	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
 	float Weight = 1.f;
+
+	// 이 페이즈부터 나옴 (1 = 처음부터)
+	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "1"))
+	int32 MinPhase = 1;
+
+	// 이 페이즈까지 나옴. 0이면 끝까지 (1페이즈 패턴이 2페이즈에서 센 버전으로 바뀔 때 1)
+	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
+	int32 MaxPhase = 0;
 };
 
 /**
@@ -52,7 +60,12 @@ public:
 	// 표적까지 거리(cm)로 패턴을 골라 태그를 돌려줌. 고를 게 없으면 빈 태그. 고른 패턴은 가방에서 빠지고 최근 사용에 기록
 	FGameplayTag SelectPattern(float DistanceToTarget);
 
-	// [측정] Count번 고르기를 흉내 내서 선택기와 완전 무작위를 비교해 로그로 (분포, 같은 패턴 최대 연속). 쿨다운은 무시, 거리는 무작위
+	// 보스가 페이즈를 넘길 때 부름. 가방을 비워 새 페이즈 패턴이 다음 고르기부터 바로 섞이게
+	void SetPhase(int32 NewPhase);
+
+	int32 GetPhase() const { return CurrentPhase; }
+
+	// [측정] 지금 페이즈 기준으로 Count번 고르기를 흉내 내서 선택기와 완전 무작위를 비교해 로그로 (분포, 같은 패턴 최대 연속). 쿨다운은 무시, 거리는 무작위
 	// 지금 상태(가방·기록·난수)는 건드리지 않음
 	void RunSimulation(int32 Count, int32 Seed) const;
 
@@ -95,6 +108,9 @@ private:
 	// 패턴 하나의 점수 (못 쓰면 0)
 	float ScorePattern(int32 Index, const FSelectState& State, float DistanceToTarget, bool bCheckAbility) const;
 
+	// 지금 페이즈에 나오는 패턴인지 (MaxPhase 0 = 끝까지). 실제 고르기와 시뮬레이션 비교군이 같은 기준을 쓰게 한곳에
+	bool IsInCurrentPhase(const FSBossPattern& Pattern) const;
+
 	// 쿨다운·차단 태그로 지금 발동할 수 없으면 false
 	bool CanActivatePattern(const FSBossPattern& Pattern) const;
 
@@ -107,4 +123,7 @@ private:
 	UAbilitySystemComponent* GetASC() const;
 
 	FSelectState State;
+
+	// 지금 페이즈 (1부터). MinPhase~MaxPhase 밖의 패턴은 후보에서 빠짐
+	int32 CurrentPhase = 1;
 };

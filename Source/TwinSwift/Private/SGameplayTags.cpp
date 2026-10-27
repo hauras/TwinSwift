@@ -86,6 +86,9 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Shockwave, "Cooldown.Boss.Conductor.Shockwave", "지휘자 충격파 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Wall, "Ability.Boss.Conductor.Wall", "지휘자 색 벽: 주황·파랑 벽이 번갈아 밀려옴, 그 색 캐릭터로 교체해야 통과");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Wall, "Cooldown.Boss.Conductor.Wall", "지휘자 색 벽 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Pincer, "Ability.Boss.Conductor.Pincer", "지휘자 협공 벽 (2페이즈): 플레이어 양옆에서 벽이 조여 옴, 같은 색이면 교체로 막고 다른 색이면 회피·교체 무적 타이밍");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Boss_Conductor_Pincer, "Cooldown.Boss.Conductor.Pincer", "지휘자 협공 벽 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Boss_Conductor_Intro, "Ability.Boss.Conductor.Intro", "지휘자 등장: 위에서 내려와 몸 색(주황 → 파랑)을 보여 주고 첫 박에 피해 없는 고리 (패턴 선택기 밖)");
 
 
 }

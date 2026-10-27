@@ -76,6 +76,14 @@ struct FSBulletPatternEvent
 	UPROPERTY(EditAnywhere, Category = "Pattern")
 	bool bReaim = false;
 
+	// 켜면 벽이 보스 앞이 아니라 표적 주위에서 생겨 표적 쪽으로 밀려옴 (협공: AngleOffset 90 / -90 두 줄을 같은 시각에). 벽만 씀
+	UPROPERTY(EditAnywhere, Category = "Pattern")
+	bool bSpawnAroundTarget = false;
+
+	// bSpawnAroundTarget일 때 벽이 생기는 거리(cm): 쏘는 순간 표적 위치에서 진행 방향 반대쪽으로 이만큼 → 닿는 시간 = 거리 / 속도
+	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
+	float SpawnDistance = 1000.f;
+
 	// 1발 피해 = 보스 공격력 × 이 값
 	UPROPERTY(EditAnywhere, Category = "Pattern", meta = (ClampMin = "0"))
 	float DamageMultiplier = 1.f;

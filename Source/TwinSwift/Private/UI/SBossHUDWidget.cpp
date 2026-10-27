@@ -26,6 +26,7 @@ void USBossHUDWidget::BindToEncounter(ASBossEncounter* InEncounter)
 
 		Boss = EncounterBoss;
 		ArmorChangedHandle = EncounterBoss->OnArmorChanged.AddUObject(this, &ThisClass::OnBossArmorChanged);
+		PhaseChangedHandle = EncounterBoss->OnPhaseChanged.AddUObject(this, &ThisClass::OnBossPhaseChanged);
 
 		if (UAbilitySystemComponent* ASC = EncounterBoss->GetAbilitySystemComponent())
 		{
@@ -62,6 +63,7 @@ void USBossHUDWidget::Unbind()
 	if (ABossCharacter* OldBoss = Boss.Get())
 	{
 		OldBoss->OnArmorChanged.Remove(ArmorChangedHandle);
+		OldBoss->OnPhaseChanged.Remove(PhaseChangedHandle);
 	}
 
 	if (ASBossEncounter* OldEncounter = Encounter.Get())
@@ -197,6 +199,19 @@ void USBossHUDWidget::OnBossArmorChanged(EBossArmorEvent Event)
 		HideArmorText();
 		break;
 	}
+}
+
+void USBossHUDWidget::OnBossPhaseChanged(int32 NewPhase)
+{
+	const ABossCharacter* CurrentBoss = Boss.Get();
+	if (!ArmorText || !CurrentBoss || CurrentBoss->GetPhaseTwoMessage().IsEmpty() || !GetWorld())
+	{
+		return;
+	}
+
+	ArmorText->SetText(CurrentBoss->GetPhaseTwoMessage());
+	ArmorText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	GetWorld()->GetTimerManager().SetTimer(ArmorTextTimer, this, &ThisClass::HideArmorText, ArmorBrokenTextDuration, false);
 }
 
 void USBossHUDWidget::HideArmorText()

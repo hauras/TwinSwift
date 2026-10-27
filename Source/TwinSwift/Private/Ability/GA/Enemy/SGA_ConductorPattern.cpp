@@ -43,11 +43,8 @@ void USGA_ConductorPattern::ActivateAbility(
 	const FGameplayAbilityActivationInfo ActivationInfo,
 	const FGameplayEventData* TriggerEventData)
 {
-	// 표적: 블랙보드 (BTService_FindNearestPlayer가 씀)
 	const APawn* Boss = Cast<APawn>(GetAvatarActorFromActorInfo());
-	const AAIController* AIController = Boss ? Cast<AAIController>(Boss->GetController()) : nullptr;
-	const UBlackboardComponent* Blackboard = AIController ? AIController->GetBlackboardComponent() : nullptr;
-	const AActor* Target = Blackboard ? Cast<AActor>(Blackboard->GetValueAsObject(TEXT("TargetActor"))) : nullptr;
+	const AActor* Target = Boss ? FindTarget(Boss) : nullptr;
 
 	// 마지막 발사 전에 모션이 끝나는 설정은 발동 전에 거부 (발사가 잘려 나가는 대신 바로 알 수 있게)
 	const float LastShotTime = PatternData ? PatternData->GetLastShotTime() : 0.f;
@@ -59,6 +56,15 @@ void USGA_ConductorPattern::ActivateAbility(
 		|| LastShotTime >= CastMontage->GetPlayLength() - CastMontage->GetDefaultBlendOutTime()
 		|| !CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
+		// 어느 조건에 걸렸는지 (패턴이 안 나올 때 로그로 바로 알 수 있게)
+		UE_LOG(LogTemp, Warning, TEXT("[지휘자 패턴] %s 발동 거부: 몽타주 %d, 데이터 %d, 탄막 매니저 %d, 표적 %d, 마지막 발사 %.2f초 / 블렌드 아웃 시작 %.2f초"),
+			*GetName(),
+			CastMontage != nullptr,
+			PatternData != nullptr,
+			ASBulletManager::Get(this) != nullptr,
+			Boss && USAbilityFunctionLibrary::IsTargetable(Boss, Target),
+			LastShotTime,
+			CastMontage ? CastMontage->GetPlayLength() - CastMontage->GetDefaultBlendOutTime() : 0.f);
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
@@ -66,6 +72,7 @@ void USGA_ConductorPattern::ActivateAbility(
 	// 능력 인스턴스는 재사용되므로 매번 처음 상태로: 지시를 펼쳐 시간순 목록을 만들고 커서는 맨 앞
 	PatternData->BuildShots(Shots);
 	NextShot = 0;
+	UE_LOG(LogTemp, Display, TEXT("[지휘자 패턴] %s 시작: 발사 %d번"), *PatternData->GetName(), Shots.Num());
 	TargetActor = Target;
 
 	// 무작위 색: 발동마다 한 번 뽑고, 쏘기 전(손을 모으는 동안) 보스 몸에 보여 줌 → 보고 교체할 시간
@@ -97,8 +104,18 @@ void USGA_ConductorPattern::ActivateAbility(
 		return;
 	}
 
+	OnPatternStarted();
+
 	GetWorld()->GetTimerManager().SetTimer(PatternTimer, this, &ThisClass::UpdatePattern, PatternTickInterval, true);
 	UpdatePattern();
+}
+
+const AActor* USGA_ConductorPattern::FindTarget(const APawn* Boss) const
+{
+	// 블랙보드 (BTService_FindNearestPlayer가 씀)
+	const AAIController* AIController = Cast<AAIController>(Boss->GetController());
+	const UBlackboardComponent* Blackboard = AIController ? AIController->GetBlackboardComponent() : nullptr;
+	return Blackboard ? Cast<AActor>(Blackboard->GetValueAsObject(TEXT("TargetActor"))) : nullptr;
 }
 
 void USGA_ConductorPattern::UpdatePattern()
@@ -164,6 +181,19 @@ void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 	// 벽: 모든 탄이 기준 방향(Forward)으로 날아가고, 생기는 자리만 직각(Right)으로 늘어섬
 	const FVector Forward = FRotator(0.f, BaseYaw, 0.f).Vector();
 	const FVector Right = FRotator(0.f, BaseYaw + 90.f, 0.f).Vector();
+
+	// 벽 가운데: 보통은 보스 앞. 표적 주위 벽(협공)이면 쏘는 순간 표적 위치에서 진행 방향 반대쪽으로 SpawnDistance (표적이 사라졌으면 보스 앞)
+	FVector WallCenter = Origin + Forward * MuzzleOffset;
+	if (Event.bSpawnAroundTarget)
+	{
+		if (const AActor* Target = TargetActor.Get())
+		{
+			FVector TargetLocation = Target->GetActorLocation();
+			TargetLocation.Z = BulletHeight;
+			WallCenter = TargetLocation - Forward * Event.SpawnDistance;
+		}
+	}
+
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		FVector Direction;
@@ -174,7 +204,7 @@ void USGA_ConductorPattern::FireShot(const FSBulletShot& Shot)
 			// 가운데에서 옆으로 몇 cm: -폭 절반 ~ +폭 절반을 고르게 (1발이면 가운데)
 			const float Side = Count == 1 ? 0.f : FMath::Lerp(-Event.WallWidth * 0.5f, Event.WallWidth * 0.5f, static_cast<float>(Index) / (Count - 1));
 			Direction = Forward;
-			SpawnLocation = Origin + Forward * MuzzleOffset + Right * Side;
+			SpawnLocation = WallCenter + Right * Side;
 		}
 		else
 		{

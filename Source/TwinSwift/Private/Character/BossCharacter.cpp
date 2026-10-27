@@ -63,7 +63,7 @@ void ABossCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		ASC->OnAbilityEnded.Remove(AbilityEndedHandle);
 	}
 
-	GetWorldTimerManager().ClearTimer(RageStartTimer);
+	GetWorldTimerManager().ClearTimer(PhaseTwoTimer);
 	GetWorldTimerManager().ClearTimer(GroggyPoseTimer);
 	GetWorldTimerManager().ClearTimer(GroggyEndTimer);
 
@@ -267,19 +267,19 @@ void ABossCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
 		return;
 	}
 
-	// 2페이즈: 체력이 기준 아래로 처음 내려가면 대지의 분노
+	// 2페이즈: 체력이 기준 아래로 처음 내려가면 (진입 능력이 없는 보스도)
 	// 피해 처리(AttributeSet) 도중이라 다음 틱에 시작 (그 자리에서 능력을 끊고 켜지 않음)
 	const UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
-	if (bRageTriggered || !bInCombat || !RageAbilityTag.IsValid() || !ASC || IsDead())
+	if (bPhaseTwoEntered || !bInCombat || PhaseTwoHealthRatio <= 0.f || !ASC || IsDead())
 	{
 		return;
 	}
 	const float MaxHealth = ASC->GetNumericAttribute(USAttributeSet::GetMaxHealthAttribute());
 	if (MaxHealth > 0.f && Data.NewValue / MaxHealth <= PhaseTwoHealthRatio)
 	{
-		bRageTriggered = true;
-		UE_LOG(LogTemp, Display, TEXT("[보스] 체력 %.0f / %.0f → 다음 틱에 대지의 분노"), Data.NewValue, MaxHealth);
-		RageStartTimer = GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::StartEarthRage);
+		bPhaseTwoEntered = true;
+		UE_LOG(LogTemp, Display, TEXT("[보스] 체력 %.0f / %.0f → 다음 틱에 2페이즈"), Data.NewValue, MaxHealth);
+		PhaseTwoTimer = GetWorldTimerManager().SetTimerForNextTick(this, &ThisClass::EnterPhaseTwo);
 	}
 }
 
@@ -295,7 +295,7 @@ void ABossCharacter::Die()
 	ASC->AddLooseGameplayTag(SGameplayTags::State_Dead);
 
 	// 아직 시작 안 한 대지의 분노·큰 경직 정리 (갑옷은 아래 StopCombat의 능력 취소 → OnAbilityEnded가 벗김)
-	GetWorldTimerManager().ClearTimer(RageStartTimer);
+	GetWorldTimerManager().ClearTimer(PhaseTwoTimer);
 	ClearGroggy(false);
 
 	// 진행 중인 공격·행동 트리·이동 정지 (플레이어 패배 때와 같은 처리)
@@ -320,6 +320,46 @@ void ABossCharacter::Die()
 }
 
 
+
+void ABossCharacter::EnterPhaseTwo()
+{
+	if (IsDead() || !bInCombat)
+	{
+		return;
+	}
+
+	PatternComponent->SetPhase(2);
+	UE_LOG(LogTemp, Display, TEXT("[보스] %s 2페이즈 (진입 능력 %s)"), *GetName(), RageAbilityTag.IsValid() ? *RageAbilityTag.ToString() : TEXT("없음"));
+
+	// 바뀌었다는 걸 알림: HUD 안내 글자 + 화면 흔들림
+	OnPhaseChanged.Broadcast(2);
+	if (PhaseTwoShake)
+	{
+		UGameplayStatics::PlayWorldCameraShake(
+			this,
+			PhaseTwoShake,
+			GetActorLocation(),
+			1000.f,
+			4000.f);
+	}
+
+	// 진입 능력이 있는 보스(골렘)는 그 능력이 끝날 때(EndArmor) 속도를 올림
+	if (RageAbilityTag.IsValid())
+	{
+		StartEarthRage();
+		return;
+	}
+	ApplyPhaseTwoSpeed();
+}
+
+void ABossCharacter::ApplyPhaseTwoSpeed()
+{
+	if (!bPhaseTwoApplied)
+	{
+		bPhaseTwoApplied = true;
+		GetCharacterMovement()->MaxWalkSpeed *= PhaseTwoSpeedScale;
+	}
+}
 
 void ABossCharacter::StartEarthRage()
 {
@@ -396,12 +436,8 @@ void ABossCharacter::EndArmor(bool bBroken)
 	ArmorHitsLeft = 0;
 	SetArmorVisible(false);
 
-	// 깨든 못 깨든 여기부터 2페이즈: 더 빨리 걸어옴 (한 번만)
-	if (!bPhaseTwoApplied)
-	{
-		bPhaseTwoApplied = true;
-		GetCharacterMovement()->MaxWalkSpeed *= PhaseTwoSpeedScale;
-	}
+	// 깨든 못 깨든 여기부터 더 빨리 걸어옴 (한 번만)
+	ApplyPhaseTwoSpeed();
 
 	UE_LOG(LogTemp, Display, TEXT("[보스] 갑옷 %s"), bBroken ? TEXT("파괴 → 큰 경직") : TEXT("못 깸 (강타 또는 중단)"));
 	OnArmorChanged.Broadcast(bBroken ? EBossArmorEvent::Broken : EBossArmorEvent::Expired);

@@ -37,6 +37,9 @@ ASAssistActor::ASAssistActor()
 	Weapon->SetupAttachment(Body, TEXT("WeaponSocket"));
 	Weapon->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
+	// 잔상 재질(반투명)은 나나이트로 못 그림 → 이 컴포넌트만 일반 메시로 (검 에셋의 나나이트는 그대로, 들고 있는 검에 영향 없음)
+	Weapon->bDisallowNanite = true;
+
 	DamageEffectClass = USGE_Damage::StaticClass();
 }
 

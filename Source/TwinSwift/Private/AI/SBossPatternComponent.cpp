@@ -150,6 +150,11 @@ float USBossPatternComponent::ScorePattern(int32 Index, const FSelectState& InSt
 	{
 		return 0.f;
 	}
+
+	if (!IsInCurrentPhase(Pattern))
+	{
+		return 0.f;
+	}
 	if (bCheckAbility && !CanActivatePattern(Pattern))
 	{
 		return 0.f;
@@ -237,6 +242,20 @@ void USBossPatternComponent::DrawScores(const TArray<float>& Scores, int32 Chose
 	DrawDebugString(GetWorld(), FVector(0.f, 0.f, 320.f), Text, const_cast<AActor*>(Owner), FColor::Yellow, 2.f, true, 1.3f);
 }
 
+bool USBossPatternComponent::IsInCurrentPhase(const FSBossPattern& Pattern) const
+{
+	return CurrentPhase >= Pattern.MinPhase && (Pattern.MaxPhase <= 0 || CurrentPhase <= Pattern.MaxPhase);
+}
+
+void USBossPatternComponent::SetPhase(int32 NewPhase)
+{
+	CurrentPhase = FMath::Max(1, NewPhase);
+
+	// 가방은 "다 꺼내면 다시 채움" → 그대로 두면 지난 페이즈 가방이 빌 때까지 새 패턴이 안 섞임. 비우면 다음 고르기에서 다시 채움
+	// 최근 사용(History)은 그대로: 페이즈가 바뀌어도 방금 쓴 패턴이 바로 또 나오지 않게
+	State.Bag.Reset();
+}
+
 UAbilitySystemComponent* USBossPatternComponent::GetASC() const
 {
 	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
@@ -256,8 +275,18 @@ void USBossPatternComponent::RunSimulation(int32 Count, int32 Seed) const
 	float FullMax = 0.f;
 	for (const FSBossPattern& Pattern : Patterns)
 	{
+		// 다른 페이즈 패턴의 거리는 빼고 (지금 페이즈에 나오는 패턴만 비교)
+		if (!IsInCurrentPhase(Pattern))
+		{
+			continue;
+		}
 		FullMin = FMath::Min(FullMin, Pattern.MinRange);
 		FullMax = FMath::Max(FullMax, Pattern.MaxRange);
+	}
+	if (FullMin > FullMax)
+	{
+		UE_LOG(LogTemp, Display, TEXT("[패턴 시뮬레이션] 페이즈 %d에 나오는 패턴이 없음"), CurrentPhase);
+		return;
 	}
 
 	auto PatternsInRange = [this](float Distance)
@@ -265,7 +294,10 @@ void USBossPatternComponent::RunSimulation(int32 Count, int32 Seed) const
 		TArray<int32> InRange;
 		for (int32 Index = 0; Index < Patterns.Num(); ++Index)
 		{
-			if (Distance >= Patterns[Index].MinRange && Distance <= Patterns[Index].MaxRange)
+			// 실제 고르기(ScorePattern)와 같은 기준: 거리 + 지금 페이즈 (무작위 비교군에 다른 페이즈 패턴이 섞이지 않게)
+			if (Distance >= Patterns[Index].MinRange
+				&& Distance <= Patterns[Index].MaxRange
+				&& IsInCurrentPhase(Patterns[Index]))
 			{
 				InRange.Add(Index);
 			}
@@ -331,7 +363,7 @@ void USBossPatternComponent::RunSimulation(int32 Count, int32 Seed) const
 			}
 		}
 
-		UE_LOG(LogTemp, Display, TEXT("[패턴 시뮬레이션] %s: 거리 %.0f~%.0f 무작위 %d번, 시드 %d, 쿨다운 무시"), Label, MinDistance, MaxDistance, Count, Seed);
+		UE_LOG(LogTemp, Display, TEXT("[패턴 시뮬레이션] %s: 페이즈 %d, 거리 %.0f~%.0f 무작위 %d번, 시드 %d, 쿨다운 무시"), Label, CurrentPhase, MinDistance, MaxDistance, Count, Seed);
 		UE_LOG(LogTemp, Display, TEXT("[패턴 시뮬레이션]   (같은 패턴 3연속 이상 = 플레이어가 \"또?\"라고 느끼는 횟수)"));
 		UE_LOG(LogTemp, Display, TEXT("[패턴 시뮬레이션]   선택기    : 최대 연속 %d, 3연속 이상 %d번 | %s"),
 			LongestRun(SelectorPicks), CountRunsOf3OrMore(SelectorPicks), *Distribution(SelectorPicks));

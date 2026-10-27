@@ -79,12 +79,16 @@ private:
 
 	// 보스 갑옷 알림 → 안내 글자
 	void OnBossArmorChanged(EBossArmorEvent Event);
+
+	// 페이즈 바뀜 → 보스의 안내 글자를 ArmorText 자리에 잠깐 (갑옷 안내와 같은 자리, 같은 시간)
+	void OnBossPhaseChanged(int32 NewPhase);
 	void HideArmorText();
 
 	FTimerHandle ArmorTextTimer;
 
 	TWeakObjectPtr<ABossCharacter> Boss;
 	FDelegateHandle ArmorChangedHandle;
+	FDelegateHandle PhaseChangedHandle;
 
 	TWeakObjectPtr<ASBossEncounter> Encounter;
 	TWeakObjectPtr<UAbilitySystemComponent> BossASC;
