@@ -132,6 +132,25 @@ void ASPlayerController::BeginPlay()
 		}
 	}
 
+	// [측정] 실행 인자 -BenchBullets=1000,0,10 이면 3초 뒤 자동으로 BenchBullets 1000 0 10 (탄 수, 방식, 초). -BenchQuit와 같이 쓰면 끝나고 종료
+	FString BulletBenchArgs;
+	if (FParse::Value(FCommandLine::Get(), TEXT("BenchBullets="), BulletBenchArgs, false))
+	{
+		TArray<FString> Parts;
+		BulletBenchArgs.ParseIntoArray(Parts, TEXT(","));
+		if (Parts.Num() == 3)
+		{
+			const int32 Count = FCString::Atoi(*Parts[0]);
+			const int32 Mode = FCString::Atoi(*Parts[1]);
+			const float Seconds = FCString::Atof(*Parts[2]);
+			FTimerHandle WarmupTimer;
+			GetWorldTimerManager().SetTimer(WarmupTimer, FTimerDelegate::CreateWeakLambda(this, [this, Count, Mode, Seconds]()
+			{
+				BenchBullets(Count, Mode, Seconds);
+			}), 3.f, false);
+		}
+	}
+
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		if (DefaultMappingContext)

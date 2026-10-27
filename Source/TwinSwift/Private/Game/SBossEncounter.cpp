@@ -26,6 +26,14 @@ void ASBossEncounter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// [측정] 탄막 자동 측정(-BenchBullets=) 중에는 전투를 시작하지 않음 → 보스 탄·AI·등장신이 측정에 섞이지 않게
+	FString BulletBenchArgs;
+	if (FParse::Value(FCommandLine::Get(), TEXT("BenchBullets="), BulletBenchArgs, false))
+	{
+		UE_LOG(LogTemp, Display, TEXT("[보스전] %s: 탄막 측정 중이라 전투를 시작하지 않음"), *GetName());
+		return;
+	}
+
 	if (!Boss)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[보스전] %s: Boss가 비어 있음 (레벨에서 지정)"), *GetName());
