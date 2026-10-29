@@ -5,6 +5,7 @@
 #include "Character/TwinSlot.h"
 #include "SMirrorBoss.generated.h"
 
+class UMaterialInterface;
 class USActionReplayComponent;
 class USMirrorDefenseComponent;
 
@@ -30,6 +31,16 @@ public:
 
 	// 칼 판정(ANS_WeaponTrace)이 쓰는 칼
 	virtual UStaticMeshComponent* GetWeaponMesh() const override { return WeaponMesh; }
+
+	// 같은 몸 방어: 때린 ASC가 플레이어의 어느 몸 것인지 보고, 그 몸을 막는 중이면 SameBodyDamageScale
+	virtual float GetIncomingDamageScale(const UAbilitySystemComponent* SourceASC) const override;
+
+	// 이 몸의 공격을 막는 중인지 = 한가함(능력 없음·경직 아님) + 지금 같은 몸
+	// 공격·시전·회피 중이나 경직 중이면 어느 몸이든 빈틈
+	bool IsGuardingAgainst(ETwinSlot AttackerSlot) const;
+
+	// 방어 표시 갱신 (지금 플레이어 몸 기준으로 바뀔 때만 겹침 재질을 켜고 끔)
+	virtual void Tick(float DeltaSeconds) override;
 
 	// 겨냥 = 지금 플레이어 위치 (움직임은 기록을 따라 하지만 공격은 지금의 플레이어를 노림)
 	virtual bool GetAbilityAimPoint(FVector& OutAimPoint) const override;
@@ -68,10 +79,22 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Mirror")
 	TObjectPtr<USActionReplayComponent> ReplayComponent;
 
+	// 같은 몸 방어 중 받는 피해 배율
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Guard", meta = (ClampMin = "0", ClampMax = "1"))
+	float SameBodyDamageScale = 0.3f;
+
+	// 막는 중일 때 몸 위에 겹쳐 그리는 재질 (M_MirrorGuard: 반투명 은백색 윤곽). 비우면 표시만 안 됨
+	// 재질 값(파라미터)을 바꾸는 방식은 안 씀: 마법사 메시가 파라미터 있는 재질을 원래 재질로 그림
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Guard")
+	TObjectPtr<UMaterialInterface> GuardOverlayMaterial;
+
 private:
 	// 지금 몸
 	ETwinSlot ActiveSlot = ETwinSlot::Warrior;
 
 	// 방어 컴포넌트가 넣어 준 회피 방향
 	FVector ReplayMoveDirection = FVector::ZeroVector;
+
+	// 지금 켜져 있는 방어 표시 (바뀔 때만 겹침 재질을 바꿈)
+	bool bGuardShown = false;
 };

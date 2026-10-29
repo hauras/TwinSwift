@@ -29,6 +29,10 @@ public:
 	// 칼 판정(ANS_WeaponTrace)이 쓰는 무기. 없으면 nullptr (칼을 든 캐릭터가 재정의: 플레이어, 거울 보스)
 	virtual UStaticMeshComponent* GetWeaponMesh() const { return nullptr; }
 
+	// 받는 피해 배율 (피해 계산 USDamageExecution이 물음, SourceASC = 때린 쪽). 기본 1
+	// 거울 보스: 한가할 때 같은 몸이 때리면 줄임
+	virtual float GetIncomingDamageScale(const UAbilitySystemComponent* SourceASC) const { return 1.f; }
+
 	USAttributeSet* GetAttributeSet() const { return AttributeSet; }
 
 	void ApplyHitStop(float Duration);

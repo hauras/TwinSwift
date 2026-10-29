@@ -1,7 +1,9 @@
 #include "Ability/SDamageExecution.h"
 
+#include "AbilitySystemComponent.h"
 #include "SGameplayTags.h"
 #include "Ability/SAttributeSet.h"
+#include "Character/CharacterBase.h"
 
 namespace
 {
@@ -64,6 +66,14 @@ void USDamageExecution::Execute_Implementation(
 			Damage *= GroggyDamageScale;
 		}
 	}
+
+	// 맞는 캐릭터마다 다른 규칙 (거울 보스: 같은 몸 방어). 피해 계산은 보스 종류를 모름
+	const UAbilitySystemComponent* TargetASC = ExecutionParams.GetTargetAbilitySystemComponent();
+	if (const ACharacterBase* TargetCharacter = TargetASC ? Cast<ACharacterBase>(TargetASC->GetAvatarActor()) : nullptr)
+	{
+		Damage *= TargetCharacter->GetIncomingDamageScale(ExecutionParams.GetSourceAbilitySystemComponent());
+	}
+
 	if (Damage > 0.f)
 	{
 		OutExecutionOutput.AddOutputModifier(FGameplayModifierEvaluatedData(

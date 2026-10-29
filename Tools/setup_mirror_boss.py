@@ -14,7 +14,7 @@ tools = unreal.AssetToolsHelpers.get_asset_tools()
 BOSS_DIR = "/Game/Blueprints/Boss"
 BOSS_NAME = "BP_Boss_Mirror"
 PLAYER_BP = "/Game/Blueprints/Characters/BP_Player"
-MIRROR_MATERIAL = "/Game/Assets/Characters/Boss/Mirror/Materials/M_MirrorGlass"
+MIRROR_MATERIAL = "/Game/Assets/Characters/Boss/Mirror/Materials/M_MirrorBody"
 STATS_SOURCE = "/Game/Abilities/Boss/GE_Golem_DefaultAttributes"
 STATS_GE = "/Game/Abilities/Boss/GE_Mirror_DefaultAttributes"
 

@@ -1,11 +1,15 @@
 #include "Character/SMirrorBoss.h"
 
 #include "AbilitySystemComponent.h"
+#include "Ability/SAbilitySystemComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Character/PlayerCharacter.h"
+#include "SGameplayTags.h"
+#include "State/SPlayerState.h"
 #include "Mirror/SActionReplayComponent.h"
 #include "Mirror/SMirrorDefenseComponent.h"
 
@@ -26,6 +30,9 @@ ASMirrorBoss::ASMirrorBoss()
 
 	ReplayComponent = CreateDefaultSubobject<USActionReplayComponent>("ReplayComponent");
 	DefenseComponent = CreateDefaultSubobject<USMirrorDefenseComponent>("DefenseComponent");
+
+	// 방어 표시 갱신에 틱이 필요 (부모 ACharacterBase가 꺼 둠)
+	PrimaryActorTick.bCanEverTick = true;
 
 	// 플레이어와 같은 회전 속도 (보스 기본 180은 느려서 따라 하는 움직임보다 몸이 늦게 돎)
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
@@ -121,4 +128,56 @@ void ASMirrorBoss::BeginPlay()
 	Super::BeginPlay();
 
 	SwapTo(ETwinSlot::Warrior);
+}
+
+void ASMirrorBoss::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	// 지금 플레이어 몸으로 때리면 막히는지 (화면만 보고 "지금 때려도 되나"를 알게)
+	const APlayerCharacter* Player = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
+	const bool bGuard = Player && IsGuardingAgainst(Player->GetActiveSlot());
+	if (bGuard == bGuardShown) return;
+
+	// 두 몸·칼 모두에 (숨긴 몸은 안 그려짐 → 막는 중에 교체해도 다시 켤 필요 없음)
+	bGuardShown = bGuard;
+	UMaterialInterface* Overlay = bGuard ? GuardOverlayMaterial.Get() : nullptr;
+	GetMesh()->SetOverlayMaterial(Overlay);
+	MageMesh->SetOverlayMaterial(Overlay);
+	WeaponMesh->SetOverlayMaterial(Overlay);
+}
+
+bool ASMirrorBoss::IsGuardingAgainst(ETwinSlot AttackerSlot) const
+{
+	if (AttackerSlot != ActiveSlot || IsDead() || !AbilitySystemComponent) return false;
+
+	// 경직·큰 경직은 빈틈 (깨면 보상)
+	FGameplayTagContainer OpenTags;
+	OpenTags.AddTag(SGameplayTags::State_Stun);
+	OpenTags.AddTag(SGameplayTags::State_Groggy);
+	if (AbilitySystemComponent->HasAnyMatchingGameplayTags(OpenTags)) return false;
+
+	// 능력이 켜져 있으면 빈틈 (공격 준비·휘두름·회복, 마법 시전, 회피). 마법은 State.Attacking을 안 붙여서 능력으로 봄
+	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if (Spec.IsActive()) return false;
+	}
+	return true;
+}
+
+float ASMirrorBoss::GetIncomingDamageScale(const UAbilitySystemComponent* SourceASC) const
+{
+	// 때린 ASC가 플레이어의 어느 몸 것인지 (교체 어시스트 분신은 나간 캐릭터의 ASC로 때림 → 그 몸으로 친 것)
+	const ASPlayerState* AttackerState = SourceASC ? Cast<ASPlayerState>(SourceASC->GetOwnerActor()) : nullptr;
+	if (!AttackerState) return 1.f;
+
+	for (const ETwinSlot Slot : { ETwinSlot::Warrior, ETwinSlot::Mage })
+	{
+		const UAbilitySystemComponent* SlotASC = AttackerState->GetSAbilitySystemComponent(Slot);
+		if (SlotASC == SourceASC)
+		{
+			return IsGuardingAgainst(Slot) ? SameBodyDamageScale : 1.f;
+		}
+	}
+	return 1.f;
 }
