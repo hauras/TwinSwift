@@ -25,9 +25,11 @@ enum class ERecordedActionType : uint8
 
 struct FSRecordedAction
 {
-	double Time;
+	double Time = 0.0;
 	ERecordedActionType Type = ERecordedActionType::Ability;
 	TSubclassOf<UGameplayAbility> AbilityClass;
+
+	// 교체: 바뀐 몸 / 능력: 그 능력을 쓴 몸 (재생할 때 몸이 다르면 먼저 바꾸고 누름)
 	ETwinSlot Slot = ETwinSlot::Warrior;
 };
 
@@ -103,7 +105,9 @@ protected:
 	float HistorySeconds = 5.f;
 
 private:
-	void OnAbilityActivated(UGameplayAbility* Ability);
+	// 두 ASC의 OnAbilityPressed가 알림: 키가 눌린 능력 (콤보 2타처럼 켜진 능력에 또 누른 것도)
+	// Slot = 알린 ASC가 누구 것인지 (묶을 때 같이 넘김)
+	void HandleAbilityPressed(TSubclassOf<UGameplayAbility> AbilityClass, ETwinSlot Slot);
 	void OnActiveSlotChanged(ETwinSlot NewSlot);
 
 	TSRingBuffer<FSRecordedPose> Poses;

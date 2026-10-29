@@ -7,6 +7,9 @@
 class UAnimMontage;
 class UCurveVector;
 
+// 내려찍기가 떨어질 곳 (착지점, 반경, 이 능력). 듣는 쪽: 거울 보스 방어 (능력은 누가 듣는지 모름)
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnGroundSlamTelegraphed, const FVector&, float, UGameplayAbility*);
+
 /**
  * 전사 내려찍기 (키 2)
  * - 커서 위치(최대 MaxRange)로 LeapDuration 동안 포물선(최고 LeapHeight)을 그리며 날아감 (루트모션 MoveTo + 높이 커브)
@@ -23,6 +26,9 @@ class TWINSWIFT_API USGA_GroundSlam : public USGameplayAbility
 
 public:
 	USGA_GroundSlam();
+
+	// 도약을 시작할 때 알림 (모든 내려찍기 공용. 보스가 복사한 것도 나오니 듣는 쪽이 자기 것은 거름)
+	static FOnGroundSlamTelegraphed OnTelegraphed;
 
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,

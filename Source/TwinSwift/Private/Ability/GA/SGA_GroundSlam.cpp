@@ -8,6 +8,8 @@
 #include "Curves/CurveVector.h"
 #include "GameFramework/Character.h"
 
+FOnGroundSlamTelegraphed USGA_GroundSlam::OnTelegraphed;
+
 USGA_GroundSlam::USGA_GroundSlam()
 {
 	InputTag = SGameplayTags::InputTag_Warrior_Skill2;
@@ -74,6 +76,9 @@ void USGA_GroundSlam::ActivateAbility(
 		MontageTask->ReadyForActivation();
 	}
 
+	// 몽타주 시작 실패·즉시 취소 시 종료된 능력이 이동 태스크를 만들지 않게.
+	if (!IsActive()) return;
+
 	// 착지 지점까지 LeapDuration 동안 포물선으로 이동. 도착하면 속도 0으로 멈춤
 	// 걷기 모드는 바닥에 붙어서 위로 못 뜸 → 나는 동안만 Flying (태스크가 끝나면 원래 모드로 되돌림)
 	UAbilityTask_ApplyRootMotionMoveToForce* LeapTask = UAbilityTask_ApplyRootMotionMoveToForce::ApplyRootMotionMoveToForce(
@@ -92,6 +97,12 @@ void USGA_GroundSlam::ActivateAbility(
 	LeapTask->OnTimedOut.AddDynamic(this, &ThisClass::OnLeapFinished);
 	LeapTask->OnTimedOutAndDestinationReached.AddDynamic(this, &ThisClass::OnLeapFinished);
 	LeapTask->ReadyForActivation();
+
+	// 어디에 떨어질지 미리 알림 (거울 보스가 피할 수 있게)
+	if (IsActive())
+	{
+		OnTelegraphed.Broadcast(LandingLocation, Radius, this);
+	}
 }
 
 FVector USGA_GroundSlam::GetLandingLocation() const

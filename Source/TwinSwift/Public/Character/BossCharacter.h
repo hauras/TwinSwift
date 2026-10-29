@@ -60,6 +60,9 @@ public:
 	// 전투 멈춤: 행동 트리·진행 중인 공격·이동 정지 (플레이어 패배, 사망)
 	void StopCombat();
 
+	// StartCombat ~ StopCombat 사이인지
+	bool IsInCombat() const { return bInCombat; }
+
 	// HUD에 보일 이름 (골렘: "바위 골렘")
 	const FText& GetDisplayName() const { return DisplayName; }
 
@@ -98,6 +101,12 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// 보스를 움직이는 두뇌 켜기 / 멈춤 / 다시 켜기. 기본은 행동 트리 (거울 보스는 행동 재생으로 재정의)
+	// 켜기: StartCombat이 부름, 실패하면 false / 멈춤·다시 켜기: 대지의 분노·큰 경직 동안 걸어 다니지 않게
+	virtual bool StartAI();
+	virtual void StopAI();
+	virtual void ResumeAI();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|GAS")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
@@ -231,10 +240,6 @@ private:
 	// 갑옷 겉모습 켜기·끄기 / 밝기를 남은 횟수에 맞춤
 	void SetArmorVisible(bool bVisible);
 	void RefreshArmorGlow();
-
-	// 행동 트리·이동만 멈춤 / 전투 중이면 행동 트리를 처음부터 다시 실행 (대지의 분노·큰 경직 동안 걸어 다니지 않게)
-	void StopAI();
-	void ResumeAI();
 
 	// 큰 경직: State.Groggy(공격 취소) + 행동 트리 정지 + 몽타주. Duration 뒤 EndGroggy
 	void BeginGroggy(float Duration);

@@ -52,6 +52,42 @@ bool USAbilitySystemComponent::CanActivateAbilityByInputTag(const FGameplayTag& 
 	return false;
 }
 
+void USAbilitySystemComponent::PressAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass)
+{
+	if (!AbilityClass) return;
+
+	ABILITYLIST_SCOPE_LOCK();
+	if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromClass(AbilityClass))
+	{
+		PressAbilitySpec(*Spec);
+	}
+}
+
+void USAbilitySystemComponent::PressAbilitySpec(FGameplayAbilitySpec& Spec)
+{
+	if (!Spec.Ability) return;
+
+	// 알림은 실제로 먹힌 누름만 (켜진 능력에 전달 / 발동 성공). 쿨다운 등으로 실패한 누름은 안 알림
+	// → 거울 보스가 "플레이어가 못 쓴 공격"을 따라 하지 않음
+	AbilitySpecInputPressed(Spec);
+
+	if (Spec.IsActive())
+	{
+		// 이미 실행 중인 능력(예: 콤보)에 "또 눌렀다"를 알림 → WaitInputPress로 받음
+		const TArray<UGameplayAbility*> Instances = Spec.GetAbilityInstances();
+		if (Instances.Num() > 0 && Instances.Last())
+		{
+			const FPredictionKey PredictionKey = Instances.Last()->GetCurrentActivationInfoRef().GetActivationPredictionKey();
+			InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, Spec.Handle, PredictionKey);
+			OnAbilityPressed.Broadcast(Spec.Ability->GetClass());
+		}
+	}
+	else if (TryActivateAbility(Spec.Handle))
+	{
+		OnAbilityPressed.Broadcast(Spec.Ability->GetClass());
+	}
+}
+
 void USAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputTag)
 {
 	if (!InputTag.IsValid())
@@ -67,22 +103,7 @@ void USAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputT
 			continue;
 		}
 
-		AbilitySpecInputPressed(AbilitySpec);
-
-		if (AbilitySpec.IsActive())
-		{
-			// 이미 실행 중인 능력(예: 콤보)에 "또 눌렀다"를 알림 → WaitInputPress로 받음
-			const TArray<UGameplayAbility*> Instances = AbilitySpec.GetAbilityInstances();
-			if (Instances.Num() > 0 && Instances.Last())
-			{
-				const FPredictionKey PredictionKey = Instances.Last()->GetCurrentActivationInfoRef().GetActivationPredictionKey();
-				InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, AbilitySpec.Handle, PredictionKey);
-			}
-		}
-		else
-		{
-			TryActivateAbility(AbilitySpec.Handle);
-		}
+		PressAbilitySpec(AbilitySpec);
 	}
 }
 

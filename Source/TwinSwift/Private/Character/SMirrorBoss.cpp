@@ -4,7 +4,10 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "Mirror/SActionReplayComponent.h"
+#include "Mirror/SMirrorDefenseComponent.h"
 
 ASMirrorBoss::ASMirrorBoss()
 {
@@ -20,11 +23,34 @@ ASMirrorBoss::ASMirrorBoss()
 
 	// 충돌은 캡슐이 맡음 (전사 몸과 같게)
 	MageMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	ReplayComponent = CreateDefaultSubobject<USActionReplayComponent>("ReplayComponent");
+	DefenseComponent = CreateDefaultSubobject<USMirrorDefenseComponent>("DefenseComponent");
+
+	// 플레이어와 같은 회전 속도 (보스 기본 180은 느려서 따라 하는 움직임보다 몸이 늦게 돎)
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 720.f, 0.f);
+}
+
+bool ASMirrorBoss::IsDefending() const
+{
+	return DefenseComponent && DefenseComponent->IsDefending();
 }
 
 void ASMirrorBoss::SwapTo(ETwinSlot NewSlot)
 {
-	// 같은 몸이어도 끝까지 함 (BeginPlay에서 처음 상태를 맞출 때 ActiveSlot이 이미 Warrior)
+	// 이미 그 몸이면 아무것도 안 함 (진행 중 능력을 끊지 않게)
+	// 처음 BeginPlay에서는 두 몸이 다 보이는 상태라 여기를 지나 몸을 맞춤 (ActiveSlot만 보면 이미 Warrior라 건너뛰게 됨)
+	const bool bWarriorVisible = GetMesh()->IsVisible();
+	if (ActiveSlot == NewSlot && bWarriorVisible == (NewSlot == ETwinSlot::Warrior)
+		&& MageMesh->IsVisible() == (NewSlot == ETwinSlot::Mage)) return;
+
+	// 공격 중이면 끊고 바꿈 (플레이어 교체와 같음). 숨긴 몸은 애니 틱이 꺼져 몽타주가 끝나지 않음 → 능력·State.Attacking이 남음
+	// 취소 불가 능력(시전 확정된 마법)은 CancelAllAbilities가 건너뜀
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->CancelAllAbilities();
+	}
+
 	ActiveSlot = NewSlot;
 	const bool bWarrior = ActiveSlot == ETwinSlot::Warrior;
 
@@ -66,6 +92,27 @@ void ASMirrorBoss::OnConstruction(const FTransform& Transform)
 
 	// 둘 다 캡슐에 붙어 있으니 같은 상대 위치를 주면 같은 자리에 섬
 	MageMesh->SetRelativeTransform(GetMesh()->GetRelativeTransform());
+}
+
+bool ASMirrorBoss::StartAI()
+{
+	ReplayComponent->StartReplay();
+	return true;
+}
+
+void ASMirrorBoss::StopAI()
+{
+	// 부모: 길 찾기 이동 정지 (행동 트리는 없음)
+	Super::StopAI();
+	ReplayComponent->StopReplay();
+	DefenseComponent->CancelPendingEvade();
+}
+
+void ASMirrorBoss::ResumeAI()
+{
+	if (!IsInCombat() || IsDead()) return;
+
+	ReplayComponent->StartReplay();
 }
 
 void ASMirrorBoss::BeginPlay()

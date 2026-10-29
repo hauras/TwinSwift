@@ -3,7 +3,6 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Ability/SAbilitySystemComponent.h"
-#include "Ability/SGameplayAbility.h"
 #include "DrawDebugHelpers.h"
 #include "HAL/IConsoleManager.h"
 #include "Character/PlayerCharacter.h"
@@ -63,8 +62,8 @@ void USActionRecorderComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 
 		if (WarriorASC && MageASC)
 		{
-			WarriorAbilityHandle = WarriorASC->AbilityActivatedCallbacks.AddUObject(this, &ThisClass::OnAbilityActivated);
-			MageAbilityHandle = MageASC->AbilityActivatedCallbacks.AddUObject(this, &ThisClass::OnAbilityActivated);
+			WarriorAbilityHandle = WarriorASC->OnAbilityPressed.AddUObject(this, &ThisClass::HandleAbilityPressed, ETwinSlot::Warrior);
+			MageAbilityHandle = MageASC->OnAbilityPressed.AddUObject(this, &ThisClass::HandleAbilityPressed, ETwinSlot::Mage);
 		}
 	}
 
@@ -74,8 +73,8 @@ void USActionRecorderComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	Pose.Yaw = Owner->GetActorRotation().Yaw;
 	Poses.Add(Pose);
 
-	// [확인용] N초 전 위치에 구 + 보던 방향. 다음 틱까지 남게 (틱 간격만큼)
-	if (CVarShowGhost.GetValueOnGameThread() != 0)
+	// [확인용] N초 전 위치에 구 + 보던 방향. 다음 틱까지 남게 (틱 간격만큼). 플레이어 기록만 (거울 보스도 위치를 기록함)
+	if (CVarShowGhost.GetValueOnGameThread() != 0 && Cast<APlayerCharacter>(Owner))
 	{
 		FSRecordedPose Ghost;
 		if (GetPoseAt(Pose.Time - CVarGhostDelay.GetValueOnGameThread(), Ghost))
@@ -94,16 +93,14 @@ void USActionRecorderComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	}
 }
 
-void USActionRecorderComponent::OnAbilityActivated(UGameplayAbility* Ability)
+void USActionRecorderComponent::HandleAbilityPressed(TSubclassOf<UGameplayAbility> AbilityClass, ETwinSlot Slot)
 {
-	// 입력으로 켜는 능력만 (평타·스킬·회피). 넉백처럼 맞아서 켜지는 능력은 InputTag가 비어 있음 → 보스가 따라 하면 이상함
-	const USGameplayAbility* SAbility = Cast<USGameplayAbility>(Ability);
-	if (!SAbility || !SAbility->InputTag.IsValid()) return;
-
+	// 발동이 아니라 키 누름을 적음 → 콤보 2타도 남고, 넉백처럼 맞아서 켜지는 능력은 누름이 없어 저절로 빠짐
 	FSRecordedAction Action;
 	Action.Time = GetWorld()->GetTimeSeconds();
 	Action.Type = ERecordedActionType::Ability;
-	Action.AbilityClass = Ability->GetClass();
+	Action.AbilityClass = AbilityClass;
+	Action.Slot = Slot;
 	Actions.Add(Action);
 
 	if (CVarShowGhost.GetValueOnGameThread() != 0)
@@ -187,11 +184,11 @@ void USActionRecorderComponent::EndPlay(const EEndPlayReason::Type EndPlayReason
 		USAbilitySystemComponent* MageASC = PlayerState ? PlayerState->GetSAbilitySystemComponent(ETwinSlot::Mage) : nullptr;
 		if (WarriorASC)
 		{
-			WarriorASC->AbilityActivatedCallbacks.Remove(WarriorAbilityHandle);
+			WarriorASC->OnAbilityPressed.Remove(WarriorAbilityHandle);
 		}
 		if (MageASC)
 		{
-			MageASC->AbilityActivatedCallbacks.Remove(MageAbilityHandle);
+			MageASC->OnAbilityPressed.Remove(MageAbilityHandle);
 		}
 	}
 

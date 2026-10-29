@@ -143,19 +143,29 @@ bool ABossCharacter::IsDead() const
 
 bool ABossCharacter::StartCombat()
 {
-	AAIController* AIController = Cast<AAIController>(GetController());
-	if (!AIController || !BehaviorTree || IsDead())
+	if (IsDead())
 	{
-		UE_LOG(LogTemp, Error, TEXT("[보스] %s 전투 시작 실패: 컨트롤러 %s, 행동 트리 %s, 사망 %s"),
-			*GetName(),
-			AIController ? TEXT("있음") : TEXT("없음"),
-			BehaviorTree ? TEXT("있음") : TEXT("없음"),
-			IsDead() ? TEXT("예") : TEXT("아니오"));
+		UE_LOG(LogTemp, Error, TEXT("[보스] %s 전투 시작 실패: 이미 사망"), *GetName());
 		return false;
 	}
 
-	bInCombat = AIController->RunBehaviorTree(BehaviorTree);
+	bInCombat = StartAI();
 	return bInCombat;
+}
+
+bool ABossCharacter::StartAI()
+{
+	AAIController* AIController = Cast<AAIController>(GetController());
+	if (!AIController || !BehaviorTree)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[보스] %s 전투 시작 실패: 컨트롤러 %s, 행동 트리 %s"),
+			*GetName(),
+			AIController ? TEXT("있음") : TEXT("없음"),
+			BehaviorTree ? TEXT("있음") : TEXT("없음"));
+		return false;
+	}
+
+	return AIController->RunBehaviorTree(BehaviorTree);
 }
 
 bool ABossCharacter::PlayIntro(const FVector& Landing)

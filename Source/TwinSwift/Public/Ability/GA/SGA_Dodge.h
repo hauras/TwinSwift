@@ -21,6 +21,10 @@ class TWINSWIFT_API USGA_Dodge : public USGameplayAbility
 public:
 	USGA_Dodge();
 
+	// 방어 AI가 실제 능력 설정으로 탈출 경로를 검사.
+	float GetDodgeDistance() const { return DodgeDistance; }
+	bool IsInstantDodge() const { return DodgeDuration <= 0.f; }
+
 	virtual void ActivateAbility(
 		const FGameplayAbilitySpecHandle Handle,
 		const FGameplayAbilityActorInfo* ActorInfo,
