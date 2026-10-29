@@ -34,11 +34,12 @@ public:
 	FOnAbilityPressed OnAbilityPressed;
 
 	// 클래스로 딱 하나 찾아 누름 (거울 보스: 한 ASC에 전사·마법사 능력이 다 있어 태그로 찾으면 둘이 걸림)
-	void PressAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass);
+	// 먹혔으면 true (켜진 능력에 전달 / 발동 성공)
+	bool PressAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass);
 
 private:
 	// 누름 처리만: 켜져 있으면 "또 눌렀다" 이벤트, 꺼져 있으면 발동 + 알림
-	void PressAbilitySpec(FGameplayAbilitySpec& Spec);
+	bool PressAbilitySpec(FGameplayAbilitySpec& Spec);
 
 	bool bStartupAbilitiesGiven = false;
 };

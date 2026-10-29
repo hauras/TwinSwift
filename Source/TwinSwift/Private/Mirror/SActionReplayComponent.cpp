@@ -7,6 +7,16 @@
 #include "SGameplayTags.h"
 #include "Ability/SGameplayAbility.h"
 
+namespace
+{
+	// 회피는 복사하지 않음 (그때의 위협에 대한 반응 → 지금은 이유 없는 움직임). 보스 회피는 방어 컴포넌트가
+	bool IsDodge(const FSRecordedAction& Action)
+	{
+		const USGameplayAbility* AbilityDefaults = Action.AbilityClass ? Cast<USGameplayAbility>(Action.AbilityClass->GetDefaultObject()) : nullptr;
+		return AbilityDefaults && AbilityDefaults->InputTag == SGameplayTags::InputTag_Dodge;
+	}
+}
+
 USActionReplayComponent::USActionReplayComponent()
 {
 	// 전투 중에만 틱 (StartReplay에서 켬)
@@ -24,6 +34,7 @@ void USActionReplayComponent::StartReplay()
 
 	// 멈춘 사이(큰 경직)의 행동은 몰아서 하지 않고 건너뜀 (몸은 다음 능력이 맞춤)
 	LastReplayTime = Now - Delay;
+	LastActionTime = Now;
 	bReplaying = true;
 	SetComponentTickEnabled(true);
 }
@@ -50,6 +61,7 @@ void USActionReplayComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (ReplayTime >= FirstStartTime)
 	{
 		ReplayActions(LastReplayTime, ReplayTime);
+		TryFillIdle(GetWorld()->GetTimeSeconds());
 	}
 	LastReplayTime = ReplayTime;
 
@@ -130,15 +142,11 @@ void USActionReplayComponent::ReplayActions(double FromTime, double ToTime)
 		if (Action.Type == ERecordedActionType::Swap)
 		{
 			Boss->SwapTo(Action.Slot);
+			LastActionTime = GetWorld()->GetTimeSeconds();
 			continue;
 		}
 
-		// 회피는 복사하지 않음 (그때의 위협에 대한 반응 → 지금은 이유 없는 움직임). 보스 회피는 방어 컴포넌트가
-		const USGameplayAbility* AbilityDefaults = Action.AbilityClass ? Cast<USGameplayAbility>(Action.AbilityClass->GetDefaultObject()) : nullptr;
-		if (AbilityDefaults && AbilityDefaults->InputTag == SGameplayTags::InputTag_Dodge)
-		{
-			continue;
-		}
+		if (IsDodge(Action)) continue;
 
 		// 그 능력을 쓴 몸이 아니면 먼저 바꿈 (교체 기록을 건너뛰었어도 마법사 몸으로 칼을 휘두르지 않게)
 		if (Boss->GetActiveSlot() != Action.Slot)
@@ -146,7 +154,60 @@ void USActionReplayComponent::ReplayActions(double FromTime, double ToTime)
 			Boss->SwapTo(Action.Slot);
 		}
 
-		ASC->PressAbilityByClass(Action.AbilityClass);
+		if (ASC->PressAbilityByClass(Action.AbilityClass))
+		{
+			LastActionTime = GetWorld()->GetTimeSeconds();
+		}
+	}
+}
+
+void USActionReplayComponent::TryFillIdle(double Now)
+{
+	if (Now - LastActionTime < IdleFillSeconds) return;
+
+	ASMirrorBoss* Boss = Cast<ASMirrorBoss>(GetOwner());
+	USActionRecorderComponent* SourceRecorder = FindRecorder();
+	USAbilitySystemComponent* ASC = Boss ? Cast<USAbilitySystemComponent>(Boss->GetAbilitySystemComponent()) : nullptr;
+	if (!Boss || !SourceRecorder || !ASC || Boss->IsDead() || Boss->IsDefending()) return;
+
+	// 한가할 때만 (공격·시전·경직 중이면 끝난 뒤에)
+	FGameplayTagContainer BusyTags;
+	BusyTags.AddTag(SGameplayTags::State_Stun);
+	BusyTags.AddTag(SGameplayTags::State_Groggy);
+	if (ASC->HasAnyMatchingGameplayTags(BusyTags)) return;
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.IsActive()) return;
+	}
+
+	// 기록에 남은 것 전부 (최근 64개) 중 기술만. 아직 따라 하지 않은 최근 것도 포함 ("거울이 배운 기술")
+	SourceRecorder->GetActionsBetween(0.0, Now, FillCandidates);
+	FillCandidates.RemoveAll([](const FSRecordedAction& Action)
+	{
+		return Action.Type != ERecordedActionType::Ability || !Action.AbilityClass || IsDodge(Action);
+	});
+
+	// 무작위 순서로 보며 지금 쓸 수 있는(쿨다운 아닌) 첫 기술 하나 (쓸 게 없어도 다음 확인은 IdleFillSeconds 뒤)
+	LastActionTime = Now;
+	for (int32 Index = FillCandidates.Num() - 1; Index > 0; --Index)
+	{
+		FillCandidates.Swap(Index, FMath::RandRange(0, Index));
+	}
+	for (const FSRecordedAction& Action : FillCandidates)
+	{
+		const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromClass(Action.AbilityClass);
+		if (!Spec || !Spec->Ability || !Spec->Ability->CanActivateAbility(Spec->Handle, ASC->AbilityActorInfo.Get())) continue;
+
+		// 그 기술을 쓴 몸으로 (쓸 수 있는 걸 확인한 뒤에 바꿔서 헛교체가 없게)
+		if (Boss->GetActiveSlot() != Action.Slot)
+		{
+			Boss->SwapTo(Action.Slot);
+		}
+		if (ASC->PressAbilityByClass(Action.AbilityClass))
+		{
+			UE_LOG(LogTemp, Display, TEXT("[거울 채우기] %s"), *GetNameSafe(Action.AbilityClass));
+			return;
+		}
 	}
 }
 

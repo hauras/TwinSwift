@@ -52,20 +52,18 @@ bool USAbilitySystemComponent::CanActivateAbilityByInputTag(const FGameplayTag& 
 	return false;
 }
 
-void USAbilitySystemComponent::PressAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass)
+bool USAbilitySystemComponent::PressAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass)
 {
-	if (!AbilityClass) return;
+	if (!AbilityClass) return false;
 
 	ABILITYLIST_SCOPE_LOCK();
-	if (FGameplayAbilitySpec* Spec = FindAbilitySpecFromClass(AbilityClass))
-	{
-		PressAbilitySpec(*Spec);
-	}
+	FGameplayAbilitySpec* Spec = FindAbilitySpecFromClass(AbilityClass);
+	return Spec && PressAbilitySpec(*Spec);
 }
 
-void USAbilitySystemComponent::PressAbilitySpec(FGameplayAbilitySpec& Spec)
+bool USAbilitySystemComponent::PressAbilitySpec(FGameplayAbilitySpec& Spec)
 {
-	if (!Spec.Ability) return;
+	if (!Spec.Ability) return false;
 
 	// 알림은 실제로 먹힌 누름만 (켜진 능력에 전달 / 발동 성공). 쿨다운 등으로 실패한 누름은 안 알림
 	// → 거울 보스가 "플레이어가 못 쓴 공격"을 따라 하지 않음
@@ -80,12 +78,17 @@ void USAbilitySystemComponent::PressAbilitySpec(FGameplayAbilitySpec& Spec)
 			const FPredictionKey PredictionKey = Instances.Last()->GetCurrentActivationInfoRef().GetActivationPredictionKey();
 			InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, Spec.Handle, PredictionKey);
 			OnAbilityPressed.Broadcast(Spec.Ability->GetClass());
+			return true;
 		}
+		return false;
 	}
-	else if (TryActivateAbility(Spec.Handle))
+
+	if (TryActivateAbility(Spec.Handle))
 	{
 		OnAbilityPressed.Broadcast(Spec.Ability->GetClass());
+		return true;
 	}
+	return false;
 }
 
 void USAbilitySystemComponent::AbilityInputTagPressed(const FGameplayTag& InputTag)
