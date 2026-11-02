@@ -57,6 +57,7 @@ void USTwinHUDWidget::BindToCharacter(APlayerCharacter* InCharacter)
 	SlotDownHandle = InCharacter->OnSlotDown.AddUObject(this, &ThisClass::OnSlotDown);
 	DefeatedHandle = InCharacter->OnDefeated.AddUObject(this, &ThisClass::OnDefeated);
 	PerfectEvadeHandle = InCharacter->OnPerfectEvade.AddUObject(this, &ThisClass::OnPerfectEvade);
+	ParriedHandle = InCharacter->OnParried.AddUObject(this, &ThisClass::OnParried);
 	OnPerfectEvade(false);
 	PlayerDamagedHandle = InCharacter->OnPlayerDamaged.AddUObject(this, &ThisClass::OnPlayerDamaged);
 	if (HitFlash)
@@ -93,6 +94,7 @@ void USTwinHUDWidget::Unbind()
 		Character->OnSlotDown.Remove(SlotDownHandle);
 		Character->OnDefeated.Remove(DefeatedHandle);
 		Character->OnPerfectEvade.Remove(PerfectEvadeHandle);
+		Character->OnParried.Remove(ParriedHandle);
 		Character->OnPlayerDamaged.Remove(PlayerDamagedHandle);
 	}
 	BoundCharacter.Reset();
@@ -100,6 +102,7 @@ void USTwinHUDWidget::Unbind()
 	SlotDownHandle.Reset();
 	DefeatedHandle.Reset();
 	PerfectEvadeHandle.Reset();
+	ParriedHandle.Reset();
 	PlayerDamagedHandle.Reset();
 }
 
@@ -257,8 +260,34 @@ void USTwinHUDWidget::OnPerfectEvade(bool bStarted)
 {
 	if (PerfectEvadeText)
 	{
+		// 반격과 같은 칸을 쓰므로 글자를 다시 넣음
+		if (bStarted)
+		{
+			PerfectEvadeText->SetText(FText::FromString(TEXT("완벽 회피!")));
+		}
 		PerfectEvadeText->SetVisibility(bStarted ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
+}
+
+void USTwinHUDWidget::OnParried()
+{
+	if (!PerfectEvadeText || !GetWorld()) return;
+
+	PerfectEvadeText->SetText(FText::FromString(TEXT("반격!")));
+	PerfectEvadeText->SetVisibility(ESlateVisibility::HitTestInvisible);
+
+	constexpr float ParryTextTime = 0.8f;
+	GetWorld()->GetTimerManager().SetTimer(
+		ParryTextTimer,
+		FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (PerfectEvadeText)
+			{
+				PerfectEvadeText->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}),
+		ParryTextTime,
+		false);
 }
 
 void USTwinHUDWidget::OnPlayerDamaged(float Damage)
@@ -324,13 +353,24 @@ namespace
         { TEXT("대검 콤보"), TEXT("InputTag.Attack"), TEXT("LMB"), TEXT("2타 콤보 · 배율 1.0 / 1.6"), TEXT("WarriorAttack") },
         { TEXT("돌진 베기"), TEXT("InputTag.Warrior.Skill1"), TEXT("1"), TEXT("커서 방향 6m · 경로 타격 1.8 · 쿨 6초"), TEXT("DashSlash") },
         { TEXT("내려찍기"), TEXT("InputTag.Warrior.Skill2"), TEXT("2"), TEXT("커서 위치 착지 · 반경 3m · 배율 2.2 · 균열 · 쿨 10초"), TEXT("GroundSlam") },
-        { TEXT("구르기"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("구르며 0.3초 동안 무적"), TEXT("Roll") }
+        { TEXT("구르기"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("구르며 0.3초 동안 무적"), TEXT("Roll") },
+        { TEXT("반격 자세"), TEXT("InputTag.Warrior.Parry"), TEXT("RMB"), TEXT("0.8초 자세 · 맞으면 피해 없음 + 반격 2.5 · 보스 큰 경직 · 쿨 6초"), TEXT("Parry") }
     };
     const FHUDSkill MageSkills[] = {
         { TEXT("화염탄"), TEXT("InputTag.Attack"), TEXT("LMB"), TEXT("커서를 향해 작은 화염탄 연사"), TEXT("MagicBolt") },
         { TEXT("냉기탄"), TEXT("InputTag.Mage.Skill1"), TEXT("3"), TEXT("냉기 투사체 · 빙결 표식 부여"), TEXT("FrostBolt") },
         { TEXT("낙뢰"), TEXT("InputTag.Mage.Skill2"), TEXT("4"), TEXT("커서 위치 범위 공격 · 균열 표식 폭발"), TEXT("Thunder") },
         { TEXT("순간이동"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("짧은 거리 순간이동"), TEXT("Blink") }
+    };
+
+    // 칸 수: 전사는 반격 자세까지 5칸, 마법사는 4칸 (남는 칸은 숨김)
+    constexpr int32 MaxSkillSlots = 5;
+    constexpr int32 WarriorSkillCount = UE_ARRAY_COUNT(WarriorSkills);
+    constexpr int32 MageSkillCount = UE_ARRAY_COUNT(MageSkills);
+
+    // 칸 하나를 이루는 위젯들 (Skill{i} + 이름)
+    const TCHAR* const SkillSlotParts[] = {
+        TEXT("Frame"), TEXT("Icon"), TEXT("Cooldown"), TEXT("State"), TEXT("KeyBG"), TEXT("Key"), TEXT("Name")
     };
 
     FGameplayTag HUDTag(const TCHAR* Name)
@@ -357,6 +397,7 @@ FString USTwinHUDWidget::GetInputKeyLabel(FGameplayTag Input, const FString& Fal
             if (Mapping.Action != Entry.InputAction) continue;
             const FName Key = Mapping.Key.GetFName();
             if (Key == TEXT("LeftMouseButton")) return TEXT("LMB");
+            if (Key == TEXT("RightMouseButton")) return TEXT("RMB");
             if (Key == TEXT("SpaceBar")) return TEXT("Space");
             if (Key == TEXT("One")) return TEXT("1");
             if (Key == TEXT("Two")) return TEXT("2");
@@ -377,10 +418,24 @@ void USTwinHUDWidget::RefreshSkillHUD()
     const FHUDSkill* Bench = bWarrior ? MageSkills : WarriorSkills;
     UAbilitySystemComponent* ASC = bWarrior ? WarriorBinding.ASC.Get() : MageBinding.ASC.Get();
     if (!ASC) return;
-    for (int32 Index = 0; Index < 4; ++Index)
+    const int32 ActiveCount = bWarrior ? WarriorSkillCount : MageSkillCount;
+    for (int32 Index = 0; Index < MaxSkillSlots; ++Index)
     {
-        const FHUDSkill& Skill = Active[Index];
         const FString Prefix = FString::Printf(TEXT("Skill%d"), Index);
+
+        // 이 캐릭터에 없는 칸은 숨김 (마법사 5번째 칸)
+        const bool bHasSlot = Index < ActiveCount;
+        // 다시 보일 때는 원래대로: 아이콘만 툴팁 때문에 Visible, 나머지는 마우스 통과
+        for (const TCHAR* Part : SkillSlotParts)
+        {
+            UWidget* Widget = GetWidgetFromName(FName(Prefix + Part));
+            if (!Widget) continue;
+            const bool bIcon = FCString::Strcmp(Part, TEXT("Icon")) == 0;
+            Widget->SetVisibility(!bHasSlot ? ESlateVisibility::Collapsed : bIcon ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
+        }
+        if (!bHasSlot) continue;
+
+        const FHUDSkill& Skill = Active[Index];
         const FGameplayTag Input = HUDTag(Skill.Input);
         SetHUDText(FName(Prefix + TEXT("Name")), Skill.Name);
         SetHUDText(FName(Prefix + TEXT("Key")), GetInputKeyLabel(Input, Skill.Key));

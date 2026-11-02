@@ -128,6 +128,17 @@ void ASMirrorBoss::BeginPlay()
 	Super::BeginPlay();
 
 	SwapTo(ETwinSlot::Warrior);
+
+	// 자기 알림이라 따로 풀지 않음 (같이 사라짐)
+	OnPhaseChanged.AddUObject(this, &ThisClass::HandlePhaseChanged);
+}
+
+void ASMirrorBoss::HandlePhaseChanged(int32 Phase)
+{
+	if (Phase == 2)
+	{
+		ReplayComponent->EnterPhaseTwo();
+	}
 }
 
 void ASMirrorBoss::Tick(float DeltaSeconds)
@@ -137,11 +148,21 @@ void ASMirrorBoss::Tick(float DeltaSeconds)
 	// 지금 플레이어 몸으로 때리면 막히는지 (화면만 보고 "지금 때려도 되나"를 알게)
 	const APlayerCharacter* Player = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerPawn(this, 0));
 	const bool bGuard = Player && IsGuardingAgainst(Player->GetActiveSlot());
-	if (bGuard == bGuardShown) return;
 
-	// 두 몸·칼 모두에 (숨긴 몸은 안 그려짐 → 막는 중에 교체해도 다시 켤 필요 없음)
-	bGuardShown = bGuard;
-	UMaterialInterface* Overlay = bGuard ? GuardOverlayMaterial.Get() : nullptr;
+	// 반전 예고가 먼저 (곧 공격이 몰려옴 → 방어 표시보다 중요)
+	UMaterialInterface* Overlay = nullptr;
+	if (ReplayComponent->IsReverseWarning())
+	{
+		Overlay = ReverseWarnOverlayMaterial;
+	}
+	else if (bGuard)
+	{
+		Overlay = GuardOverlayMaterial;
+	}
+	if (Overlay == ShownOverlay) return;
+
+	// 두 몸·칼 모두에 (숨긴 몸은 안 그려짐 → 켠 채로 교체해도 다시 켤 필요 없음)
+	ShownOverlay = Overlay;
 	GetMesh()->SetOverlayMaterial(Overlay);
 	MageMesh->SetOverlayMaterial(Overlay);
 	WeaponMesh->SetOverlayMaterial(Overlay);

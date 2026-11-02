@@ -19,6 +19,7 @@ ANIMS = [
     ("Great Sword High Spin Attack.fbx", "A_Knight_SpinAttack"),
     ("Great Sword Jump.fbx", "A_Knight_Jump"),
     ("Great Sword Casting.fbx", "A_Knight_Casting"),
+    ("Great Sword Blocking.fbx", "A_Knight_Block"),
 ]
 
 tasks = []

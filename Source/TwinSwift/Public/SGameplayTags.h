@@ -14,6 +14,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Attack);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Warrior_Skill1);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Warrior_Skill2);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Warrior_Parry);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Mage_Skill1);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Mage_Skill2);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(InputTag_Dodge);
@@ -45,6 +46,7 @@ namespace SGameplayTags
 	// ---------- 피격 이벤트 (서버 → 맞은 캐릭터의 능력에 신호) ----------
 	// 밀려남. EventMagnitude = 거리(cm), Instigator = 민 쪽
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Knockback);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Parry_Success);
 
 	// ---------- 표식 (확정 표식, 상대 캐릭터가 터뜨림) ----------
 	// 전사 → 마법사 낙뢰가 터뜨림
@@ -56,6 +58,7 @@ namespace SGameplayTags
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Attacking);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Invincible);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_PerfectWindow);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Parrying);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Stun);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(State_Dead);
 	// 큰 경직 (보스 갑옷 파괴 등). 작은 경직(State.Stun)과 달리 진행 중인 보스 공격을 취소
@@ -74,6 +77,7 @@ namespace SGameplayTags
 	// ---------- 쿨다운 (쿨다운 GE가 이 태그를 붙임) ----------
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Warrior_DashSlash);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Warrior_GroundSlam);
+	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Warrior_Parry);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_FireBolt);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_FrostBolt);
 	TWINSWIFT_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Cooldown_Mage_Thunder);

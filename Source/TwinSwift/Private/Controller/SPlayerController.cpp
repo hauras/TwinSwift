@@ -512,6 +512,26 @@ void ASPlayerController::DebugDamage(float Amount)
 	ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, FMath::Max(0.f, Health - Amount));
 }
 
+void ASPlayerController::DebugBossHealth(float Ratio)
+{
+	for (TActorIterator<ABossCharacter> It(GetWorld()); It; ++It)
+	{
+		UAbilitySystemComponent* ASC = It->GetAbilitySystemComponent();
+		if (!ASC || It->IsDead())
+		{
+			continue;
+		}
+
+		// DebugDamage와 같은 방식 (체력 변경 알림 → 2페이즈·사망 처리)
+		const float MaxHealth = ASC->GetNumericAttribute(USAttributeSet::GetMaxHealthAttribute());
+		const float NewHealth = MaxHealth * FMath::Clamp(Ratio, 0.f, 1.f);
+		ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, NewHealth);
+		UE_LOG(LogTemp, Display, TEXT("[디버그] %s 체력 %.0f / %.0f"), *It->GetName(), NewHealth, MaxHealth);
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[디버그] 살아 있는 보스가 없음"));
+}
+
 void ASPlayerController::BossPatternSim(int32 Count)
 {
 	for (TActorIterator<ABossCharacter> It(GetWorld()); It; ++It)

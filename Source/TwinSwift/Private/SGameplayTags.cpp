@@ -6,6 +6,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Attack, "InputTag.Attack", "기본 공격 (지금 키: 좌클릭)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Skill1, "InputTag.Warrior.Skill1", "전사 돌진 베기 (지금 키: 1)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Skill2, "InputTag.Warrior.Skill2", "전사 내려찍기 (지금 키: 2)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Parry, "InputTag.Warrior.Parry", "전사 반격 자세 (지금 키: 우클릭, 마법사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill1, "InputTag.Mage.Skill1", "마법사 냉기탄 (지금 키: 3, 전사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill2, "InputTag.Mage.Skill2", "마법사 낙뢰 (지금 키: 4, 전사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Dodge, "InputTag.Dodge", "회피 (지금 키: Space)");
@@ -34,6 +35,7 @@ namespace SGameplayTags
 
 	// 피격 이벤트
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Knockback, "Event.Knockback", "밀려남 (EventMagnitude = 거리 cm, Instigator = 민 쪽)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Parry_Success, "Event.Parry.Success", "반격 자세 중에 맞음 (Instigator = 때린 캐릭터). 피해는 버려짐");
 
 	// 표식
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Mark_Crack, "Mark.Crack", "균열: 전사가 걸고 마법사가 터뜨림");
@@ -43,6 +45,7 @@ namespace SGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Attacking, "State.Attacking", "공격 중 (이동 입력 막기)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Invincible, "State.Invincible", "무적 (회피, 타이밍 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_PerfectWindow, "State.PerfectWindow", "완벽 회피 판정 중 (교체·회피 직후 짧게). 이때 맞으면 데미지 없음 + 슬로");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Parrying, "State.Parrying", "반격 자세 판정 중. 이때 맞으면 피해 없음 + 반격");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Stun, "State.Stun", "경직·기절");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Dead, "State.Dead", "사망");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(State_Groggy, "State.Groggy", "큰 경직: 진행 중인 보스 공격 취소 (작은 경직 State.Stun은 공격 중 무시 = 슈퍼아머)");
@@ -61,6 +64,7 @@ namespace SGameplayTags
 	// 쿨다운
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Warrior_DashSlash, "Cooldown.Warrior.DashSlash", "돌진 베기 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Warrior_GroundSlam, "Cooldown.Warrior.GroundSlam", "내려찍기 쿨다운");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Warrior_Parry, "Cooldown.Warrior.Parry", "반격 자세 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_FireBolt, "Cooldown.Mage.FireBolt", "화염탄 발사 간격");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_FrostBolt, "Cooldown.Mage.FrostBolt", "냉기탄 쿨다운");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_Thunder, "Cooldown.Mage.Thunder", "낙뢰 쿨다운");

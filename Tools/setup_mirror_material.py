@@ -1,7 +1,8 @@
 # 거울 보스 재질 두 개
 # M_MirrorBody: 검은 유리(불투명, 금속성, 매끈) + 가장자리만 보라로 빛남(프레넬)
 #   반투명을 쓰지 않는 이유: 겹침 순서 꼬임·그리기 비용·나나이트 제약, 무엇보다 동작이 잘 안 보임 (동작을 읽는 보스)
-# M_MirrorGuard: 같은 몸 방어 중에 몸 위에 겹쳐 그림 (SetOverlayMaterial). 반투명 은백색 윤곽
+# M_MirrorGuard: 같은 몸 방어 중에 몸 위에 겹쳐 그림 (SetOverlayMaterial). 반투명 은백색 막
+# M_MirrorReverse: 2페이즈 거울 반전 예고 중에 겹쳐 그림. 진한 보라 빛
 # 둘 다 파라미터 없이 고정값만: 마법사 메시(Air_Wizard)가 파라미터가 하나라도 있는 재질을 원래 재질로 그림
 #   (PIE에서 확인: 고정값만 있는 재질은 마법사에 잘 입혀지고, 파라미터 하나만 넣어도 원래 하늘색. 기사 메시는 둘 다 됨)
 # 다시 실행해도 됨 (노드를 지우고 다시 만듦)
@@ -27,6 +28,14 @@ GUARD_EDGE_GLOW = 10.0
 GUARD_BASE_OPACITY = 0.55
 GUARD_EDGE_OPACITY = 0.45
 GUARD_EXPONENT = 1.5
+
+# 거울 반전 예고 겹침 (2페이즈): 진한 보라로 강하게 빛남 ("곧 내 기술이 거꾸로 몰려옴"). 방어(은백색)·평소(검정)와 다르게
+REVERSE_COLOR = unreal.LinearColor(0.6, 0.15, 1.0, 1.0)
+REVERSE_BASE_GLOW = 4.0
+REVERSE_EDGE_GLOW = 16.0
+REVERSE_BASE_OPACITY = 0.6
+REVERSE_EDGE_OPACITY = 0.4
+REVERSE_EXPONENT = 1.5
 
 eal = unreal.EditorAssetLibrary
 mel = unreal.MaterialEditingLibrary
@@ -81,7 +90,14 @@ def glass(node, scalar, color, multiply, fresnel):
     mel.connect_material_property(rim, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
 
 
-def guard(node, scalar, color, multiply, fresnel):
+def overlay(tint, base_glow, edge_glow, base_opacity, edge_opacity, exponent):
+    # 겹침 재질 공용 (방어·반전 예고): 색만 다르고 모양은 같음
+    def fill(node, scalar, color, multiply, fresnel):
+        shell(node, scalar, color, multiply, fresnel, tint, base_glow, edge_glow, base_opacity, edge_opacity, exponent)
+    return fill
+
+
+def shell(node, scalar, color, multiply, fresnel, tint, base_glow, edge_glow, base_opacity, edge_opacity, exponent):
     def add(a, b, x, y):
         n = node(unreal.MaterialExpressionAdd, x, y)
         mel.connect_material_expressions(a, "", n, "A")
@@ -89,10 +105,10 @@ def guard(node, scalar, color, multiply, fresnel):
         return n
 
     # 밝기 = 바탕 + 가장자리 × 세기 / 불투명도 = 바탕 + 가장자리 × 더할 값 (정면도 막이 보이게)
-    edge = fresnel(GUARD_EXPONENT, -900, 300)
-    strength = add(scalar(GUARD_BASE_GLOW, -900, 450), multiply(edge, scalar(GUARD_EDGE_GLOW, -900, 550), -650, 500), -450, 450)
-    mel.connect_material_property(multiply(color(GUARD_COLOR, -900, 100), strength, -250, 250), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    opacity = add(scalar(GUARD_BASE_OPACITY, -900, 700), multiply(edge, scalar(GUARD_EDGE_OPACITY, -900, 800), -650, 750), -450, 700)
+    edge = fresnel(exponent, -900, 300)
+    strength = add(scalar(base_glow, -900, 450), multiply(edge, scalar(edge_glow, -900, 550), -650, 500), -450, 450)
+    mel.connect_material_property(multiply(color(tint, -900, 100), strength, -250, 250), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    opacity = add(scalar(base_opacity, -900, 700), multiply(edge, scalar(edge_opacity, -900, 800), -650, 750), -450, 700)
     mel.connect_material_property(opacity, "", unreal.MaterialProperty.MP_OPACITY)
 
 
@@ -106,11 +122,16 @@ def run():
     mat.set_editor_property("used_with_skeletal_mesh", True)
     build(mat, glass)
 
-    mat = load_or_create("M_MirrorGuard")
-    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
-    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
-    mat.set_editor_property("used_with_skeletal_mesh", True)
-    build(mat, guard)
+    overlays = {
+        "M_MirrorGuard": overlay(GUARD_COLOR, GUARD_BASE_GLOW, GUARD_EDGE_GLOW, GUARD_BASE_OPACITY, GUARD_EDGE_OPACITY, GUARD_EXPONENT),
+        "M_MirrorReverse": overlay(REVERSE_COLOR, REVERSE_BASE_GLOW, REVERSE_EDGE_GLOW, REVERSE_BASE_OPACITY, REVERSE_EDGE_OPACITY, REVERSE_EXPONENT),
+    }
+    for name, fill in overlays.items():
+        mat = load_or_create(name)
+        mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+        mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+        mat.set_editor_property("used_with_skeletal_mesh", True)
+        build(mat, fill)
 
     print("MIRROR_MATERIAL_COMPLETE")
 

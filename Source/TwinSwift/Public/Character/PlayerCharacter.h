@@ -23,6 +23,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnSlotDown, ETwinSlot);
 // 둘 다 쓰러졌을 때 (패배)
 DECLARE_MULTICAST_DELEGATE(FOnDefeated);
 
+// 반격 자세로 막았을 때
+DECLARE_MULTICAST_DELEGATE(FOnParried);
+
 // 완벽 회피 슬로가 시작(true)·끝(false)될 때
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPerfectEvade, bool);
 
@@ -115,6 +118,9 @@ public:
 
 	// 완벽 회피 슬로 시작·끝 알림 (HUD가 글자 표시)
 	FOnPerfectEvade OnPerfectEvade;
+
+	// 반격 자세로 막음 알림 (HUD가 "반격!" 글자 표시)
+	FOnParried OnParried;
 
 	// 피해 알림 (HUD가 화면 가장자리 빨간 번쩍)
 	FOnPlayerDamaged OnPlayerDamaged;

@@ -1,5 +1,6 @@
 #include "Ability/SAttributeSet.h"
 
+#include "AbilitySystemComponent.h"
 #include "GameplayEffectExtension.h"
 #include "Controller/SPlayerController.h"
 #include "GameFramework/Pawn.h"
@@ -38,6 +39,19 @@ void USAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackD
 	{
 		const float Damage = GetIncomingDamage();
 		TargetASC.SetNumericAttributeBase(GetIncomingDamageAttribute(), 0.f);
+
+		// 반격 자세 중이면 피해를 버리고 그 능력에 알림 (때린 캐릭터를 실어서 → 반격 베기·보스 경직)
+		// 거울 보스도 같은 코드: 보스 자세 중에 플레이어가 때리면 보스가 받아침
+		if (TargetASC.HasMatchingGameplayTag(SGameplayTags::State_Parrying))
+		{
+			const UAbilitySystemComponent* SourceASC = Data.EffectSpec.GetContext().GetOriginalInstigatorAbilitySystemComponent();
+			FGameplayEventData Payload;
+			Payload.EventTag = SGameplayTags::Event_Parry_Success;
+			Payload.Instigator = SourceASC ? SourceASC->GetAvatarActor() : Data.EffectSpec.GetContext().GetEffectCauser();
+			Payload.Target = TargetASC.GetAvatarActor();
+			TargetASC.HandleGameplayEvent(Payload.EventTag, &Payload);
+			return;
+		}
 
 		// 무적(회피 중 등)이면 데미지를 버림. 그중 완벽 회피 판정 중이었으면 슬로 연출
 		if (TargetASC.HasMatchingGameplayTag(SGameplayTags::State_Invincible))

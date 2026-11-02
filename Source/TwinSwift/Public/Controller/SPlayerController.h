@@ -57,6 +57,11 @@ public:
 	UFUNCTION(Exec)
 	void DebugDamage(float Amount);
 
+	// [디버그] 살아 있는 보스 체력을 최대치의 Ratio로 (콘솔: DebugBossHealth 0.35). 2페이즈·처치 흐름 시험용
+	// 체력 변경 알림이 나가서 2페이즈 진입(PhaseTwoHealthRatio 아래)·사망이 실제 피격과 같이 동작
+	UFUNCTION(Exec)
+	void DebugBossHealth(float Ratio = 0.35f);
+
 	// [디버그] 맵의 모든 적에게 표식 10초 (콘솔: DebugMarkAll Crack / DebugMarkAll Frost). 연쇄 폭발·산산조각 시험용
 	UFUNCTION(Exec)
 	void DebugMarkAll(const FString& MarkName);

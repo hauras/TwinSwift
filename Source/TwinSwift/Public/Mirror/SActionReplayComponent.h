@@ -11,6 +11,7 @@
  * 이동: 지금 몸에 맞는 거리를 잡음 (전사는 붙고, 마법사는 거리 유지). 능력이 켜져 있으면 능력이 움직임을 맡음
  * 회피는 복사하지 않음: 그때의 위협에 대한 반응이라 지금 따라 하면 이유 없는 움직임이 됨 → 방어 컴포넌트가 스스로 판단
  * 채우기: 따라 할 행동이 IdleFillSeconds 동안 없으면(플레이어가 가만히 있으면) 기록에 남은 내 기술 하나를 바로 씀 → 가만히 서서 버티기를 막음
+ * 2페이즈: 지연을 줄이고, ReverseInterval마다 "거울 반전" = 예고(멈춰서 빛남) 뒤 최근 ReverseWindow초의 내 기술을 거꾸로 순서로
  */
 UCLASS(ClassGroup = (Mirror), meta = (BlueprintSpawnableComponent))
 class TWINSWIFT_API USActionReplayComponent : public UActorComponent
@@ -25,6 +26,12 @@ public:
 
 	// 멈춤 (전투 중지·큰 경직·사망)
 	void StopReplay();
+
+	// 2페이즈 시작 (거울 보스가 2페이즈 알림을 받으면 부름)
+	void EnterPhaseTwo();
+
+	// 거울 반전 예고 중인지 (거울 보스가 예고 겹침 재질을 켬)
+	bool IsReverseWarning() const { return ReverseState == EReverseState::Warning; }
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
@@ -49,7 +56,50 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Fill", meta = (ClampMin = "0.5"))
 	float IdleFillSeconds = 2.5f;
 
+	// 2페이즈 지연 (내 기술을 더 빨리 돌려줌)
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "0.1"))
+	float PhaseTwoDelay = 1.5f;
+
+	// 거울 반전 간격(초). 2페이즈에 들어가고 이만큼 뒤 첫 반전
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "1"))
+	float ReverseInterval = 15.f;
+
+	// 거울 반전이 거꾸로 쓸 구간 (지금부터 이만큼 전까지의 내 기술)
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "0.5"))
+	float ReverseWindow = 5.f;
+
+	// 거울 반전 예고 시간 (멈춰서 빛남 → 플레이어가 대비)
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "0"))
+	float ReverseWarnTime = 1.f;
+
 private:
+	enum class EReverseState : uint8
+	{
+		None,
+		Warning,
+		Playing,
+	};
+
+	// 거울 반전이 쓸 기술 하나 (거꾸로 놓은 순서, 원래 간격 그대로)
+	struct FReverseStep
+	{
+		TSubclassOf<UGameplayAbility> AbilityClass;
+		ETwinSlot Slot = ETwinSlot::Warrior;
+		double PlayAt = 0.0;
+	};
+
+	// 공격·시전·회피 중이거나 경직이면 바쁨 (채우기·반전은 한가할 때만 시작)
+	bool IsBusy() const;
+
+	// 거울 반전 진행 (기다림 → 예고 → 재생). 예고·재생 중이면 true → 따라 하기·채우기를 쉼
+	bool UpdateReverse(double Now);
+
+	// 최근 ReverseWindow초 기술을 거꾸로 놓음. 없으면 false
+	bool BuildReverseSteps(double Now);
+
+	// 기술 하나 쓰기: 몸이 다르면 먼저 바꿈. 먹혔으면 LastActionTime 갱신
+	bool PressAction(TSubclassOf<UGameplayAbility> AbilityClass, ETwinSlot Slot);
+
 	// 지금 몸에 맞는 거리를 잡음 (능력 사용·경직·사망 중에는 안 움직임). 거리 안이면 서서 플레이어를 봄
 	void UpdateMovement(float DeltaTime);
 
@@ -80,4 +130,16 @@ private:
 
 	// 꺼낸 행동을 담는 그릇 (매 틱 새로 만들지 않게 재사용)
 	TArray<FSRecordedAction> PendingActions;
+
+	bool bPhaseTwo = false;
+
+	EReverseState ReverseState = EReverseState::None;
+
+	// 다음 반전을 시작할 수 있는 시각 / 지금 상태가 시작된 시각
+	double NextReverseTime = 0.0;
+	double ReverseStateTime = 0.0;
+
+	// 반전 순서와 다음에 쓸 칸
+	TArray<FReverseStep> ReverseSteps;
+	int32 ReverseIndex = 0;
 };

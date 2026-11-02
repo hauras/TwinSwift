@@ -39,7 +39,7 @@ public:
 	// 공격·시전·회피 중이나 경직 중이면 어느 몸이든 빈틈
 	bool IsGuardingAgainst(ETwinSlot AttackerSlot) const;
 
-	// 방어 표시 갱신 (지금 플레이어 몸 기준으로 바뀔 때만 겹침 재질을 켜고 끔)
+	// 겹침 재질 갱신: 거울 반전 예고 > 같은 몸 방어 > 없음 (바뀔 때만 켜고 끔)
 	virtual void Tick(float DeltaSeconds) override;
 
 	// 겨냥 = 지금 플레이어 위치 (움직임은 기록을 따라 하지만 공격은 지금의 플레이어를 노림)
@@ -79,6 +79,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Mirror")
 	TObjectPtr<USActionReplayComponent> ReplayComponent;
 
+	// 거울 반전 예고 중에 겹쳐 그리는 재질 (M_MirrorReverse: 진한 보라 빛). 방어 표시보다 먼저
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2")
+	TObjectPtr<UMaterialInterface> ReverseWarnOverlayMaterial;
+
 	// 같은 몸 방어 중 받는 피해 배율
 	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Guard", meta = (ClampMin = "0", ClampMax = "1"))
 	float SameBodyDamageScale = 0.3f;
@@ -95,6 +99,10 @@ private:
 	// 방어 컴포넌트가 넣어 준 회피 방향
 	FVector ReplayMoveDirection = FVector::ZeroVector;
 
-	// 지금 켜져 있는 방어 표시 (바뀔 때만 겹침 재질을 바꿈)
-	bool bGuardShown = false;
+	// 2페이즈 알림 → 재생 컴포넌트에 전달
+	void HandlePhaseChanged(int32 Phase);
+
+	// 지금 켜져 있는 겹침 재질 (바뀔 때만 다시 넣음)
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> ShownOverlay;
 };

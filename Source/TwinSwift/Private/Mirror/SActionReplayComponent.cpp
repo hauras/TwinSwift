@@ -43,6 +43,24 @@ void USActionReplayComponent::StopReplay()
 {
 	bReplaying = false;
 	SetComponentTickEnabled(false);
+
+	// 큰 경직 등으로 멈추면 반전도 처음부터 (예고 빛남도 꺼짐). 다음 반전 시각은 그대로
+	ReverseState = EReverseState::None;
+	ReverseSteps.Reset();
+}
+
+void USActionReplayComponent::EnterPhaseTwo()
+{
+	if (bPhaseTwo) return;
+
+	bPhaseTwo = true;
+	const double Now = GetWorld()->GetTimeSeconds();
+	Delay = PhaseTwoDelay;
+
+	// 지연이 줄면 그 사이 기록이 한꺼번에 몰림 → 줄어든 구간은 건너뜀
+	LastReplayTime = FMath::Max(LastReplayTime, Now - Delay);
+	NextReverseTime = Now + ReverseInterval;
+	UE_LOG(LogTemp, Display, TEXT("[거울] 2페이즈: 지연 %.1f초, %.0f초마다 거울 반전"), Delay, ReverseInterval);
 }
 
 void USActionReplayComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -56,16 +74,126 @@ void USActionReplayComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
+	// 거울 반전 중이면 따라 하기·채우기는 쉼 (커서는 계속 나아가 끝난 뒤 몰아서 하지 않음)
+	const double Now = GetWorld()->GetTimeSeconds();
+	const bool bReversing = UpdateReverse(Now);
+
 	// 보스가 나오기 전 기록은 안 따라 함 (그동안은 이동만: 거리를 잡으며 다가옴)
-	const double ReplayTime = GetWorld()->GetTimeSeconds() - Delay;
-	if (ReplayTime >= FirstStartTime)
+	const double ReplayTime = Now - Delay;
+	if (ReplayTime >= FirstStartTime && !bReversing)
 	{
 		ReplayActions(LastReplayTime, ReplayTime);
-		TryFillIdle(GetWorld()->GetTimeSeconds());
+		TryFillIdle(Now);
 	}
 	LastReplayTime = ReplayTime;
 
-	if (!Boss->IsDefending()) UpdateMovement(DeltaTime);
+	// 예고 중에는 멈춰 섬 (빛나는 동안 "곧 온다"가 보이게)
+	if (!Boss->IsDefending() && !IsReverseWarning()) UpdateMovement(DeltaTime);
+}
+
+bool USActionReplayComponent::IsBusy() const
+{
+	const ASMirrorBoss* Boss = Cast<ASMirrorBoss>(GetOwner());
+	const UAbilitySystemComponent* ASC = Boss ? Boss->GetAbilitySystemComponent() : nullptr;
+	if (!ASC || Boss->IsDead() || Boss->IsDefending()) return true;
+
+	FGameplayTagContainer BusyTags;
+	BusyTags.AddTag(SGameplayTags::State_Stun);
+	BusyTags.AddTag(SGameplayTags::State_Groggy);
+	if (ASC->HasAnyMatchingGameplayTags(BusyTags)) return true;
+
+	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
+	{
+		if (Spec.IsActive()) return true;
+	}
+	return false;
+}
+
+bool USActionReplayComponent::UpdateReverse(double Now)
+{
+	if (!bPhaseTwo) return false;
+
+	switch (ReverseState)
+	{
+	case EReverseState::None:
+		// 때가 됐고 한가하면 예고 시작 (공격 중이면 끝날 때까지 기다림)
+		if (Now < NextReverseTime || IsBusy()) return false;
+		ReverseState = EReverseState::Warning;
+		ReverseStateTime = Now;
+		UE_LOG(LogTemp, Display, TEXT("[거울 반전] 예고"));
+		return true;
+
+	case EReverseState::Warning:
+		if (Now - ReverseStateTime < ReverseWarnTime) return true;
+		if (!BuildReverseSteps(Now))
+		{
+			// 거꾸로 쓸 기술이 없음 (플레이어가 최근에 기술을 안 씀) → 짧게 쉬고 다시
+			ReverseState = EReverseState::None;
+			NextReverseTime = Now + ReverseWindow;
+			return false;
+		}
+		ReverseState = EReverseState::Playing;
+		return true;
+
+	case EReverseState::Playing:
+		while (ReverseSteps.IsValidIndex(ReverseIndex) && ReverseSteps[ReverseIndex].PlayAt <= Now)
+		{
+			const FReverseStep& Step = ReverseSteps[ReverseIndex];
+			PressAction(Step.AbilityClass, Step.Slot);
+			UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d %s"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass));
+			++ReverseIndex;
+		}
+		if (ReverseSteps.IsValidIndex(ReverseIndex)) return true;
+
+		ReverseState = EReverseState::None;
+		NextReverseTime = Now + ReverseInterval;
+		return false;
+	}
+	return false;
+}
+
+bool USActionReplayComponent::BuildReverseSteps(double Now)
+{
+	USActionRecorderComponent* SourceRecorder = FindRecorder();
+	if (!SourceRecorder) return false;
+
+	SourceRecorder->GetActionsBetween(Now - ReverseWindow, Now, PendingActions);
+	PendingActions.RemoveAll([](const FSRecordedAction& Action)
+	{
+		return Action.Type != ERecordedActionType::Ability || !Action.AbilityClass || IsDodge(Action);
+	});
+	if (PendingActions.IsEmpty()) return false;
+
+	// 마지막 기술부터 거꾸로, 간격은 원래대로 (마지막에 쓴 것이 바로, 처음 쓴 것이 마지막에)
+	const double LastTime = PendingActions.Last().Time;
+	ReverseSteps.Reset();
+	for (int32 Index = PendingActions.Num() - 1; Index >= 0; --Index)
+	{
+		const FSRecordedAction& Action = PendingActions[Index];
+		FReverseStep& Step = ReverseSteps.AddDefaulted_GetRef();
+		Step.AbilityClass = Action.AbilityClass;
+		Step.Slot = Action.Slot;
+		Step.PlayAt = Now + (LastTime - Action.Time);
+	}
+	ReverseIndex = 0;
+	return true;
+}
+
+bool USActionReplayComponent::PressAction(TSubclassOf<UGameplayAbility> AbilityClass, ETwinSlot Slot)
+{
+	ASMirrorBoss* Boss = Cast<ASMirrorBoss>(GetOwner());
+	USAbilitySystemComponent* ASC = Boss ? Cast<USAbilitySystemComponent>(Boss->GetAbilitySystemComponent()) : nullptr;
+	if (!ASC || Boss->IsDead()) return false;
+
+	// 그 능력을 쓴 몸이 아니면 먼저 바꿈 (마법사 몸으로 칼을 휘두르지 않게)
+	if (Boss->GetActiveSlot() != Slot)
+	{
+		Boss->SwapTo(Slot);
+	}
+	if (!ASC->PressAbilityByClass(AbilityClass)) return false;
+
+	LastActionTime = GetWorld()->GetTimeSeconds();
+	return true;
 }
 
 void USActionReplayComponent::UpdateMovement(float DeltaTime)
@@ -148,16 +276,8 @@ void USActionReplayComponent::ReplayActions(double FromTime, double ToTime)
 
 		if (IsDodge(Action)) continue;
 
-		// 그 능력을 쓴 몸이 아니면 먼저 바꿈 (교체 기록을 건너뛰었어도 마법사 몸으로 칼을 휘두르지 않게)
-		if (Boss->GetActiveSlot() != Action.Slot)
-		{
-			Boss->SwapTo(Action.Slot);
-		}
-
-		if (ASC->PressAbilityByClass(Action.AbilityClass))
-		{
-			LastActionTime = GetWorld()->GetTimeSeconds();
-		}
+		// 교체 기록을 건너뛰었어도 그 능력을 쓴 몸으로
+		PressAction(Action.AbilityClass, Action.Slot);
 	}
 }
 
@@ -168,17 +288,9 @@ void USActionReplayComponent::TryFillIdle(double Now)
 	ASMirrorBoss* Boss = Cast<ASMirrorBoss>(GetOwner());
 	USActionRecorderComponent* SourceRecorder = FindRecorder();
 	USAbilitySystemComponent* ASC = Boss ? Cast<USAbilitySystemComponent>(Boss->GetAbilitySystemComponent()) : nullptr;
-	if (!Boss || !SourceRecorder || !ASC || Boss->IsDead() || Boss->IsDefending()) return;
 
 	// 한가할 때만 (공격·시전·경직 중이면 끝난 뒤에)
-	FGameplayTagContainer BusyTags;
-	BusyTags.AddTag(SGameplayTags::State_Stun);
-	BusyTags.AddTag(SGameplayTags::State_Groggy);
-	if (ASC->HasAnyMatchingGameplayTags(BusyTags)) return;
-	for (const FGameplayAbilitySpec& Spec : ASC->GetActivatableAbilities())
-	{
-		if (Spec.IsActive()) return;
-	}
+	if (!SourceRecorder || !ASC || IsBusy()) return;
 
 	// 기록에 남은 것 전부 (최근 64개) 중 기술만. 아직 따라 하지 않은 최근 것도 포함 ("거울이 배운 기술")
 	SourceRecorder->GetActionsBetween(0.0, Now, FillCandidates);
@@ -198,12 +310,8 @@ void USActionReplayComponent::TryFillIdle(double Now)
 		const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromClass(Action.AbilityClass);
 		if (!Spec || !Spec->Ability || !Spec->Ability->CanActivateAbility(Spec->Handle, ASC->AbilityActorInfo.Get())) continue;
 
-		// 그 기술을 쓴 몸으로 (쓸 수 있는 걸 확인한 뒤에 바꿔서 헛교체가 없게)
-		if (Boss->GetActiveSlot() != Action.Slot)
-		{
-			Boss->SwapTo(Action.Slot);
-		}
-		if (ASC->PressAbilityByClass(Action.AbilityClass))
+		// 쓸 수 있는 걸 확인한 뒤에 몸을 바꿔서 헛교체가 없게
+		if (PressAction(Action.AbilityClass, Action.Slot))
 		{
 			UE_LOG(LogTemp, Display, TEXT("[거울 채우기] %s"), *GetNameSafe(Action.AbilityClass));
 			return;
