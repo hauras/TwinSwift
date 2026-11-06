@@ -236,8 +236,9 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 		return false;
 	}
 
-	// 6. 무적이었는지 피해 전에 봐 둠
+	// 6. 무적·반격 자세였는지 피해 전에 봐 둠 (반격 자세는 맞는 순간 무적으로 바뀜)
 	const bool bInvincible = TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Invincible);
+	const bool bBlocked = USAbilityFunctionLibrary::IsHitBlocked(TargetASC);
 
 	// 7. 피해 GE: 무적이어도 넣음 → AttributeSet이 피해는 버리고 완벽 회피(슬로)는 판정
 	FGameplayEffectContextHandle Context = SourceASC->MakeEffectContext();
@@ -256,10 +257,10 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 	}
 
 	// 8. 밀어내기: 매니저는 신호만 보내고 미는 건 맞은 캐릭터의 능력(SGA_Knockback)이 함
-	// 무적이면 통과라 안 밂. 방금 피해로 쓰러졌을 수 있어 GE 뒤에 다시 확인
+	// 막혔으면 안 밂 (반격 자세로 막았는데 밀리면 밀려남 능력이 반격을 끊음). 방금 피해로 쓰러졌을 수 있어 GE 뒤에 다시 확인
 	// 잡아 둔 TargetASC에 직접 보냄 (액터로 보내면 "지금 ASC"를 새로 찾아서, 강제 교체 뒤면 다른 캐릭터가 밀림)
 	if (Bullet.KnockbackStrength > 0.f
-		&& !bInvincible
+		&& !bBlocked
 		&& !TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Dead))
 	{
 		FGameplayEventData Payload;
@@ -270,7 +271,7 @@ bool ASBulletManager::TryHit(FSBullet& Bullet, APawn* Target)
 		TargetASC->HandleGameplayEvent(SGameplayTags::Event_Knockback, &Payload);
 	}
 
-	// 9. 무적이면 탄 통과 (교체 무적으로 탄 벽을 뚫음), 아니면 몸에 맞고 사라짐
+	// 9. 무적이면 탄 통과 (교체 무적으로 탄 벽을 뚫음), 아니면 몸에 맞고 사라짐 (반격 자세로 막은 탄도 사라짐)
 	return !bInvincible;
 }
 

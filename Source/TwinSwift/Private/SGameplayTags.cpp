@@ -2,11 +2,12 @@
 
 namespace SGameplayTags
 {
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_SecondaryAttack, "InputTag.SecondaryAttack", "현재 캐릭터 우클릭 기술 (교체 없음)");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Cooldown_Mage_ArcaneOrb, "Cooldown.Mage.ArcaneOrb", "마력 구체 설치 쿨다운");
 	// 입력
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Attack, "InputTag.Attack", "기본 공격 (지금 키: 좌클릭)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Skill1, "InputTag.Warrior.Skill1", "전사 돌진 베기 (지금 키: 1)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Skill2, "InputTag.Warrior.Skill2", "전사 내려찍기 (지금 키: 2)");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Warrior_Parry, "InputTag.Warrior.Parry", "전사 반격 자세 (지금 키: 우클릭, 마법사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill1, "InputTag.Mage.Skill1", "마법사 냉기탄 (지금 키: 3, 전사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Mage_Skill2, "InputTag.Mage.Skill2", "마법사 낙뢰 (지금 키: 4, 전사일 때 누르면 교체)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(InputTag_Dodge, "InputTag.Dodge", "회피 (지금 키: Space)");

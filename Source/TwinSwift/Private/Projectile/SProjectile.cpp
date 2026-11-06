@@ -3,6 +3,7 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "Ability/SAbilityFunctionLibrary.h"
+#include "Ability/SGE_Damage.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
@@ -270,12 +271,16 @@ void ASProjectile::ApplySpecsTo(AActor* Target) const
 	{
 		return;
 	}
+	// 막혔으면(무적·반격 자세) 피해 GE만 보냄 (반격 성공·완벽 회피 판정용). 표식 같은 나머지는 안 붙임
+	const bool bBlocked = USAbilityFunctionLibrary::IsHitBlocked(TargetASC);
 	for (const FGameplayEffectSpecHandle& Spec : Specs)
 	{
-		if (Spec.IsValid())
-		{
-			SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
-		}
+		if (!Spec.IsValid()) continue;
+
+		const bool bDamage = Spec.Data->Def && Spec.Data->Def->IsA<USGE_Damage>();
+		if (bBlocked && !bDamage) continue;
+
+		SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
 	}
 }
 

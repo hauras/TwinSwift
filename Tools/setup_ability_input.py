@@ -10,7 +10,7 @@ KEYS = [
     ("IA_Attack", "LeftMouseButton", "InputTag.Attack"),
     ("IA_Warrior_Skill1", "One", "InputTag.Warrior.Skill1"),
     ("IA_Warrior_Skill2", "Two", "InputTag.Warrior.Skill2"),
-    ("IA_Warrior_Parry", "RightMouseButton", "InputTag.Warrior.Parry"),
+    ("IA_Warrior_Parry", "RightMouseButton", "InputTag.SecondaryAttack"),
     ("IA_Mage_Skill1", "Three", "InputTag.Mage.Skill1"),
     ("IA_Mage_Skill2", "Four", "InputTag.Mage.Skill2"),
     ("IA_Dodge", "SpaceBar", "InputTag.Dodge"),

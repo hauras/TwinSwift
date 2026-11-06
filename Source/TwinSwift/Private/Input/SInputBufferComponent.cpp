@@ -84,6 +84,15 @@ FGameplayTag USInputBufferComponent::GetRequiredWindow(const FGameplayTag& Input
 	{
 		return SGameplayTags::Window_Swap;
 	}
+	else if (InputTag == SGameplayTags::InputTag_SecondaryAttack)
+	{
+		// 우클릭은 지금 캐릭터 기술 (교체 없음)
+		// 전사 반격은 반응 기술이라 바로 시도 (콤보를 스스로 끊음), 마법사 구체는 다른 스킬처럼 스킬 창을 기다림
+		const APlayerController* Controller = Cast<APlayerController>(GetOwner());
+		const APlayerCharacter* PlayerCharacter = Controller ? Controller->GetPawn<APlayerCharacter>() : nullptr;
+		const bool bWarriorNow = !PlayerCharacter || PlayerCharacter->GetActiveSlot() == ETwinSlot::Warrior;
+		return bWarriorNow ? FGameplayTag() : SGameplayTags::Window_Skill;
+	}
 	const bool bWarriorSkill = InputTag == SGameplayTags::InputTag_Warrior_Skill1 || InputTag == SGameplayTags::InputTag_Warrior_Skill2;
 	const bool bMageSkill = InputTag == SGameplayTags::InputTag_Mage_Skill1 || InputTag == SGameplayTags::InputTag_Mage_Skill2;
 

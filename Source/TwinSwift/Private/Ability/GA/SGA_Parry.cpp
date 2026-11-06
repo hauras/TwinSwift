@@ -15,7 +15,7 @@
 
 USGA_Parry::USGA_Parry()
 {
-	InputTag = SGameplayTags::InputTag_Warrior_Parry;
+	InputTag = SGameplayTags::InputTag_SecondaryAttack;
 
 	// 자세·반격 동안 이동 입력을 막음 (서서 받아침)
 	ActivationOwnedTags.AddTag(SGameplayTags::State_Attacking);
@@ -222,8 +222,18 @@ void USGA_Parry::OnCounterHit(FGameplayEventData Payload)
 
 void USGA_Parry::CounterAttack(AActor* Target)
 {
-	// 막은 뒤 칼이 지나가기까지 시간이 있음 → 때리는 순간 다시 확인 (ApplyDamageTo가 쓰러졌는지·같은 편인지 봄)
-	if (!IsValid(Target) || !ApplyDamageTo(Target, CounterMultiplier)) return;
+	// 막은 뒤 칼이 지나가기까지 시간이 있음 → 때리는 순간 다시 확인 (거리는 여기서, 쓰러졌는지·같은 편인지는 ApplyDamageTo가)
+	const AActor* Avatar = GetAvatarActorFromActorInfo();
+	if (!IsValid(Target) || !Avatar) return;
+
+	const float Distance = FVector::Dist2D(Avatar->GetActorLocation(), Target->GetActorLocation());
+	if (Distance > CounterRange * CounterHitRangeScale)
+	{
+		UE_LOG(LogTemp, Display, TEXT("[반격] %s: 빗나감 (베는 순간 %.0fcm, 닿는 거리 %.0fcm)"), *GetNameSafe(Target), Distance, CounterRange * CounterHitRangeScale);
+		return;
+	}
+	// 막혔으면(거울 보스의 반격 자세·회피) false → 큰 경직도 없음
+	if (!ApplyDamageTo(Target, CounterMultiplier)) return;
 
 	// 피해로 쓰러졌을 수 있음 → 보스 쪽에서 사망·갑옷을 다시 봄
 	if (ABossCharacter* Boss = Cast<ABossCharacter>(Target))

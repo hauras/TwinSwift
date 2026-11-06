@@ -314,6 +314,8 @@ void ABossCharacter::Die()
 	// 쓰러진 몸이 길을 막지 않게 캐릭터끼리 충돌 끔 (바닥과는 그대로 → 떨어지지 않음)
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 
+	PrepareDownMontage();
+
 	// 큰 경직에서 사망 몽타주를 멈춰 둔 상태면 거기서 이어서 쓰러짐 (처음부터 다시 재생하면 일어났다 다시 쓰러짐)
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 	if (DeathMontage && AnimInstance && AnimInstance->Montage_IsActive(DeathMontage))
@@ -544,6 +546,7 @@ void ABossCharacter::BeginGroggy(float Duration)
 
 	// 걸어 다니지 않게 행동 트리를 멈추고, 태그 알림(OnGroggyTagChanged)이 진행 중인 보스 공격(충전)을 취소
 	StopAI();
+	PrepareDownMontage();
 	ASC->AddLooseGameplayTag(SGameplayTags::State_Groggy);
 
 	if (UAnimMontage* Montage = GetGroggyMontage())

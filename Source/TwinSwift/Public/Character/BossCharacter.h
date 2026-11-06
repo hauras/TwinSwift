@@ -108,6 +108,10 @@ protected:
 	virtual void StopAI();
 	virtual void ResumeAI();
 
+	// 큰 경직·사망 몽타주를 틀기 직전 (몽타주는 GetMesh()에서 나옴). 기본은 할 일 없음
+	// 거울 보스: 보스 태그 없는 플레이어 능력까지 끊고 기사 몸으로 돌아옴
+	virtual void PrepareDownMontage() {}
+
 	UPROPERTY(EditDefaultsOnly, Category = "Boss|GAS")
 	TArray<TSubclassOf<UGameplayAbility>> StartupAbilities;
 

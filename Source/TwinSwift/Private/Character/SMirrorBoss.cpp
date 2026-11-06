@@ -122,6 +122,19 @@ void ASMirrorBoss::ResumeAI()
 	ReplayComponent->StartReplay();
 }
 
+void ASMirrorBoss::PrepareDownMontage()
+{
+	// 부모의 큰 경직은 Ability.Boss 태그 능력만 끊음 → 거울이 쓰는 플레이어 능력은 태그가 없어서 여기서 전부 끊음
+	// (이미 기사 몸이면 SwapTo가 아무것도 안 하므로 따로 부름)
+	if (AbilitySystemComponent)
+	{
+		AbilitySystemComponent->CancelAllAbilities();
+	}
+
+	// 경직·사망 몽타주는 기사 몸(GetMesh())에서 나옴 → 마법사 몸이면 안 보이므로 기사 몸으로
+	SwapTo(ETwinSlot::Warrior);
+}
+
 void ASMirrorBoss::BeginPlay()
 {
 	// 부모(EnemyCharacter)가 여기서 AbilityActorInfo를 만듦 → 그 뒤에 몸을 맞춰야 몽타주 메시도 바뀜

@@ -168,10 +168,17 @@ private:
 	void OnPerfectEvade(bool bStarted);
 	FDelegateHandle PerfectEvadeHandle;
 
-	// 반격 자세로 막음 → "반격!" (완벽 회피와 같은 글자 칸, ParryTextTime초 뒤 숨김)
+	// 반격 자세로 막음 → "반격!" (완벽 회피와 같은 글자 칸)
 	void OnParried();
 	FDelegateHandle ParriedHandle;
-	FTimerHandle ParryTextTimer;
+
+	// 알림 글자 칸(완벽 회피·반격 공용): 새 글자가 이전 글자의 타이머에 지워지지 않게 문구·타이머를 여기서만
+	// Duration > 0이면 그 시간 뒤 숨김, 0이면 HideNotice까지
+	void ShowNotice(const FText& Text, float Duration);
+
+	// 지금 보이는 글자가 Text일 때만 숨김 (다른 알림이 덮어썼으면 그대로)
+	void HideNotice(const FText& Text);
+	FTimerHandle NoticeTimer;
 
 	// 맞음 → 빨간 번쩍 시작 / 짧은 타이머로 투명도를 줄여 감
 	void OnPlayerDamaged(float Damage);

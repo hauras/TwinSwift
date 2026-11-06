@@ -42,14 +42,28 @@ bool USAbilitySystemComponent::CanActivateAbilityByInputTag(const FGameplayTag& 
 
 	for (const FGameplayAbilitySpec& AbilitySpec : GetActivatableAbilities())
 	{
-		if (AbilitySpec.Ability
-			&& AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(InputTag)
-			&& AbilitySpec.Ability->CanActivateAbility(AbilitySpec.Handle, AbilityActorInfo.Get()))
+		if (AbilitySpec.GetDynamicSpecSourceTags().HasTagExact(InputTag) && CanActivateSpec(AbilitySpec))
 		{
 			return true;
 		}
 	}
 	return false;
+}
+
+bool USAbilitySystemComponent::CanActivateAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass) const
+{
+	const FGameplayAbilitySpec* Spec = AbilityClass ? FindAbilitySpecFromClass(AbilityClass) : nullptr;
+	return Spec && CanActivateSpec(*Spec);
+}
+
+bool USAbilitySystemComponent::CanActivateSpec(const FGameplayAbilitySpec& Spec) const
+{
+	const UGameplayAbility* Ability = Spec.GetPrimaryInstance();
+	if (!Ability)
+	{
+		Ability = Spec.Ability;
+	}
+	return Ability && Ability->CanActivateAbility(Spec.Handle, AbilityActorInfo.Get());
 }
 
 bool USAbilitySystemComponent::PressAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass)

@@ -238,9 +238,10 @@ void USGA_BossAttack::DoHit()
 		}
 
 		// 맞는 캐릭터의 ASC를 피해 전에 잡아 둠: 이 피해로 쓰러지면 피해 처리 안에서 강제 교체돼 "지금 ASC"가 바뀜
-		// 무적 여부도 피해 전에 봐 둠 (피해는 무적이어도 GE가 들어가서 AttributeSet이 버림 → 결과로는 구분 못 함)
+		// 막힘(무적·반격 자세)도 피해 전에 봐 둠 (피해는 막혀도 GE가 들어가서 AttributeSet이 버림 → 결과로는 구분 못 함)
+		// 반격 자세는 맞는 순간 무적으로 바뀌므로 무적만 보면 반격에 성공하고도 경직에 걸림
 		UAbilitySystemComponent* TargetASC = UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(Target);
-		const bool bDodged = TargetASC && TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Invincible);
+		const bool bDodged = USAbilityFunctionLibrary::IsHitBlocked(TargetASC);
 
 		// 플레이어 공격과 같은 경로 → AttributeSet에서 무적·완벽 회피 판정을 거침
 		const bool bDamaged = ApplyDamageTo(Target, DamageMultiplier);

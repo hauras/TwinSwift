@@ -258,36 +258,51 @@ void USTwinHUDWidget::OnDefeated()
 
 void USTwinHUDWidget::OnPerfectEvade(bool bStarted)
 {
-	if (PerfectEvadeText)
+	// 슬로가 끝날 때 숨김 (그 사이 반격 글자가 덮었으면 반격 글자는 그대로)
+	const FText Text = FText::FromString(TEXT("완벽 회피!"));
+	if (bStarted)
 	{
-		// 반격과 같은 칸을 쓰므로 글자를 다시 넣음
-		if (bStarted)
-		{
-			PerfectEvadeText->SetText(FText::FromString(TEXT("완벽 회피!")));
-		}
-		PerfectEvadeText->SetVisibility(bStarted ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		ShowNotice(Text, 0.f);
+	}
+	else
+	{
+		HideNotice(Text);
 	}
 }
 
 void USTwinHUDWidget::OnParried()
 {
+	constexpr float ParryTextTime = 0.8f;
+	ShowNotice(FText::FromString(TEXT("반격!")), ParryTextTime);
+}
+
+void USTwinHUDWidget::ShowNotice(const FText& Text, float Duration)
+{
 	if (!PerfectEvadeText || !GetWorld()) return;
 
-	PerfectEvadeText->SetText(FText::FromString(TEXT("반격!")));
+	// 이전 알림의 숨김 타이머는 버림 (새 글자를 지우지 않게)
+	GetWorld()->GetTimerManager().ClearTimer(NoticeTimer);
+	PerfectEvadeText->SetText(Text);
 	PerfectEvadeText->SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	constexpr float ParryTextTime = 0.8f;
-	GetWorld()->GetTimerManager().SetTimer(
-		ParryTextTimer,
-		FTimerDelegate::CreateWeakLambda(this, [this]()
-		{
-			if (PerfectEvadeText)
+	if (Duration > 0.f)
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			NoticeTimer,
+			FTimerDelegate::CreateWeakLambda(this, [this, Text]()
 			{
-				PerfectEvadeText->SetVisibility(ESlateVisibility::Collapsed);
-			}
-		}),
-		ParryTextTime,
-		false);
+				HideNotice(Text);
+			}),
+			Duration,
+			false);
+	}
+}
+
+void USTwinHUDWidget::HideNotice(const FText& Text)
+{
+	if (!PerfectEvadeText || !PerfectEvadeText->GetText().EqualTo(Text)) return;
+
+	PerfectEvadeText->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void USTwinHUDWidget::OnPlayerDamaged(float Damage)
@@ -354,16 +369,17 @@ namespace
         { TEXT("돌진 베기"), TEXT("InputTag.Warrior.Skill1"), TEXT("1"), TEXT("커서 방향 6m · 경로 타격 1.8 · 쿨 6초"), TEXT("DashSlash") },
         { TEXT("내려찍기"), TEXT("InputTag.Warrior.Skill2"), TEXT("2"), TEXT("커서 위치 착지 · 반경 3m · 배율 2.2 · 균열 · 쿨 10초"), TEXT("GroundSlam") },
         { TEXT("구르기"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("구르며 0.3초 동안 무적"), TEXT("Roll") },
-        { TEXT("반격 자세"), TEXT("InputTag.Warrior.Parry"), TEXT("RMB"), TEXT("0.8초 자세 · 맞으면 피해 없음 + 반격 2.5 · 보스 큰 경직 · 쿨 6초"), TEXT("Parry") }
+        { TEXT("반격 자세"), TEXT("InputTag.SecondaryAttack"), TEXT("RMB"), TEXT("0.8초 자세 · 맞으면 피해 없음 + 반격 2.5 · 보스 큰 경직 · 쿨 6초"), TEXT("Parry") }
     };
     const FHUDSkill MageSkills[] = {
         { TEXT("화염탄"), TEXT("InputTag.Attack"), TEXT("LMB"), TEXT("커서를 향해 작은 화염탄 연사"), TEXT("MagicBolt") },
         { TEXT("냉기탄"), TEXT("InputTag.Mage.Skill1"), TEXT("3"), TEXT("냉기 투사체 · 빙결 표식 부여"), TEXT("FrostBolt") },
         { TEXT("낙뢰"), TEXT("InputTag.Mage.Skill2"), TEXT("4"), TEXT("커서 위치 범위 공격 · 균열 표식 폭발"), TEXT("Thunder") },
-        { TEXT("순간이동"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("짧은 거리 순간이동"), TEXT("Blink") }
+        { TEXT("순간이동"), TEXT("InputTag.Dodge"), TEXT("Space"), TEXT("짧은 거리 순간이동"), TEXT("Blink") },
+        { TEXT("마력 구체"), TEXT("InputTag.SecondaryAttack"), TEXT("RMB"), TEXT("설치 후 재입력 폭발 · 1초 충전 · 4초 자동 폭발 · 쿨 6초"), TEXT("ArcaneOrb") }
     };
 
-    // 칸 수: 전사는 반격 자세까지 5칸, 마법사는 4칸 (남는 칸은 숨김)
+    // 전사·마법사 모두 우클릭 기술까지 5칸
     constexpr int32 MaxSkillSlots = 5;
     constexpr int32 WarriorSkillCount = UE_ARRAY_COUNT(WarriorSkills);
     constexpr int32 MageSkillCount = UE_ARRAY_COUNT(MageSkills);

@@ -5,6 +5,11 @@
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 #include "NiagaraDataInterfaceColorCurve.h"
+#include "NiagaraDecalRendererProperties.h"
+#include "NiagaraMeshRendererProperties.h"
+#include "NiagaraRibbonRendererProperties.h"
+#include "NiagaraSpriteRendererProperties.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/UObjectHash.h"
 #endif
 
@@ -234,6 +239,138 @@ FString UTSWeaponTrailLibrary::SetEmittersLocalSpace(UObject* SystemAsset, const
             ++Edits;
         }
         Report += TEXT("\n");
+    }
+
+    if (bApply && Edits > 0)
+    {
+        System->RequestCompile(false);
+        System->WaitForCompilationComplete(true, false);
+        System->MarkPackageDirty();
+    }
+    return Report + FString::Printf(TEXT("VALID=%d EDITS=%d"), System->IsValid(), Edits);
+#else
+    return TEXT("ERROR: Editor only");
+#endif
+}
+
+FString UTSWeaponTrailLibrary::PrepareOrbEffect(UObject* SystemAsset, const TArray<FString>& KeepNames, float LifetimeCap)
+{
+#if WITH_EDITOR
+    UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset);
+    if (!System || LifetimeCap <= 0.f) return TEXT("ERROR: Invalid system or lifetime");
+    System->Modify();
+    int32 Enabled = 0;
+    for (FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+    {
+        const bool bKeep = KeepNames.Contains(Handle.GetName().ToString());
+        Handle.SetIsEnabled(bKeep, *System, false);
+        if (!bKeep) continue;
+        ++Enabled;
+        auto* Data = Handle.GetInstance().GetEmitterData();
+        if (!Data) continue;
+        TArray<UNiagaraScript*> Scripts;
+        Data->GetScripts(Scripts, false);
+        for (UNiagaraScript* Script : Scripts)
+        {
+            if (!Script) continue;
+            TArray<FNiagaraVariable> Variables;
+            Script->RapidIterationParameters.GetParameters(Variables);
+            for (const FNiagaraVariable& Variable : Variables)
+            {
+                if (Variable.GetType() != FNiagaraTypeDefinition::GetFloatDef()
+                    || !Variable.GetName().ToString().Contains(TEXT("Lifetime"))) continue;
+                const float Value = Script->RapidIterationParameters.GetParameterValue<float>(Variable);
+                if (Value > LifetimeCap)
+                {
+                    Script->Modify();
+                    Script->RapidIterationParameters.SetParameterValue<float>(LifetimeCap, Variable);
+                }
+            }
+        }
+    }
+    System->RequestCompile(false);
+    System->WaitForCompilationComplete(true, false);
+    System->MarkPackageDirty();
+    return FString::Printf(TEXT("VALID=%d ENABLED=%d"), System->IsValid(), Enabled);
+#else
+    return TEXT("ERROR: Editor only");
+#endif
+}
+
+// 렌더러 종류마다 재질 칸이 다름: 스프라이트·리본·데칼은 Material 하나, 메시는 덮어쓰기 목록(OverrideMaterials)
+// 메시가 덮어쓰기를 안 쓰면 메시 자체 재질이라 시스템에서는 못 바꿈 → 목록에 "(메시 자체 재질)"로만 표시
+FString UTSWeaponTrailLibrary::ReplaceSystemMaterials(
+    UObject* SystemAsset,
+    const TArray<UMaterialInterface*>& From,
+    const TArray<UMaterialInterface*>& To,
+    bool bApply)
+{
+#if WITH_EDITOR
+    auto* System = Cast<UNiagaraSystem>(SystemAsset);
+    if (!System) return TEXT("ERROR: Missing Niagara system");
+    if (From.Num() != To.Num()) return TEXT("ERROR: From/To count mismatch");
+    if (bApply) System->Modify();
+
+    FString Report;
+    int32 Edits = 0;
+
+    // 재질 칸 하나를 보고, 바꿀 대상이면 바꿈. 바꿨으면 true
+    auto SwapSlot = [&](UObject* Renderer, const FString& Label, TObjectPtr<UMaterialInterface>& Slot)
+    {
+        Report += FString::Printf(TEXT("MAT %s = %s"), *Label, Slot ? *Slot->GetName() : TEXT("None"));
+        const int32 Index = From.IndexOfByKey(Slot.Get());
+        if (bApply && Index != INDEX_NONE && To[Index])
+        {
+            Renderer->Modify();
+            Slot = To[Index];
+            Report += TEXT(" -> ") + Slot->GetName();
+            ++Edits;
+        }
+        Report += TEXT("\n");
+    };
+
+    for (auto& Handle : System->GetEmitterHandles())
+    {
+        auto* Data = Handle.GetInstance().GetEmitterData();
+        if (!Data) continue;
+
+        const FString EmitterName = Handle.GetName().ToString();
+        for (UNiagaraRendererProperties* Renderer : Data->GetRenderers())
+        {
+            if (!Renderer) continue;
+
+            const int32 EditsBefore = Edits;
+            const FString Label = EmitterName + TEXT("/") + Renderer->GetClass()->GetName();
+            if (auto* Sprite = Cast<UNiagaraSpriteRendererProperties>(Renderer))
+            {
+                SwapSlot(Renderer, Label, Sprite->Material);
+            }
+            else if (auto* Ribbon = Cast<UNiagaraRibbonRendererProperties>(Renderer))
+            {
+                SwapSlot(Renderer, Label, Ribbon->Material);
+            }
+            else if (auto* Decal = Cast<UNiagaraDecalRendererProperties>(Renderer))
+            {
+                SwapSlot(Renderer, Label, Decal->Material);
+            }
+            else if (auto* Mesh = Cast<UNiagaraMeshRendererProperties>(Renderer))
+            {
+                if (!Mesh->bOverrideMaterials)
+                {
+                    Report += FString::Printf(TEXT("MAT %s = (메시 자체 재질)\n"), *Label);
+                }
+                for (FNiagaraMeshMaterialOverride& Override : Mesh->OverrideMaterials)
+                {
+                    SwapSlot(Renderer, Label, Override.ExplicitMat);
+                }
+            }
+
+            // 바꾼 렌더러는 편집 알림 → 렌더러가 재질 캐시를 다시 만듦
+            if (Edits != EditsBefore)
+            {
+                Renderer->PostEditChange();
+            }
+        }
     }
 
     if (bApply && Edits > 0)

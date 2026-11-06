@@ -36,6 +36,13 @@ bool USAbilityFunctionLibrary::IsTargetable(const AActor* Source, const AActor* 
 	return !TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Dead);
 }
 
+bool USAbilityFunctionLibrary::IsHitBlocked(const UAbilitySystemComponent* TargetASC)
+{
+	return TargetASC
+		&& (TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Invincible)
+			|| TargetASC->HasMatchingGameplayTag(SGameplayTags::State_Parrying));
+}
+
 void USAbilityFunctionLibrary::SpawnOneShotEffect(
 	const UObject* WorldContext,
 	UNiagaraSystem* Effect,

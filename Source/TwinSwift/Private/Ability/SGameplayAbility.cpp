@@ -88,7 +88,15 @@ bool USGameplayAbility::ApplyDamageTo(
 	{
 		Spec.Data->AddDynamicAssetTag(DamageTypeTag);
 	}
+
+	// 막힘은 피해 전에 봄: 반격 자세는 맞는 순간(피해 처리 안에서) 무적으로 바뀌어 뒤에 보면 구분이 안 됨
+	// 막혀도 GE는 보냄 → AttributeSet이 피해는 버리고 반격 성공·완벽 회피를 판정
+	const bool bBlocked = USAbilityFunctionLibrary::IsHitBlocked(TargetASC);
 	SourceASC->ApplyGameplayEffectSpecToTarget(*Spec.Data.Get(), TargetASC);
+	if (bBlocked)
+	{
+		return false;
+	}
 
 	// 전사 능력이면 [빙결] 산산조각 (일반 피해 숫자 다음에 추가 피해 숫자)
 	const bool bShattered = TryShatterFrost(Target, TargetASC);

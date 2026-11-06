@@ -55,6 +55,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Parry", meta = (ClampMin = "0"))
 	float CounterRange = 400.f;
 
+	// 칼이 지나가는 순간 거리 여유 (막을 때 거리 × 이 값까지 맞음). 막은 뒤 상대가 조금 움직여도 빗나가지 않게, 멀리 간 상대는 안 맞게
+	// 방향은 안 봄 (회전 베기라 360도)
+	UPROPERTY(EditDefaultsOnly, Category = "Parry", meta = (ClampMin = "1"))
+	float CounterHitRangeScale = 1.25f;
+
 	// 막은 순간 이펙트 (몸과 때린 쪽 사이, 가슴 높이)
 	UPROPERTY(EditDefaultsOnly, Category = "Parry|Feedback")
 	TObjectPtr<UNiagaraSystem> ParryEffect;

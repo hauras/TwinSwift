@@ -67,7 +67,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Damage|Shatter")
 	TObjectPtr<UNiagaraSystem> ShatterEffect;
 
-	// 대상 하나에 배율 데미지. 같은 편이거나 ASC가 없으면 무시. 데미지를 줬으면 true
+	// 대상 하나에 배율 데미지. 같은 편이거나 ASC가 없으면 무시. 피해가 실제로 들어갔으면 true
+	// 무적·반격 자세로 막히면 false: 피해 GE는 그대로 보내서(반격 성공·완벽 회피 판정) 산산조각만 건너뜀
+	// → 부르는 쪽은 true일 때만 경직·표식 같은 후속 효과를 붙이면 됨
 	// bOutShattered: 이 타격으로 [빙결]을 깼는지 (표식을 터뜨린 타격은 새 표식을 남기지 않게 할 때 씀)
 	// DamageTypeTag: 데미지 스펙에 붙일 종류 태그 (Damage.CrackBurst 등 → 숫자 색). 비우면 일반 피해
 	bool ApplyDamageTo(

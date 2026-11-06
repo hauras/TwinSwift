@@ -30,6 +30,9 @@ public:
 	// "상대 캐릭터 스킬 = 교체하며 시전"에서 교체하기 전에 확인 → 쿨다운인데 교체만 되는 일 방지
 	bool CanActivateAbilityByInputTag(const FGameplayTag& InputTag) const;
 
+	// 이 클래스의 능력이 지금 발동 가능한지. 발동은 하지 않음 (거울 보스: 몸을 바꾸기 전에 확인)
+	bool CanActivateAbilityByClass(TSubclassOf<UGameplayAbility> AbilityClass) const;
+
 	// 키가 눌린 능력 알림 (콤보 2타처럼 이미 켜진 능력에 또 누른 것도)
 	FOnAbilityPressed OnAbilityPressed;
 
@@ -40,6 +43,10 @@ public:
 private:
 	// 누름 처리만: 켜져 있으면 "또 눌렀다" 이벤트, 꺼져 있으면 발동 + 알림
 	bool PressAbilitySpec(FGameplayAbilitySpec& Spec);
+
+	// 발동 가능 검사는 실제 능력 인스턴스로 (기본 객체는 인스턴스가 가진 상태를 모름. 예: 구체가 남아 있으면 쿨다운 중에도 폭발 가능)
+	// 아직 한 번도 안 쓴 능력은 인스턴스가 없어서 기본 객체로
+	bool CanActivateSpec(const FGameplayAbilitySpec& Spec) const;
 
 	bool bStartupAbilitiesGiven = false;
 };

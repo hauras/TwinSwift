@@ -63,6 +63,9 @@ protected:
 	virtual void StopAI() override;
 	virtual void ResumeAI() override;
 
+	// 큰 경직·사망: 진행 중인 플레이어 능력(시전 포함)을 끊고 기사 몸으로 (몽타주가 기사 몸에서 나옴)
+	virtual void PrepareDownMontage() override;
+
 	// 마법사 몸 (기사 몸은 GetMesh())
 	UPROPERTY(VisibleAnywhere, Category = "Mirror")
 	TObjectPtr<USkeletalMeshComponent> MageMesh;

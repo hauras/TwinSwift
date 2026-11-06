@@ -139,8 +139,19 @@ bool USActionReplayComponent::UpdateReverse(double Now)
 		while (ReverseSteps.IsValidIndex(ReverseIndex) && ReverseSteps[ReverseIndex].PlayAt <= Now)
 		{
 			const FReverseStep& Step = ReverseSteps[ReverseIndex];
-			PressAction(Step.AbilityClass, Step.Slot);
-			UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d %s"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass));
+			if (PressAction(Step.AbilityClass, Step.Slot))
+			{
+				UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 실행 %s"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass));
+			}
+			else if (Now - Step.PlayAt < ReverseRetryTime)
+			{
+				// 거꾸로 놓으면 앞 기술 동작이 안 끝났는데 다음 차례가 올 수 있음 → 다음 틱에 다시 (뒤 순서도 같이 기다림)
+				break;
+			}
+			else
+			{
+				UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 건너뜀 %s (%.1f초 동안 못 씀)"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass), ReverseRetryTime);
+			}
 			++ReverseIndex;
 		}
 		if (ReverseSteps.IsValidIndex(ReverseIndex)) return true;
@@ -185,9 +196,11 @@ bool USActionReplayComponent::PressAction(TSubclassOf<UGameplayAbility> AbilityC
 	USAbilitySystemComponent* ASC = Boss ? Cast<USAbilitySystemComponent>(Boss->GetAbilitySystemComponent()) : nullptr;
 	if (!ASC || Boss->IsDead()) return false;
 
-	// 그 능력을 쓴 몸이 아니면 먼저 바꿈 (마법사 몸으로 칼을 휘두르지 않게)
+	// 그 능력을 쓴 몸이 아니면 바꿈 (마법사 몸으로 칼을 휘두르지 않게)
+	// 바꾸면 진행 중 능력이 끊기므로, 쿨다운 등으로 못 쓸 기술이면 바꾸지 않음
 	if (Boss->GetActiveSlot() != Slot)
 	{
+		if (!ASC->CanActivateAbilityByClass(AbilityClass)) return false;
 		Boss->SwapTo(Slot);
 	}
 	if (!ASC->PressAbilityByClass(AbilityClass)) return false;
@@ -307,8 +320,7 @@ void USActionReplayComponent::TryFillIdle(double Now)
 	}
 	for (const FSRecordedAction& Action : FillCandidates)
 	{
-		const FGameplayAbilitySpec* Spec = ASC->FindAbilitySpecFromClass(Action.AbilityClass);
-		if (!Spec || !Spec->Ability || !Spec->Ability->CanActivateAbility(Spec->Handle, ASC->AbilityActorInfo.Get())) continue;
+		if (!ASC->CanActivateAbilityByClass(Action.AbilityClass)) continue;
 
 		// 쓸 수 있는 걸 확인한 뒤에 몸을 바꿔서 헛교체가 없게
 		if (PressAction(Action.AbilityClass, Action.Slot))

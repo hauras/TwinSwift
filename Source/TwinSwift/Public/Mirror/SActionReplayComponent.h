@@ -72,6 +72,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "0"))
 	float ReverseWarnTime = 1.f;
 
+	// 거울 반전에서 기술이 안 나가면(앞 기술 동작 중·쿨다운) 이만큼 다시 시도하다 건너뜀
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "0"))
+	float ReverseRetryTime = 0.6f;
+
 private:
 	enum class EReverseState : uint8
 	{
@@ -97,7 +101,7 @@ private:
 	// 최근 ReverseWindow초 기술을 거꾸로 놓음. 없으면 false
 	bool BuildReverseSteps(double Now);
 
-	// 기술 하나 쓰기: 몸이 다르면 먼저 바꿈. 먹혔으면 LastActionTime 갱신
+	// 기술 하나 쓰기: 몸이 다르면 쓸 수 있는지 먼저 보고 바꿈 (못 쓸 기술 때문에 진행 중 공격을 끊지 않게). 먹혔으면 LastActionTime 갱신
 	bool PressAction(TSubclassOf<UGameplayAbility> AbilityClass, ETwinSlot Slot);
 
 	// 지금 몸에 맞는 거리를 잡음 (능력 사용·경직·사망 중에는 안 움직임). 거리 안이면 서서 플레이어를 봄
