@@ -114,6 +114,10 @@ private:
 	// 등장신 동안 플레이어 조작 잠금 (이 액터의 건너뛰기 키는 따로라 계속 받음)
 	void SetPlayerInputEnabled(bool bEnabled);
 
+	// 등장신 동안 플레이어 무적 (두 몸 모두). 거울 기사는 진짜 기술을 재연해서, 입력이 잠긴 플레이어가 맞지 않게
+	// 붙인 경우에만 한 번 뗌 → Loose 태그가 쌓이지 않음 (회피 무적은 개수가 따로 세져서 같이 풀리지 않음)
+	void SetPlayerIntroInvincible(bool bEnable);
+
 	// 이 액터가 받는 키를 모두 해제 (건너뛰기 → 다시 시작 키로 바꿀 때)
 	void ClearEncounterKeys();
 
@@ -123,6 +127,7 @@ private:
 	double IntroStartTime = 0.0;
 	bool bIntroInputLocked = false;
 	bool bIntroCameraChanged = false;
+	bool bIntroInvincible = false;
 	TWeakObjectPtr<APlayerController> IntroController;
 	TWeakObjectPtr<AActor> PreviousViewTarget;
 

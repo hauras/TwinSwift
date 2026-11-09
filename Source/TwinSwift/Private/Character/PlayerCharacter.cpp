@@ -5,6 +5,7 @@
 #include "Ability/SAttributeSet.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/SCameraConfig.h"
+#include "Camera/CameraTypes.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -162,8 +163,9 @@ void APlayerCharacter::ApplyCameraConfig(const USCameraConfig* Config)
 		return;
 	}
 
-	SpringArm->TargetArmLength = Config->ArmLength;
+	SpringArm->TargetArmLength = Config->bFreeLook ? Config->ArmLength : Config->ArmLength * 1.1f;
 	SpringArm->SocketOffset = Config->SocketOffset;
+	SpringArm->TargetOffset = FVector::ZeroVector;
 	SpringArm->bEnableCameraLag = Config->bEnableCameraLag;
 	SpringArm->CameraLagSpeed = Config->CameraLagSpeed;
 
@@ -173,10 +175,40 @@ void APlayerCharacter::ApplyCameraConfig(const USCameraConfig* Config)
 	SpringArm->SetUsingAbsoluteRotation(!Config->bFreeLook);
 	if (!Config->bFreeLook)
 	{
-		SpringArm->SetWorldRotation(Config->FixedRotation);
+		FRotator Rotation = Config->FixedRotation;
+		Rotation.Pitch = FMath::Min(Rotation.Pitch + 5.f, 0.f);
+		SpringArm->SetWorldRotation(Rotation);
 	}
 
 	Camera->SetFieldOfView(Config->FieldOfView);
+}
+
+void APlayerCharacter::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
+{
+	Super::CalcCamera(DeltaTime, OutResult);
+	if (!Camera->IsActive() || !SpringArm->IsUsingAbsoluteRotation() || !SpringArm->IsCollisionFixApplied())
+	{
+		return;
+	}
+
+	// 벽에 닿아 카메라가 당겨지면 시야각을 열어 캐릭터가 화면을 덮는 정도를 줄인다.
+	const FVector Forward = OutResult.Rotation.Vector();
+	const FVector Focus = GetActorLocation();
+	const double DesiredDepth = FVector::DotProduct(Focus - SpringArm->GetUnfixedCameraPosition(), Forward);
+	const double ActualDepth = FVector::DotProduct(Focus - OutResult.Location, Forward);
+	if (ActualDepth <= 0.0 || DesiredDepth <= ActualDepth || OutResult.FOV >= 80.f)
+	{
+		return;
+	}
+
+	const double HalfFov = FMath::DegreesToRadians(OutResult.FOV * 0.5);
+	const double ExpandedFov = FMath::RadiansToDegrees(2.0 * FMath::Atan(FMath::Tan(HalfFov) * DesiredDepth / ActualDepth));
+	OutResult.FOV = static_cast<float>(FMath::Min(ExpandedFov, 80.0));
+}
+
+void APlayerCharacter::UpdateCameraOffset(const FVector& DesiredOffset, float DeltaTime)
+{
+	SpringArm->TargetOffset = FMath::VInterpTo(SpringArm->TargetOffset, DesiredOffset, DeltaTime, 5.f);
 }
 
 void APlayerCharacter::SetWalking(bool bNewWalking)

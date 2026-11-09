@@ -42,6 +42,13 @@ public:
 	// 겹침 재질 갱신: 거울 반전 예고 > 같은 몸 방어 > 없음 (바뀔 때만 켜고 끔)
 	virtual void Tick(float DeltaSeconds) override;
 
+	// 등장: 등장 능력 대신 재생 컴포넌트가 기록의 마지막 기술을 재연 (몸을 바꾸면 능력이 끊겨서 능력으로 못 만듦)
+	virtual bool PlayIntro(const FVector& Landing) override;
+	virtual AActor* GetIntroViewTarget() override;
+	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
+	virtual bool IsIntroPlaying() const override;
+	virtual void SkipIntro(const FVector& Landing) override;
+	
 	// 겨냥 = 지금 플레이어 위치 (움직임은 기록을 따라 하지만 공격은 지금의 플레이어를 노림)
 	virtual bool GetAbilityAimPoint(FVector& OutAimPoint) const override;
 
@@ -108,4 +115,8 @@ private:
 	// 지금 켜져 있는 겹침 재질 (바뀔 때만 다시 넣음)
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> ShownOverlay;
+
+	// 등장 중 겨냥점 (경기장 가운데 바닥). 재연한 기술이 입구의 플레이어에게 날아가지 않게
+	TOptional<FVector> IntroAimPoint;
+	TOptional<FVector> IntroCameraDirection;
 };

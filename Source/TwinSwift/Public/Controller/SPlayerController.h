@@ -12,6 +12,7 @@ class ASProjectile;
 class UCameraShakeBase;
 class UInputAction;
 class UInputMappingContext;
+class UStaticMeshComponent;
 class USCameraConfig;
 class USInputConfig;
 class USAbilitySystemComponent;
@@ -27,6 +28,8 @@ class TWINSWIFT_API ASPlayerController : public APlayerController
 
 public:
 	ASPlayerController();
+
+	void SetCameraBoss(ABossCharacter* Boss);
 
 	// 스킬이 겨냥할 위치. 시점마다 구하는 방법만 다르고, 스킬은 이 함수만 부름
 	UFUNCTION(BlueprintCallable, Category = "Aim")
@@ -103,6 +106,7 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void AcknowledgePossession(APawn* P) override;
 	virtual void PlayerTick(float DeltaTime) override;
+	virtual void UpdateHiddenComponents(const FVector& ViewLocation, TSet<FPrimitiveComponentId>& HiddenComponents) override;
 
 	// 비교할 시점들. 첫 번째가 시작 시점
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
@@ -254,6 +258,12 @@ private:
 	void ApplyCurrentCameraConfig();
 
 	const USCameraConfig* GetCurrentCameraConfig() const;
+	void CacheCameraOccluders();
+	void UpdateQuarterCamera(float DeltaTime);
+
+	TWeakObjectPtr<ABossCharacter> CameraBoss;
+	TArray<TWeakObjectPtr<UStaticMeshComponent>> CameraOccluders;
+	TArray<TWeakObjectPtr<UStaticMeshComponent>> HiddenCameraOccluders;
 
 	FVector GetAimPointUnderCursor() const;
 	FVector GetAimPointAtScreenCenter() const;

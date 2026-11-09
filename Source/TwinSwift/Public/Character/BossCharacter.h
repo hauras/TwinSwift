@@ -60,20 +60,19 @@ public:
 	// 전투 멈춤: 행동 트리·진행 중인 공격·이동 정지 (플레이어 패배, 사망)
 	void StopCombat();
 
-	// StartCombat ~ StopCombat 사이인지
 	bool IsInCombat() const { return bInCombat; }
 
-	// HUD에 보일 이름 (골렘: "바위 골렘")
 	const FText& GetDisplayName() const { return DisplayName; }
 
 	// 등장: IntroAbilityTag 능력 발동 (골렘: 높은 곳·가장자리에서 Landing으로 뛰어내림). Landing = 바닥 위 한 점. 능력이 없으면 false
-	bool PlayIntro(const FVector& Landing);
+	virtual bool PlayIntro(const FVector& Landing);
+	virtual AActor* GetIntroViewTarget() { return nullptr; }
 
 	// 실제 등장 능력이 아직 실행 중인지 확인
-	bool IsIntroPlaying() const;
+	virtual bool IsIntroPlaying() const;
 
 	// 등장 건너뛰기: 등장 능력을 끊고 Landing(바닥)에 바로 세움
-	void SkipIntro(const FVector& Landing);
+	virtual void SkipIntro(const FVector& Landing);
 
 	// 도약 공격이 노릴 위치를 한 번만 정해 둠 (등장신 착지 등). 공격이 발동할 때 가져가고 비워짐
 	bool ConsumeLeapTargetOverride(FVector& OutLocation);
@@ -233,6 +232,7 @@ private:
 	void EnterPhaseTwo();
 
 	// 대지의 분노 시작: 공격 취소 → 갑옷 → 충전 능력. 능력 발동에 실패하면 갑옷 없이 2페이즈로
+	// 큰 경직·작은 경직 중이면 능력이 막히므로 풀릴 때까지 기다렸다 시작 (EarthRageRetryTimer)
 	void StartEarthRage();
 
 	// 2페이즈 걷기 속도 (한 번만)
@@ -280,6 +280,9 @@ private:
 	TObjectPtr<UMaterialInstanceDynamic> ArmorOverlayInstance;
 
 	FTimerHandle PhaseTwoTimer;
+
+	// 경직 중에 2페이즈가 되면 대지의 분노를 다시 시도하는 타이머
+	FTimerHandle EarthRageRetryTimer;
 	FTimerHandle GroggyPoseTimer;
 	FTimerHandle GroggyEndTimer;
 	FDelegateHandle AbilityEndedHandle;

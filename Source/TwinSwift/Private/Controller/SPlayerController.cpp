@@ -6,6 +6,10 @@
 #include "Ability/SAbilitySystemComponent.h"
 #include "Ability/SAttributeSet.h"
 #include "Camera/SCameraConfig.h"
+#include "CollisionQueryParams.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Camera/SCameraShake_Shatter.h"
 #include "Ability/SGE_Cooldown.h"
@@ -201,6 +205,7 @@ void ASPlayerController::AcknowledgePossession(APawn* P)
 
 	// 캐릭터를 잡은 직후 불림 → 카메라 설정·HUD 연결은 여기서
 	ApplyCurrentCameraConfig();
+	CacheCameraOccluders();
 	SetupHUD();
 	SetupInputBuffer();
 }
@@ -267,6 +272,7 @@ void ASPlayerController::SetupHUD()
 void ASPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
+	UpdateQuarterCamera(DeltaTime);
 
 	if (bDrawAimPoint)
 	{
@@ -1079,6 +1085,89 @@ void ASPlayerController::BenchFireOne()
 	++BenchFired;
 }
 
+void ASPlayerController::SetCameraBoss(ABossCharacter* Boss)
+{
+	CameraBoss = Boss;
+}
+
+void ASPlayerController::UpdateQuarterCamera(float DeltaTime)
+{
+	APlayerCharacter* ControlledCharacter = GetPawn<APlayerCharacter>();
+	const USCameraConfig* Config = GetCurrentCameraConfig();
+	if (!ControlledCharacter || !Config || Config->bFreeLook)
+	{
+		return;
+	}
+
+	// 플레이어를 화면 아래로 조금 내리고, 전투 중에는 시야를 보스 쪽으로 더 넓힌다.
+	const FVector Forward = Config->FixedRotation.Vector().GetSafeNormal2D();
+	FVector Offset = Forward * 75.f;
+	if (const ABossCharacter* Boss = CameraBoss.Get())
+	{
+		FVector ToBoss = Boss->GetActorLocation() - ControlledCharacter->GetActorLocation();
+		ToBoss.Z = 0.f;
+		Offset += (ToBoss * 0.25f).GetClampedToMaxSize(450.f);
+	}
+
+	ControlledCharacter->UpdateCameraOffset(Offset, DeltaTime);
+}
+
+void ASPlayerController::CacheCameraOccluders()
+{
+	CameraOccluders.Reset();
+	for (TActorIterator<AStaticMeshActor> It(GetWorld()); It; ++It)
+	{
+		UStaticMeshComponent* Component = It->GetStaticMeshComponent();
+		const UStaticMesh* Mesh = Component ? Component->GetStaticMesh() : nullptr;
+		if (!Mesh)
+		{
+			continue;
+		}
+
+		const FString MeshName = Mesh->GetName();
+		if (Component->ComponentHasTag(TEXT("CameraOccluder"))
+			|| MeshName.StartsWith(TEXT("MOD_Wall_"))
+			|| MeshName.StartsWith(TEXT("MOD_Gateway_Arc_")))
+		{
+			CameraOccluders.Add(Component);
+		}
+	}
+}
+
+void ASPlayerController::UpdateHiddenComponents(
+	const FVector& ViewLocation, TSet<FPrimitiveComponentId>& HiddenComponents)
+{
+	Super::UpdateHiddenComponents(ViewLocation, HiddenComponents);
+	HiddenCameraOccluders.Reset();
+
+	const APawn* ControlledPawn = GetPawn();
+	const USCameraConfig* Config = GetCurrentCameraConfig();
+	if (!ControlledPawn || GetViewTarget() != ControlledPawn || !Config || Config->bFreeLook)
+	{
+		return;
+	}
+
+	const FVector Focus = ControlledPawn->GetActorLocation();
+	const FVector ToFocus = Focus - ViewLocation;
+	const FVector InvDirection = ToFocus.Reciprocal();
+	for (const TWeakObjectPtr<UStaticMeshComponent>& Candidate : CameraOccluders)
+	{
+		const UStaticMeshComponent* Component = Candidate.Get();
+		if (!Component || !Component->IsRegistered() || !Component->IsVisible())
+		{
+			continue;
+		}
+
+		// 아치는 충돌이 꺼져 있어도 화면을 가릴 수 있으므로 렌더링 경계로 확인한다.
+		const FBox Bounds = Component->Bounds.GetBox().ExpandBy(30.f);
+		if (FMath::LineBoxIntersection(Bounds, ViewLocation, Focus, ToFocus, InvDirection))
+		{
+			HiddenComponents.Add(Component->GetPrimitiveSceneId());
+			HiddenCameraOccluders.Add(Candidate);
+		}
+	}
+}
+
 void ASPlayerController::ApplyCurrentCameraConfig()
 {
 	const USCameraConfig* Config = GetCurrentCameraConfig();
@@ -1097,6 +1186,7 @@ void ASPlayerController::ApplyCurrentCameraConfig()
 		SetControlRotation(StartRotation);
 	}
 
+	HiddenCameraOccluders.Reset();
 	PlayerCharacter->ApplyCameraConfig(Config);
 
 	if (PlayerCameraManager)
@@ -1145,12 +1235,25 @@ FVector ASPlayerController::GetAimPoint() const
 FVector ASPlayerController::GetAimPointUnderCursor() const
 {
 	FHitResult Hit;
-	if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+	if (HiddenCameraOccluders.IsEmpty())
 	{
-		return Hit.ImpactPoint;
+		return GetHitResultUnderCursor(ECC_Visibility, false, Hit) ? Hit.ImpactPoint : GetFallbackAimPoint();
 	}
 
-	return GetFallbackAimPoint();
+	// 화면에서 가린 벽은 커서로도 집히지 않게 한다.
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(QuarterCameraAim), false);
+	for (const TWeakObjectPtr<UStaticMeshComponent>& Hidden : HiddenCameraOccluders)
+	{
+		if (const UStaticMeshComponent* Component = Hidden.Get())
+		{
+			Query.AddIgnoredComponent(Component);
+		}
+	}
+
+	FVector2D Cursor;
+	return GetMousePosition(Cursor.X, Cursor.Y)
+		&& GetHitResultAtScreenPosition(Cursor, ECC_Visibility, Query, Hit)
+		? Hit.ImpactPoint : GetFallbackAimPoint();
 }
 
 FVector ASPlayerController::GetAimPointAtScreenCenter() const

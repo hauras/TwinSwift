@@ -6,7 +6,12 @@
 #include "Components/BoxComponent.h"
 #include "Camera/CameraActor.h"
 #include "Components/InputComponent.h"
+#include "Controller/SPlayerController.h"
+#include "Input/SInputBufferComponent.h"
+#include "Ability/SAbilitySystemComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "SGameplayTags.h"
+#include "State/SPlayerState.h"
 #include "TimerManager.h"
 #include "UI/SBossHUDWidget.h"
 
@@ -92,6 +97,17 @@ void ASBossEncounter::SetState(EBossEncounterState NewState)
 	if (State == NewState)
 	{
 		return;
+	}
+
+	if (State == EBossEncounterState::Fighting || NewState == EBossEncounterState::Fighting)
+	{
+		if (const APlayerCharacter* PlayerCharacter = Player.Get())
+		{
+			if (ASPlayerController* Controller = Cast<ASPlayerController>(PlayerCharacter->GetController()))
+			{
+				Controller->SetCameraBoss(NewState == EBossEncounterState::Fighting ? Boss.Get() : nullptr);
+			}
+		}
 	}
 
 	State = NewState;
@@ -208,10 +224,16 @@ void ASBossEncounter::StartIntro()
 	PreviousViewTarget = PlayerController->GetViewTarget();
 	IntroStartTime = GetWorld()->GetTimeSeconds();
 	SetPlayerInputEnabled(false);
-	if (IntroCamera)
+	SetPlayerIntroInvincible(true);
+	AActor* IntroViewTarget = Boss->GetIntroViewTarget();
+	if (!IntroViewTarget)
+	{
+		IntroViewTarget = IntroCamera.Get();
+	}
+	if (IntroViewTarget)
 	{
 		bIntroCameraChanged = true;
-		PlayerController->SetViewTargetWithBlend(IntroCamera, IntroCameraBlendTime, VTBlend_Cubic);
+		PlayerController->SetViewTargetWithBlend(IntroViewTarget, IntroCameraBlendTime, VTBlend_Cubic);
 	}
 
 	// 건너뛰기: Space·Enter (아무 키로 하면 마우스 움직임까지 걸릴 수 있음)
@@ -270,6 +292,7 @@ void ASBossEncounter::CleanupIntro()
 	GetWorldTimerManager().ClearTimer(IntroTimer);
 	ClearEncounterKeys();
 	SetPlayerInputEnabled(true);
+	SetPlayerIntroInvincible(false);
 	if (APlayerController* Controller = IntroController.Get())
 	{
 		AActor* Target = PreviousViewTarget.Get();
@@ -306,6 +329,42 @@ FVector ASBossEncounter::GetIntroLanding() const
 	return Center;
 }
 
+void ASBossEncounter::SetPlayerIntroInvincible(bool bEnable)
+{
+	if (bIntroInvincible == bEnable)
+	{
+		return;
+	}
+
+	const APlayerCharacter* PlayerCharacter = Player.Get();
+	const ASPlayerState* PlayerState = PlayerCharacter ? PlayerCharacter->GetPlayerState<ASPlayerState>() : nullptr;
+	if (!PlayerState)
+	{
+		// 붙이지 못했으면 뗄 것도 없음 (떼는 쪽이면 플레이어가 이미 사라짐)
+		bIntroInvincible = false;
+		return;
+	}
+
+	// 지금 나와 있는 몸이 어느 쪽이든 막히게 두 몸 모두
+	for (const ETwinSlot Slot : { ETwinSlot::Warrior, ETwinSlot::Mage })
+	{
+		USAbilitySystemComponent* ASC = PlayerState->GetSAbilitySystemComponent(Slot);
+		if (!ASC)
+		{
+			continue;
+		}
+		if (bEnable)
+		{
+			ASC->AddLooseGameplayTag(SGameplayTags::State_Invincible);
+		}
+		else
+		{
+			ASC->RemoveLooseGameplayTag(SGameplayTags::State_Invincible);
+		}
+	}
+	bIntroInvincible = bEnable;
+}
+
 void ASBossEncounter::SetPlayerInputEnabled(bool bEnabled)
 {
 	APlayerController* PlayerController = IntroController.Get();
@@ -324,6 +383,12 @@ void ASBossEncounter::SetPlayerInputEnabled(bool bEnabled)
 	{
 		bIntroInputLocked = true;
 		PlayerController->DisableInput(PlayerController);
+
+		// 잠그기 전에 예약된 입력도 버림 (DisableInput은 새 입력만 막음 → 콤보를 치며 진입하면 예약된 2타가 등장 중에 나감)
+		if (USInputBufferComponent* InputBuffer = PlayerController->FindComponentByClass<USInputBufferComponent>())
+		{
+			InputBuffer->Clear();
+		}
 	}
 }
 

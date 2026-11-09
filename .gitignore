@@ -34,6 +34,8 @@ Thumbs.db
 
 # 외부 에셋: 라이선스상 공개 저장소에 원본을 올리지 않음 (받는 곳은 Docs/에셋.md)
 Content/Assets/External/
+# 던전 팩(821MB)은 팩 기본 위치 그대로 둠: 에디터에서 External로 옮기다 메모리 부족으로 꺼짐 (2026-11-06)
+Content/Fantastic_Dungeon_Pack/
 # 폴더 정리(2026-10-16) 전 옛 위치에 남은 파일
 Content/Asset/
 Content/Knife_light/

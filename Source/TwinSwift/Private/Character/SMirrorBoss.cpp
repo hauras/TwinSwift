@@ -2,6 +2,11 @@
 
 #include "AbilitySystemComponent.h"
 #include "Ability/SAbilitySystemComponent.h"
+#include "Actor/SArcaneOrb.h"
+#include "Camera/CameraTypes.h"
+#include "CollisionShape.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -76,6 +81,13 @@ void ASMirrorBoss::SwapTo(ETwinSlot NewSlot)
 
 bool ASMirrorBoss::GetAbilityAimPoint(FVector& OutAimPoint) const
 {
+	// 등장 중에는 경기장 가운데를 노림 (플레이어는 입구에 있음)
+	if (IntroAimPoint.IsSet() && ReplayComponent->IsIntroPlaying())
+	{
+		OutAimPoint = IntroAimPoint.GetValue();
+		return true;
+	}
+	
 	// 움직임은 기록을 따라 하지만 겨냥은 지금의 플레이어 (매번 새로 찾음)
 	const APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
 	if (!Player) return false;
@@ -103,6 +115,16 @@ void ASMirrorBoss::OnConstruction(const FTransform& Transform)
 
 bool ASMirrorBoss::StartAI()
 {
+	// 등장신에서 재연한 구체는 능력과 별개 액터라 남아 있음 → 전투 시작 때 피해 없이 지움
+	// (등장 중에는 플레이어가 무적이지만, 끝난 뒤 자동 폭발에 맞지 않게. 정상 종료·건너뛰기 모두 여기를 지남)
+	for (TActorIterator<ASArcaneOrb> It(GetWorld()); It; ++It)
+	{
+		if (It->GetOwner() == this)
+		{
+			It->Cancel();
+		}
+	}
+
 	ReplayComponent->StartReplay();
 	return true;
 }
@@ -179,6 +201,69 @@ void ASMirrorBoss::Tick(float DeltaSeconds)
 	GetMesh()->SetOverlayMaterial(Overlay);
 	MageMesh->SetOverlayMaterial(Overlay);
 	WeaponMesh->SetOverlayMaterial(Overlay);
+}
+
+bool ASMirrorBoss::PlayIntro(const FVector& Landing)
+{
+	IntroAimPoint = Landing;
+	IntroCameraDirection.Reset();
+	if (!ReplayComponent->StartIntro())
+	{
+		// 재연할 기술이 없음 → 등장 없이 바로 전투
+		IntroAimPoint.Reset();
+		return false;
+	}
+	// 등장 중 기술로 몸이 돌아도 카메라 구도는 시작 방향을 기준으로 유지한다.
+	IntroCameraDirection = GetActorForwardVector().GetSafeNormal2D();
+	return true;
+}
+
+AActor* ASMirrorBoss::GetIntroViewTarget()
+{
+	return IntroCameraDirection.IsSet() ? this : nullptr;
+}
+
+void ASMirrorBoss::CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult)
+{
+	if (!IntroCameraDirection.IsSet())
+	{
+		Super::CalcCamera(DeltaTime, OutResult);
+		return;
+	}
+
+	const FVector Focus = GetActorLocation() + FVector(0.f, 0.f, 20.f);
+	FVector CameraLocation = Focus + IntroCameraDirection.GetValue() * 620.f + FVector(0.f, 0.f, 170.f);
+
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(MirrorIntroCamera), false, this);
+	if (const APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0))
+	{
+		Query.AddIgnoredActor(Player);
+	}
+
+	FHitResult Hit;
+	if (GetWorld()->SweepSingleByChannel(Hit, Focus, CameraLocation, FQuat::Identity, ECC_Camera,
+		FCollisionShape::MakeSphere(16.f), Query))
+	{
+		CameraLocation = Hit.Location;
+	}
+
+	OutResult = FMinimalViewInfo{};
+	OutResult.Location = CameraLocation;
+	OutResult.Rotation = (Focus - CameraLocation).Rotation();
+	OutResult.FOV = 42.f;
+}
+
+bool ASMirrorBoss::IsIntroPlaying() const
+{
+	return ReplayComponent->IsIntroPlaying();
+}
+
+void ASMirrorBoss::SkipIntro(const FVector& Landing)
+{
+	// 재연부터 멈추고, 부모가 능력을 끊고 가운데 바닥에 세움
+	ReplayComponent->StopIntro();
+	IntroAimPoint.Reset();
+	Super::SkipIntro(Landing);
 }
 
 bool ASMirrorBoss::IsGuardingAgainst(ETwinSlot AttackerSlot) const

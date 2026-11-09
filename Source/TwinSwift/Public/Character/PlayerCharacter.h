@@ -50,6 +50,7 @@ public:
 
 	// 카메라 설정 에셋 내용을 스프링암·카메라에 적용 (내 화면에서만 의미 있음)
 	void ApplyCameraConfig(const USCameraConfig* Config);
+	void UpdateCameraOffset(const FVector& DesiredOffset, float DeltaTime);
 
 	// 걷기 켜기/끄기
 	void SetWalking(bool bNewWalking);
@@ -130,6 +131,7 @@ protected:
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	virtual void BeginPlay() override;
+	virtual void CalcCamera(float DeltaTime, FMinimalViewInfo& OutResult) override;
 
 	virtual void InitAbilityActorInfo() override;
 

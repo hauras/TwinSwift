@@ -63,11 +63,101 @@ void USActionReplayComponent::EnterPhaseTwo()
 	UE_LOG(LogTemp, Display, TEXT("[거울] 2페이즈: 지연 %.1f초, %.0f초마다 거울 반전"), Delay, ReverseInterval);
 }
 
+bool USActionReplayComponent::StartIntro()
+{
+	const double Now = GetWorld()->GetTimeSeconds();
+	ReverseSteps.Reset();
+
+	PendingActions.Reset();
+	
+	if (USActionRecorderComponent* SoureRecorder = FindRecorder())
+	{
+		SoureRecorder->GetActionsBetween(Now - IntroLookBack, Now, PendingActions);
+
+		PendingActions.RemoveAll([](const FSRecordedAction& Action)
+		{
+			return Action.Type != ERecordedActionType::Ability || !Action.AbilityClass || IsDodge(Action);
+		});
+
+		const int32 RemoveCount = PendingActions.Num() - IntroStepCount;
+		if (RemoveCount > 0)
+		{
+			PendingActions.RemoveAt(0, RemoveCount);
+		}
+	}
+
+	for (int32 Index = 0; Index < PendingActions.Num(); ++Index)
+	{
+		const FSRecordedAction& Action = PendingActions[Index];
+		const double PlayAt = Index == 0 ? Now + IntroStartDelay : ReverseSteps.Last().PlayAt + FMath::Min(Action.Time - PendingActions[Index - 1].Time, static_cast<double>(IntroMaxGap));
+
+		FReverseStep& Step = ReverseSteps.AddDefaulted_GetRef();
+		Step.AbilityClass = Action.AbilityClass;
+		Step.Slot = Action.Slot;
+		Step.PlayAt = PlayAt;
+	}
+
+	const bool bUsedDefault = ReverseSteps.IsEmpty();
+	if (bUsedDefault)
+	{
+		for (const FSMirrorIntroStep& Default : DefaultIntroSteps)
+		{
+			if (!Default.AbilityClass) continue;
+
+			const double PlayAt = ReverseSteps.IsEmpty() ? Now + IntroStartDelay : ReverseSteps.Last().PlayAt + Default.Gap;
+
+			FReverseStep& Step = ReverseSteps.AddDefaulted_GetRef();
+			Step.AbilityClass = Default.AbilityClass;
+			Step.Slot = Default.Slot;
+			Step.PlayAt = PlayAt;
+		}
+	}
+
+	// 기록도 기본 순서도 없음 → 등장 없이 바로 전투 (전투 진행 액터가 false를 보고 넘어감)
+	if (ReverseSteps.IsEmpty()) return false;
+
+	ReverseIndex = 0;
+	bIntroPlaying = true;
+	SetComponentTickEnabled(true);
+	UE_LOG(LogTemp, Display, TEXT("[거울 등장] 기술 %d개 (%s)"), ReverseSteps.Num(), bUsedDefault ? TEXT("기본 순서") : TEXT("기록"));
+	return true;
+}
+
+bool USActionReplayComponent::IsIntroPlaying() const
+{
+	return bIntroPlaying;
+}
+
+void USActionReplayComponent::StopIntro()
+{
+	bIntroPlaying = false;
+	ReverseSteps.Reset();
+	ReverseIndex = 0;
+
+	if (!bReplaying)
+	{
+		SetComponentTickEnabled(false);
+	}
+}
+
 void USActionReplayComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	const ASMirrorBoss* Boss = Cast<ASMirrorBoss>(GetOwner());
+	const double Now = GetWorld()->GetTimeSeconds();
+
+	if (bIntroPlaying)
+	{
+		if (!Boss || Boss->IsDead())
+		{
+			StopIntro();
+			return;
+		}
+		UpdateIntro(Now);
+		return;
+	}
+	
 	if (!bReplaying || !Boss || Boss->IsDead())
 	{
 		StopReplay();
@@ -75,7 +165,6 @@ void USActionReplayComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	}
 
 	// 거울 반전 중이면 따라 하기·채우기는 쉼 (커서는 계속 나아가 끝난 뒤 몰아서 하지 않음)
-	const double Now = GetWorld()->GetTimeSeconds();
 	const bool bReversing = UpdateReverse(Now);
 
 	// 보스가 나오기 전 기록은 안 따라 함 (그동안은 이동만: 거리를 잡으며 다가옴)
@@ -136,31 +225,56 @@ bool USActionReplayComponent::UpdateReverse(double Now)
 		return true;
 
 	case EReverseState::Playing:
-		while (ReverseSteps.IsValidIndex(ReverseIndex) && ReverseSteps[ReverseIndex].PlayAt <= Now)
-		{
-			const FReverseStep& Step = ReverseSteps[ReverseIndex];
-			if (PressAction(Step.AbilityClass, Step.Slot))
-			{
-				UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 실행 %s"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass));
-			}
-			else if (Now - Step.PlayAt < ReverseRetryTime)
-			{
-				// 거꾸로 놓으면 앞 기술 동작이 안 끝났는데 다음 차례가 올 수 있음 → 다음 틱에 다시 (뒤 순서도 같이 기다림)
-				break;
-			}
-			else
-			{
-				UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 건너뜀 %s (%.1f초 동안 못 씀)"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass), ReverseRetryTime);
-			}
-			++ReverseIndex;
-		}
-		if (ReverseSteps.IsValidIndex(ReverseIndex)) return true;
+		
+		if (!PlaySteps(Now)) return true;
 
 		ReverseState = EReverseState::None;
 		NextReverseTime = Now + ReverseInterval;
 		return false;
 	}
 	return false;
+}
+
+bool USActionReplayComponent::PlaySteps(double Now)
+{
+	while (ReverseSteps.IsValidIndex(ReverseIndex) && ReverseSteps[ReverseIndex].PlayAt <= Now)
+	{
+		FReverseStep& Step = ReverseSteps[ReverseIndex];
+		if (bIntroPlaying && ReverseIndex > 0 && ReverseSteps[ReverseIndex - 1].AbilityClass != Step.AbilityClass && IsBusy())
+		{
+			Step.PlayAt = Now;
+			break;
+			
+		}
+		if (PressAction(Step.AbilityClass, Step.Slot))
+		{
+			UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 실행 %s"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass));
+		}
+		else if (Now - Step.PlayAt < ReverseRetryTime)
+		{
+			// 거꾸로 놓으면 앞 기술 동작이 안 끝났는데 다음 차례가 올 수 있음 → 다음 틱에 다시 (뒤 순서도 같이 기다림)
+			break;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 건너뜀 %s (%.1f초 동안 못 씀)"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass), ReverseRetryTime);
+		}
+		++ReverseIndex;
+	}
+	return !ReverseSteps.IsValidIndex(ReverseIndex);
+	
+}
+
+void USActionReplayComponent::UpdateIntro(double Now)
+{
+	if (!PlaySteps(Now)) return;
+
+	if (IsBusy()) return;
+
+	bIntroPlaying = false;
+	ReverseSteps.Reset();
+	ReverseIndex = 0;
+	UE_LOG(LogTemp, Display, TEXT("[거울 등장] 끝"));
 }
 
 bool USActionReplayComponent::BuildReverseSteps(double Now)

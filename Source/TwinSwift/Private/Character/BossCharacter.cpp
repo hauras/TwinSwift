@@ -306,6 +306,7 @@ void ABossCharacter::Die()
 
 	// 아직 시작 안 한 대지의 분노·큰 경직 정리 (갑옷은 아래 StopCombat의 능력 취소 → OnAbilityEnded가 벗김)
 	GetWorldTimerManager().ClearTimer(PhaseTwoTimer);
+	GetWorldTimerManager().ClearTimer(EarthRageRetryTimer);
 	ClearGroggy(false);
 
 	// 진행 중인 공격·행동 트리·이동 정지 (플레이어 패배 때와 같은 처리)
@@ -381,6 +382,18 @@ void ABossCharacter::StartEarthRage()
 		UE_LOG(LogTemp, Warning, TEXT("[보스] 대지의 분노 시작 안 함: 사망 %d, 전투 중 %d"), IsDead(), bInCombat);
 		return;
 	}
+	// 경직 중이면 보스 공격 능력이 막혀(ActivationBlockedTags) 대지의 분노가 통째로 빠짐
+	// 반격·산산조각 경직 중에 40%를 넘기는 일이 흔해서, 풀릴 때까지 기다렸다 시작 (경직 동안의 반격 기회는 그대로)
+	if (ASC->HasMatchingGameplayTag(SGameplayTags::State_Groggy) || ASC->HasMatchingGameplayTag(SGameplayTags::State_Stun))
+	{
+		if (!GetWorldTimerManager().IsTimerActive(EarthRageRetryTimer))
+		{
+			UE_LOG(LogTemp, Display, TEXT("[보스] 경직 중 2페이즈 → 경직이 풀리면 대지의 분노"));
+		}
+		GetWorldTimerManager().SetTimer(EarthRageRetryTimer, this, &ThisClass::StartEarthRage, 0.1f, false);
+		return;
+	}
+
 	UE_LOG(LogTemp, Display, TEXT("[보스] 대지의 분노 시작: 표식 폭발 %d번이면 갑옷 파괴"), ArmorHitsRequired);
 
 	// 행동 트리부터 멈춤 (진행 중인 패턴 작업이 끝나며 자기 공격을 취소) → 남은 보스 공격도 취소

@@ -5,6 +5,26 @@
 #include "Mirror/SActionRecorderComponent.h"
 #include "SActionReplayComponent.generated.h"
 
+
+// 거울 등장: 기록이 없을 때 대신 쓸 기술 한 칸 (BP에서 채움)
+USTRUCT(BlueprintType)
+struct FSMirrorIntroStep
+{
+	GENERATED_BODY()
+
+	// 쓸 기술
+	UPROPERTY(EditAnywhere, Category = "Intro")
+	TSubclassOf<UGameplayAbility> AbilityClass;
+
+	// 그 기술을 쓸 몸
+	UPROPERTY(EditAnywhere, Category = "Intro")
+	ETwinSlot Slot = ETwinSlot::Warrior;
+
+	// 앞 기술을 누르고 몇 초 뒤에 누를지 (첫 칸은 무시)
+	UPROPERTY(EditAnywhere, Category = "Intro", meta = (ClampMin = "0"))
+	float Gap = 0.6f;
+};
+
 /**
  * 거울 보스: 플레이어가 실제로 쓴 기술을 Delay초 늦게 따라 함 ("내 기술을 배워서 맞서는 거울 기사")
  * 행동(능력·교체)만 기록을 따라 함. 위치는 따라 하지 않음 (과거 위치·관계는 지금 전투와 안 맞아 엉뚱한 데로 감)
@@ -33,6 +53,15 @@ public:
 	// 거울 반전 예고 중인지 (거울 보스가 예고 겹침 재질을 켬)
 	bool IsReverseWarning() const { return ReverseState == EReverseState::Warning; }
 
+	// 등장 재연 시작: 기록의 마지막 IntroStepCount개 기술 (없으면 DefaultIntroSteps). 쓸 게 없으면 false
+	bool StartIntro();
+
+	// 등장 재연 중인지 (보스의 IsIntroPlaying이 물음)
+	bool IsIntroPlaying() const;
+
+	// 등장 재연 중단 (건너뛰기)
+	void StopIntro();
+	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 protected:
@@ -76,6 +105,26 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Phase2", meta = (ClampMin = "0"))
 	float ReverseRetryTime = 0.6f;
 
+	// 등장에서 재연할 기술 수 (기록의 마지막 몇 개)
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Intro", meta = (ClampMin = "1"))
+	int32 IntroStepCount = 4;
+
+	// 기록을 얼마나 거슬러 볼지(초). 지휘자를 잡은 뒤 처치 연출·카드 고르기를 지나도 남게
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Intro", meta = (ClampMin = "1"))
+	float IntroLookBack = 30.f;
+
+	// 기록이 없을 때 대신 쓸 순서 (거울부터 시작한 시험 등)
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Intro")
+	TArray<FSMirrorIntroStep> DefaultIntroSteps;
+
+	// 첫 기술까지 기다리는 시간(초). 등장 카메라가 다 옮겨 간 뒤 시작 (카메라 이동 1초)
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Intro", meta = (ClampMin = "0"))
+	float IntroStartDelay = 1.f;
+
+	// 기록의 기술 간격이 이보다 길면 줄임(초). 지휘자전에서 몇 초씩 쉬었어도 등장이 늘어지지 않게
+	UPROPERTY(EditDefaultsOnly, Category = "Mirror|Intro", meta = (ClampMin = "0.1"))
+	float IntroMaxGap = 0.8f;
+	
 private:
 	enum class EReverseState : uint8
 	{
@@ -98,6 +147,12 @@ private:
 	// 거울 반전 진행 (기다림 → 예고 → 재생). 예고·재생 중이면 true → 따라 하기·채우기를 쉼
 	bool UpdateReverse(double Now);
 
+	// 시각표(ReverseSteps)에서 때가 된 기술을 누름 (실패하면 ReverseRetryTime까지 다시, 넘으면 건너뜀). 다 썼으면 true
+	bool PlaySteps(double Now);
+
+	// 등장 재연 진행: 시각표를 다 쓰고 켜진 능력이 없으면 끝
+	void UpdateIntro(double Now);
+	
 	// 최근 ReverseWindow초 기술을 거꾸로 놓음. 없으면 false
 	bool BuildReverseSteps(double Now);
 
@@ -146,4 +201,7 @@ private:
 	// 반전 순서와 다음에 쓸 칸
 	TArray<FReverseStep> ReverseSteps;
 	int32 ReverseIndex = 0;
+
+	// 등장 재연 중 (시각표는 반전과 같은 ReverseSteps·ReverseIndex를 씀)
+	bool bIntroPlaying = false;
 };
