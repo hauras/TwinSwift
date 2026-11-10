@@ -1234,14 +1234,24 @@ FVector ASPlayerController::GetAimPoint() const
 
 FVector ASPlayerController::GetAimPointUnderCursor() const
 {
-	FHitResult Hit;
-	if (HiddenCameraOccluders.IsEmpty())
+	const APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
 	{
-		return GetHitResultUnderCursor(ECC_Visibility, false, Hit) ? Hit.ImpactPoint : GetFallbackAimPoint();
+		return GetFallbackAimPoint();
 	}
 
-	// 화면에서 가린 벽은 커서로도 집히지 않게 한다.
-	FCollisionQueryParams Query(SCENE_QUERY_STAT(QuarterCameraAim), false);
+	const double GroundHeight = ControlledPawn->GetNavAgentLocation().Z;
+	FVector Fallback = GetFallbackAimPoint();
+	Fallback.Z = GroundHeight;
+	FVector RayOrigin;
+	FVector RayDirection;
+	if (!DeprojectMousePositionToWorld(RayOrigin, RayDirection))
+	{
+		return Fallback;
+	}
+
+	// 내 몸과 화면에서 숨긴 벽은 커서에 걸리지 않게 한다.
+	FCollisionQueryParams Query(SCENE_QUERY_STAT(QuarterCameraAim), false, ControlledPawn);
 	for (const TWeakObjectPtr<UStaticMeshComponent>& Hidden : HiddenCameraOccluders)
 	{
 		if (const UStaticMeshComponent* Component = Hidden.Get())
@@ -1250,10 +1260,32 @@ FVector ASPlayerController::GetAimPointUnderCursor() const
 		}
 	}
 
-	FVector2D Cursor;
-	return GetMousePosition(Cursor.X, Cursor.Y)
-		&& GetHitResultAtScreenPosition(Cursor, ECC_Visibility, Query, Hit)
-		? Hit.ImpactPoint : GetFallbackAimPoint();
+	FHitResult Hit;
+	const FVector RayEnd = RayOrigin + RayDirection * HitResultTraceDistance;
+	if (GetWorld()->LineTraceSingleByChannel(Hit, RayOrigin, RayEnd, ECC_Visibility, Query))
+	{
+		// 적의 몸을 가리키면 적의 발밑을 겨냥한다.
+		if (const ACharacter* TargetCharacter = Cast<ACharacter>(Hit.GetActor()))
+		{
+			return TargetCharacter->GetNavAgentLocation();
+		}
+		if (Hit.ImpactNormal.Z >= 0.7f)
+		{
+			return Hit.ImpactPoint;
+		}
+	}
+
+	// 벽이나 천장을 가리킨 경우 커서 광선을 현재 발밑 높이까지 연장한다.
+	if (RayDirection.Z < -UE_SMALL_NUMBER)
+	{
+		const double Distance = (GroundHeight - RayOrigin.Z) / RayDirection.Z;
+		if (Distance >= 0.0 && Distance <= HitResultTraceDistance)
+		{
+			return RayOrigin + RayDirection * Distance;
+		}
+	}
+
+	return Fallback;
 }
 
 FVector ASPlayerController::GetAimPointAtScreenCenter() const

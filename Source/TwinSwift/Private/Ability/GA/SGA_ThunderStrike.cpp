@@ -6,6 +6,7 @@
 #include "SGameplayTags.h"
 #include "Ability/SAbilityFunctionLibrary.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "NiagaraFunctionLibrary.h"
 #include "TimerManager.h"
 
@@ -207,14 +208,28 @@ void USGA_ThunderStrike::OnCast(const FVector& Origin, const FVector& Direction)
 		return;
 	}
 
-	// 커서 위치(바닥)를 캐릭터 기준 MaxRange로 자름. 높이는 커서 위치 그대로 (바닥)
-	const FVector Aim = GetAimPoint();
+	// 사거리를 자르면 조준점과 낙뢰 지점의 바닥 높이가 다를 수 있다.
 	const FVector Start = Avatar->GetActorLocation();
-	FVector ToAim = Aim - Start;
-	ToAim.Z = 0.f;
-	ToAim = ToAim.GetClampedToMaxSize(MaxRange);
-	StrikeLocation = FVector(Start.X + ToAim.X, Start.Y + ToAim.Y, Aim.Z);
+	const FVector Offset = (GetAimPoint() - Start).GetClampedToMaxSize2D(MaxRange);
+	const APawn* CastingPawn = Cast<APawn>(Avatar);
+	const double GroundHeight = CastingPawn ? CastingPawn->GetNavAgentLocation().Z : Start.Z;
+	const FVector Candidate(Start.X + Offset.X, Start.Y + Offset.Y, GroundHeight);
 
+	FHitResult FloorHit;
+	const FCollisionQueryParams Query(SCENE_QUERY_STAT(ThunderStrikeFloor), false, Avatar);
+	if (!World->LineTraceSingleByObjectType(
+		FloorHit,
+		Candidate + FVector(0.f, 0.f, 300.f),
+		Candidate - FVector(0.f, 0.f, 600.f),
+		FCollisionObjectQueryParams(ECC_WorldStatic),
+		Query) || FloorHit.ImpactNormal.Z < 0.7f)
+	{
+		// 바닥이 없으면 효과 없이 시전 회복만 마친다.
+		bStruck = true;
+		return;
+	}
+
+	StrikeLocation = FloorHit.ImpactPoint;
 	bStruck = false;
 
 	// 경고 원: 이펙트가 있으면 이펙트, 없으면 바닥에 디버그 원 (StrikeDelay 동안 보임)
