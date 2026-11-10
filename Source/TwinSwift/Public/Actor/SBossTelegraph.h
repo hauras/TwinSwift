@@ -24,7 +24,7 @@ public:
 	ASBossTelegraph();
 
 	// 위치(바닥 중심)·방향(부채꼴 정면)·반경(cm)·부채꼴 전체 각도(도, 360이면 원)
-	void Setup(const FVector& Center, const FRotator& Facing, float Radius, float FanAngle);
+	void Setup(const FVector& Center, const FRotator& Facing, float Radius, float FanAngle, TOptional<FLinearColor> Color = {});
 
 	// 안쪽이 차오른 정도 (0 = 테두리만, 1 = 가득 = 맞는 순간)
 	void SetProgress(float Progress);
@@ -58,6 +58,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> MaterialInstance;
+	FLinearColor DefaultColor = FLinearColor::White;
 
 	FTimerHandle FlashTimer;
 

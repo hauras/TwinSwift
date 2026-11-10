@@ -72,7 +72,6 @@ void USGA_ConductorPattern::ActivateAbility(
 	// 능력 인스턴스는 재사용되므로 매번 처음 상태로: 지시를 펼쳐 시간순 목록을 만들고 커서는 맨 앞
 	PatternData->BuildShots(Shots);
 	NextShot = 0;
-	UE_LOG(LogTemp, Display, TEXT("[지휘자 패턴] %s 시작: 발사 %d번"), *PatternData->GetName(), Shots.Num());
 	TargetActor = Target;
 
 	// 무작위 색: 발동마다 한 번 뽑고, 쏘기 전(손을 모으는 동안) 보스 몸에 보여 줌 → 보고 교체할 시간

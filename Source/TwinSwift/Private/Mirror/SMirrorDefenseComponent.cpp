@@ -203,7 +203,7 @@ void USMirrorDefenseComponent::TryEvade()
 	FVector Direction;
 	if (!Dodge || !FindSafeDirection(Boss, PendingAttackCenter, PendingAttackRadius, Dodge->GetDodgeDistance(), Direction)) return;
 
-	ActivateDodge(Boss, Handle, Dodge, Direction);
+	ActivateDodge(Boss, Handle, Direction);
 }
 
 bool USMirrorDefenseComponent::TryEvadeFrom(const FVector& Center)
@@ -221,10 +221,10 @@ bool USMirrorDefenseComponent::TryEvadeFrom(const FVector& Center)
 	FVector Direction;
 	if (!FindSafeDirection(Boss, Center, FMath::Max(0.f, CurrentDistance - Margin), Dodge->GetDodgeDistance(), Direction)) return false;
 
-	return ActivateDodge(Boss, Handle, Dodge, Direction);
+	return ActivateDodge(Boss, Handle, Direction);
 }
 
-bool USMirrorDefenseComponent::ActivateDodge(ASMirrorBoss* Boss, const FGameplayAbilitySpecHandle& Handle, const USGA_Dodge* Dodge, const FVector& Direction)
+bool USMirrorDefenseComponent::ActivateDodge(ASMirrorBoss* Boss, const FGameplayAbilitySpecHandle& Handle, const FVector& Direction)
 {
 	UAbilitySystemComponent* ASC = Boss->GetAbilitySystemComponent();
 	Boss->SetReplayMoveDirection(Direction);
@@ -232,11 +232,6 @@ bool USMirrorDefenseComponent::ActivateDodge(ASMirrorBoss* Boss, const FGameplay
 
 	// 회피 방향은 ActivateAbility 안에서 읽으므로 다음 회피에 남기지 않음
 	Boss->SetReplayMoveDirection(FVector::ZeroVector);
-	if (bActivated)
-	{
-		UE_LOG(LogTemp, Display, TEXT("[거울 방어] %s: %s"),
-			*Boss->GetName(), Dodge->IsInstantDodge() ? TEXT("순간이동") : TEXT("구르기"));
-	}
 	return bActivated;
 }
 

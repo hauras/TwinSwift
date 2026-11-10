@@ -54,10 +54,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Blade", meta = (ClampMin = "0", ClampMax = "1"))
 	float BladeStartRatio = 0.3f;
 
-	// [디버그] 판정 구를 화면에 그림
-	UPROPERTY(EditAnywhere, Category = "Trace")
-	bool bDrawDebug = false;
-
 private:
 	// 칼날 시작·끝 (무기 메시 기준 좌표). 소켓이 있으면 소켓, 없으면 BladeStartRatio로 계산
 	void GetBladeLocal(const UStaticMeshComponent* Weapon, FVector& OutStart, FVector& OutEnd) const;

@@ -176,7 +176,6 @@ void USGA_ArcaneOrb::ReleaseOrb()
 	Orb->Initialize(ASC, Spec);
 	ActiveOrb = Orb;
 	UGameplayStatics::FinishSpawningActor(Orb, PendingPlacement);
-	UE_LOG(LogTemp, Display, TEXT("[마력 구체] 시전 신호에 맞춰 설치"));
 }
 
 void USGA_ArcaneOrb::OnCastEvent(FGameplayEventData Payload)

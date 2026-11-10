@@ -157,7 +157,6 @@ ACharacterBase      능력이 묻는 훅 (겨냥점 · 회피 방향 · 칼 · �
 - Unreal Engine 5.7, Visual Studio 2022, Git LFS
 - **외부 에셋(캐릭터·애니·VFX·던전 팩)은 라이선스 때문에 저장소에 없음** → 받는 곳과 경로: [`Docs/에셋.md`](Docs/에셋.md)
 - `TwinSwift.uproject` → 빌드 → `L_MainMenu`에서 시작 (에디터 시작 맵은 경기장 `L_StoneArena`)
-- 디버그 명령: `DebugBossHealth <비율>` (예: `0.42` → 한 대 치면 2페이즈, `0` → 바로 처치) · `DebugMarkAll Crack|Frost` · `DebugBulletSpiral`
 - 측정 재현: `Tools/run_bullet_bench.py` 또는 실행 인자 `-Bench=60,20 -BenchQuit`
 
 ---

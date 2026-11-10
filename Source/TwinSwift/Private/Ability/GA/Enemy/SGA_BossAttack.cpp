@@ -3,7 +3,6 @@
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
 #include "AIController.h"
-#include "DrawDebugHelpers.h"
 #include "SGameplayTags.h"
 #include "TimerManager.h"
 #include "Abilities/Tasks/AbilityTask_ApplyRootMotionMoveToForce.h"
@@ -210,11 +209,6 @@ void USGA_BossAttack::OnAttackTick()
 		TelegraphActor->SetProgress(GetTelegraphProgress(AttackTime));
 	}
 
-	if (bDrawDebugTelegraph)
-	{
-		DrawTelegraph(AttackTime);
-	}
-
 	// 다 쳤음. 몽타주가 없으면 여기서 끝 (있으면 몽타주가 끝날 때 끝냄)
 	if (!HitTimes.IsValidIndex(HitIndex) && !AttackMontage)
 	{
@@ -280,11 +274,6 @@ void USGA_BossAttack::DoHit()
 		HideTelegraph(true);
 	}
 
-	// 맞는 순간 표시 (굵은 빨간 선, 0.2초)
-	if (bDrawDebugTelegraph)
-	{
-		DrawArea(Radius, FColor::Red, 10.f, 0.2f);
-	}
 }
 
 bool USGA_BossAttack::IsInShape(const AActor* Target) const
@@ -487,52 +476,6 @@ void USGA_BossAttack::HideTelegraph(bool bFlash)
 	else
 	{
 		TelegraphActor->Release();
-	}
-}
-
-void USGA_BossAttack::DrawTelegraph(float AttackTime) const
-{
-	if (!HitTimes.IsValidIndex(HitIndex))
-	{
-		return;
-	}
-
-	// 바깥 = 공격 범위, 안쪽 = 남은 시간 (바깥에 닿는 순간 맞음). 다음 확인 때까지 보이게 주기보다 조금 길게
-	const float Duration = AttackTickInterval * 1.5f;
-	DrawArea(Radius, FColor::Red, 4.f, Duration);
-	DrawArea(Radius * GetTelegraphProgress(AttackTime), FColor::Orange, 3.f, Duration);
-}
-
-void USGA_BossAttack::DrawArea(float InRadius, const FColor& Color, float Thickness, float Duration) const
-{
-	const AActor* Avatar = GetAvatarActorFromActorInfo();
-	if (!Avatar)
-	{
-		return;
-	}
-
-	const FVector Center = GetShapeCenter();
-	const FVector Forward = Avatar->GetActorForwardVector().GetSafeNormal2D();
-	const float HalfAngle = Shape == EBossAttackShape::Fan ? FanAngle * 0.5f : 180.f;
-	const bool bDrawEdges = HalfAngle < 180.f;
-
-	// 호를 짧은 선분 32개로. 부채꼴이면 중심에서 양 끝까지 선도
-	constexpr int32 Segments = 32;
-	FVector Prev = Center + Forward.RotateAngleAxis(-HalfAngle, FVector::UpVector) * InRadius;
-	if (bDrawEdges)
-	{
-		DrawDebugLine(GetWorld(), Center, Prev, Color, false, Duration, 0, Thickness);
-	}
-	for (int32 Index = 1; Index <= Segments; ++Index)
-	{
-		const float Angle = -HalfAngle + 2.f * HalfAngle * Index / Segments;
-		const FVector Point = Center + Forward.RotateAngleAxis(Angle, FVector::UpVector) * InRadius;
-		DrawDebugLine(GetWorld(), Prev, Point, Color, false, Duration, 0, Thickness);
-		Prev = Point;
-	}
-	if (bDrawEdges)
-	{
-		DrawDebugLine(GetWorld(), Center, Prev, Color, false, Duration, 0, Thickness);
 	}
 }
 

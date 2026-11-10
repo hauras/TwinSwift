@@ -1,6 +1,6 @@
 # 단계 8-3 균열 연쇄 폭발: 연쇄 확인용 더미 배치 + 확인용 연쇄 간격 (L_Dev, GA_Mage_Thunder)
 #   더미 일렬 270 간격: 이웃은 폭발 반경(300) 안, 낙뢰(250)는 첫 더미만 → 1 → 2 → 3 → 4단계가 차례로
-#   표식은 콘솔 DebugMarkAll Crack 으로 한 번에 (내려찍기 반경 300으로는 4개를 다 못 찍음)
+#   전사 내려찍기로 적에게 균열 표식을 걸고 마법사 낙뢰로 연쇄를 확인한다.
 #   폭발 이펙트는 VFX/make_crack_burst.py가 지정 (NS_CrackBurst)
 # 조건: SGA_ThunderStrike에 연쇄 속성이 들어간 C++이 빌드돼 있어야 함. 다시 실행해도 같은 결과
 import unreal

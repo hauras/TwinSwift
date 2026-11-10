@@ -2,7 +2,9 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "DrawDebugHelpers.h"
+#include "Actor/SBossTelegraph.h"
+#include "Pool/SActorPool.h"
+#include "UObject/ConstructorHelpers.h"
 #include "SGameplayTags.h"
 #include "Ability/SAbilityFunctionLibrary.h"
 #include "Engine/World.h"
@@ -23,6 +25,10 @@ USGA_ThunderStrike::USGA_ThunderStrike()
 
 	// 원 안의 적 모두에게 2.0배
 	DamageMultiplier = 2.f;
+
+	static const ConstructorHelpers::FClassFinder<ASBossTelegraph> Telegraph(
+		TEXT("/Game/Blueprints/Boss/BP_BossTelegraph"));
+	WarningTelegraphClass = Telegraph.Class;
 }
 
 void USGA_ThunderStrike::Strike()
@@ -33,6 +39,12 @@ void USGA_ThunderStrike::Strike()
 		return;
 	}
 	bStruck = true;
+
+	if (ASBossTelegraph* Telegraph = WarningTelegraph.Get())
+	{
+		WarningTelegraph.Reset();
+		Telegraph->Release();
+	}
 
 	UWorld* World = GetWorld();
 	if (World && StrikeEffect)
@@ -92,21 +104,10 @@ void USGA_ThunderStrike::ExplodeChainWave()
 	// 한 단계 안에서 한 적은 한 번만 맞음 (폭발 범위가 겹쳐도 피해가 쌓이지 않게)
 	TSet<AActor*> DamagedThisWave;
 	TArray<TWeakObjectPtr<AActor>> NextWave;
-	int32 ExplodedCount = 0;
 	for (const TWeakObjectPtr<AActor>& Source : ChainWave)
 	{
-		if (ExplodeOne(Source.Get(), DamagedThisWave, NextWave))
-		{
-			++ExplodedCount;
-		}
+		ExplodeOne(Source.Get(), DamagedThisWave, NextWave);
 	}
-
-	// 단계별 확인용 (출력 로그). 나중에 적이 많을 때 찾기 비용을 잴 때도 씀
-	UE_LOG(LogTemp, Log, TEXT("[균열 연쇄] %d단계: %d개 폭발, 피해 %d명, 다음 단계 %d개"),
-		ChainDepth,
-		ExplodedCount,
-		DamagedThisWave.Num(),
-		NextWave.Num());
 
 	ChainWave = MoveTemp(NextWave);
 	++ChainDepth;
@@ -127,7 +128,7 @@ void USGA_ThunderStrike::ExplodeChainWave()
 	TryFinishCast();
 }
 
-bool USGA_ThunderStrike::ExplodeOne(
+void USGA_ThunderStrike::ExplodeOne(
 	AActor* Source,
 	TSet<AActor*>& DamagedThisWave,
 	TArray<TWeakObjectPtr<AActor>>& OutNextWave)
@@ -138,7 +139,7 @@ bool USGA_ThunderStrike::ExplodeOne(
 		|| !SourceASC
 		|| !SourceASC->HasMatchingGameplayTag(SGameplayTags::Mark_Crack))
 	{
-		return false;
+		return;
 	}
 
 	// 표식을 먼저 지움 (터뜨린 표식은 사라짐)
@@ -149,11 +150,6 @@ bool USGA_ThunderStrike::ExplodeOne(
 	if (World && BurstEffect)
 	{
 		USAbilityFunctionLibrary::SpawnOneShotEffect(World, BurstEffect, Center);
-	}
-	else if (World)
-	{
-		DrawDebugCircle(World, Center, BurstRadius, 32, FColor::Orange,
-			false, 0.3f, 0, 4.f, FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
 	}
 
 	TArray<AActor*> Enemies;
@@ -179,7 +175,6 @@ bool USGA_ThunderStrike::ExplodeOne(
 			OutNextWave.Add(Enemy);
 		}
 	}
-	return true;
 }
 
 void USGA_ThunderStrike::EndAbility(
@@ -194,6 +189,12 @@ void USGA_ThunderStrike::EndAbility(
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(StrikeTimer);
+	}
+
+	if (ASBossTelegraph* Telegraph = WarningTelegraph.Get())
+	{
+		WarningTelegraph.Reset();
+		Telegraph->Release();
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -232,15 +233,23 @@ void USGA_ThunderStrike::OnCast(const FVector& Origin, const FVector& Direction)
 	StrikeLocation = FloorHit.ImpactPoint;
 	bStruck = false;
 
-	// 경고 원: 이펙트가 있으면 이펙트, 없으면 바닥에 디버그 원 (StrikeDelay 동안 보임)
+	// 시전 예고는 타격 위치와 반경을 그대로 보여 준다.
 	if (WarningEffect)
 	{
 		USAbilityFunctionLibrary::SpawnOneShotEffect(World, WarningEffect, StrikeLocation);
 	}
-	else
+
+	else if (WarningTelegraphClass && StrikeDelay > 0.f)
 	{
-		DrawDebugCircle(World, StrikeLocation + FVector(0.f, 0.f, 3.f), Radius, 48, FColor::Cyan,
-			false, StrikeDelay, 0, 4.f, FVector(1.f, 0.f, 0.f), FVector(0.f, 1.f, 0.f), false);
+		if (USActorPool* Pool = World->GetSubsystem<USActorPool>())
+		{
+			ASBossTelegraph* Telegraph = Pool->Acquire<ASBossTelegraph>(WarningTelegraphClass, FTransform(StrikeLocation));
+			if (Telegraph)
+			{
+				Telegraph->Setup(StrikeLocation, FRotator::ZeroRotator, Radius, 360.f, FLinearColor(0.12f, 0.72f, 1.f));
+				WarningTelegraph = Telegraph;
+			}
+		}
 	}
 
 	// StrikeDelay 뒤 번개. 0이면 바로

@@ -145,14 +145,6 @@ void ASArcaneOrb::Explode()
 		}
 	}
 
-	UE_LOG(
-		LogTemp,
-		Display,
-		TEXT("[마력 구체] 폭발: 대상 %d명, 충전량 %.2f, 피해 배율 %.2f"),
-		Targets.Num(),
-		ChargeRatio,
-		DamageMultiplier);
-
 	SpawnExplosionWave(ChargeRatio);
 
 	USAbilityFunctionLibrary::SpawnOneShotEffect(

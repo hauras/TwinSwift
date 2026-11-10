@@ -102,8 +102,8 @@ private:
 	};
 
 	// 점수 계산 → 후보 → 가방에서 고르기 → 기록. 고른 번호 (없으면 INDEX_NONE)
-	// bCheckAbility: 쿨다운·발동 가능 검사 (시뮬레이션은 끔). OutScores: 디버그 표시용
-	int32 SelectIndex(FSelectState& State, float DistanceToTarget, bool bCheckAbility, TArray<float>* OutScores) const;
+	// bCheckAbility: 쿨다운·발동 가능 검사 (시뮬레이션은 끔).
+	int32 SelectIndex(FSelectState& State, float DistanceToTarget, bool bCheckAbility) const;
 
 	// 패턴 하나의 점수 (못 쓰면 0)
 	float ScorePattern(int32 Index, const FSelectState& State, float DistanceToTarget, bool bCheckAbility) const;
@@ -116,9 +116,6 @@ private:
 
 	// 가방을 모든 패턴으로 다시 채우고 섞음. 직전 패턴이 맨 앞에 오지 않게 (가방 경계에서 연속 방지)
 	void RefillBag(FSelectState& State) const;
-
-	// 고른 이유를 보스 머리 위에 표시 (콘솔 ts.Boss.ShowPatternScores 1)
-	void DrawScores(const TArray<float>& Scores, int32 Chosen, float DistanceToTarget) const;
 
 	UAbilitySystemComponent* GetASC() const;
 

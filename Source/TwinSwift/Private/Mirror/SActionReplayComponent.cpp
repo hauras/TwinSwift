@@ -209,7 +209,6 @@ bool USActionReplayComponent::UpdateReverse(double Now)
 		if (Now < NextReverseTime || IsBusy()) return false;
 		ReverseState = EReverseState::Warning;
 		ReverseStateTime = Now;
-		UE_LOG(LogTemp, Display, TEXT("[거울 반전] 예고"));
 		return true;
 
 	case EReverseState::Warning:
@@ -246,18 +245,10 @@ bool USActionReplayComponent::PlaySteps(double Now)
 			break;
 			
 		}
-		if (PressAction(Step.AbilityClass, Step.Slot))
-		{
-			UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 실행 %s"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass));
-		}
-		else if (Now - Step.PlayAt < ReverseRetryTime)
+		if (!PressAction(Step.AbilityClass, Step.Slot) && Now - Step.PlayAt < ReverseRetryTime)
 		{
 			// 거꾸로 놓으면 앞 기술 동작이 안 끝났는데 다음 차례가 올 수 있음 → 다음 틱에 다시 (뒤 순서도 같이 기다림)
 			break;
-		}
-		else
-		{
-			UE_LOG(LogTemp, Display, TEXT("[거울 반전] %d/%d 건너뜀 %s (%.1f초 동안 못 씀)"), ReverseIndex + 1, ReverseSteps.Num(), *GetNameSafe(Step.AbilityClass), ReverseRetryTime);
 		}
 		++ReverseIndex;
 	}
@@ -439,7 +430,6 @@ void USActionReplayComponent::TryFillIdle(double Now)
 		// 쓸 수 있는 걸 확인한 뒤에 몸을 바꿔서 헛교체가 없게
 		if (PressAction(Action.AbilityClass, Action.Slot))
 		{
-			UE_LOG(LogTemp, Display, TEXT("[거울 채우기] %s"), *GetNameSafe(Action.AbilityClass));
 			return;
 		}
 	}

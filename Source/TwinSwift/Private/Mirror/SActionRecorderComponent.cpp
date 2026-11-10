@@ -3,25 +3,8 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Ability/SAbilitySystemComponent.h"
-#include "DrawDebugHelpers.h"
-#include "HAL/IConsoleManager.h"
 #include "Character/PlayerCharacter.h"
 #include "State/SPlayerState.h"
-
-namespace
-{
-	// [확인용] 1이면 "N초 전 내 위치"에 보라 구를 그리고, 행동이 기록될 때 로그. 거울 보스가 볼 자리를 미리 보는 것
-	TAutoConsoleVariable<int32> CVarShowGhost(
-		TEXT("ts.Mirror.ShowGhost"),
-		0,
-		TEXT("1: 기록 컴포넌트가 GhostDelay초 전 위치에 구를 그리고 행동 기록을 로그로"));
-
-	// [확인용] 구가 몇 초 늦게 따라올지 (거울 보스의 재생 지연과 같게 3초)
-	TAutoConsoleVariable<float> CVarGhostDelay(
-		TEXT("ts.Mirror.GhostDelay"),
-		3.f,
-		TEXT("ShowGhost 구의 지연(초)"));
-}
 
 USActionRecorderComponent::USActionRecorderComponent()
 {
@@ -72,25 +55,6 @@ void USActionRecorderComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	Pose.Location = Owner->GetActorLocation();
 	Pose.Yaw = Owner->GetActorRotation().Yaw;
 	Poses.Add(Pose);
-
-	// [확인용] N초 전 위치에 구 + 보던 방향. 다음 틱까지 남게 (틱 간격만큼). 플레이어 기록만 (거울 보스도 위치를 기록함)
-	if (CVarShowGhost.GetValueOnGameThread() != 0 && Cast<APlayerCharacter>(Owner))
-	{
-		FSRecordedPose Ghost;
-		if (GetPoseAt(Pose.Time - CVarGhostDelay.GetValueOnGameThread(), Ghost))
-		{
-			const FColor Purple(160, 80, 255);
-			DrawDebugSphere(GetWorld(), Ghost.Location, 40.f, 12, Purple, false, SampleInterval + 0.02f);
-			DrawDebugDirectionalArrow(
-				GetWorld(),
-				Ghost.Location,
-				Ghost.Location + FRotator(0.f, Ghost.Yaw, 0.f).Vector() * 120.f,
-				40.f,
-				Purple,
-				false,
-				SampleInterval + 0.02f);
-		}
-	}
 }
 
 void USActionRecorderComponent::HandleAbilityPressed(TSubclassOf<UGameplayAbility> AbilityClass, ETwinSlot Slot)
@@ -102,11 +66,6 @@ void USActionRecorderComponent::HandleAbilityPressed(TSubclassOf<UGameplayAbilit
 	Action.AbilityClass = AbilityClass;
 	Action.Slot = Slot;
 	Actions.Add(Action);
-
-	if (CVarShowGhost.GetValueOnGameThread() != 0)
-	{
-		UE_LOG(LogTemp, Display, TEXT("[거울 기록] %.2f초 능력: %s"), Action.Time, *GetNameSafe(Action.AbilityClass));
-	}
 }
 
 void USActionRecorderComponent::OnActiveSlotChanged(ETwinSlot NewSlot)
@@ -116,11 +75,6 @@ void USActionRecorderComponent::OnActiveSlotChanged(ETwinSlot NewSlot)
 	Action.Type = ERecordedActionType::Swap;
 	Action.Slot = NewSlot;
 	Actions.Add(Action);
-
-	if (CVarShowGhost.GetValueOnGameThread() != 0)
-	{
-		UE_LOG(LogTemp, Display, TEXT("[거울 기록] %.2f초 교체 → %s"), Action.Time, NewSlot == ETwinSlot::Warrior ? TEXT("전사") : TEXT("마법사"));
-	}
 }
 
 bool USActionRecorderComponent::GetPoseAt(double Time, FSRecordedPose& OutPose) const

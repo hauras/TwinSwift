@@ -5,6 +5,7 @@
 #include "Engine/TimerHandle.h"
 #include "SGA_ThunderStrike.generated.h"
 
+class ASBossTelegraph;
 class UNiagaraSystem;
 
 /**
@@ -49,9 +50,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Thunder")
 	TObjectPtr<UNiagaraSystem> StrikeEffect;
 
-	// 경고 원 이펙트. 비우면 디버그 원으로 그림
+	// 경고 원 이펙트. 비우면 바닥 예고 액터로 범위를 표시
 	UPROPERTY(EditDefaultsOnly, Category = "Thunder")
 	TObjectPtr<UNiagaraSystem> WarningEffect;
+
+	// 별도 이펙트가 없을 때 사용할 바닥 예고
+	UPROPERTY(EditDefaultsOnly, Category = "Thunder")
+	TSubclassOf<ASBossTelegraph> WarningTelegraphClass;
 
 	// [균열] 폭발 반경(cm). 이 안의 적이 피해를 받고, 그중 [균열] 적이 다음 단계에 터짐
 	UPROPERTY(EditDefaultsOnly, Category = "Thunder|Crack Burst", meta = (ClampMin = "0"))
@@ -69,7 +74,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Thunder|Crack Burst", meta = (ClampMin = "1"))
 	int32 MaxChainDepth = 5;
 
-	// [균열] 폭발 이펙트 (터지는 적 위치). 비우면 디버그 원으로 그림
+	// [균열] 폭발 이펙트 (터지는 적 위치)
 	UPROPERTY(EditDefaultsOnly, Category = "Thunder|Crack Burst")
 	TObjectPtr<UNiagaraSystem> BurstEffect;
 
@@ -88,6 +93,7 @@ private:
 
 	// 경고 → 번개까지의 타이머 (반복 안 함)
 	FTimerHandle StrikeTimer;
+	TWeakObjectPtr<ASBossTelegraph> WarningTelegraph;
 
 	// 번개가 이미 떨어졌는지 (IsCastFinished가 씀)
 	bool bStruck = false;
@@ -99,8 +105,7 @@ private:
 	void ExplodeChainWave();
 
 	// 적 하나 터뜨리기: [균열] 제거 + 이펙트 + 범위 피해. 범위 안에서 다음 단계로 갈 적을 OutNextWave에
-	// 터졌으면 true (기다리는 동안 사라졌거나 [균열]이 끝났으면 false)
-	bool ExplodeOne(
+	void ExplodeOne(
 		AActor* Source,
 		TSet<AActor*>& DamagedThisWave,
 		TArray<TWeakObjectPtr<AActor>>& OutNextWave);

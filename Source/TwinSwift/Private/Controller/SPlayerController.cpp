@@ -1,10 +1,8 @@
 #include "Controller/SPlayerController.h"
 
-#include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Ability/SAbilitySystemComponent.h"
-#include "Ability/SAttributeSet.h"
 #include "Camera/SCameraConfig.h"
 #include "CollisionQueryParams.h"
 #include "Components/StaticMeshComponent.h"
@@ -12,7 +10,6 @@
 #include "Engine/StaticMeshActor.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Camera/SCameraShake_Shatter.h"
-#include "Ability/SGE_Cooldown.h"
 #include "Ability/SGE_Damage.h"
 #include "Projectile/SProjectile.h"
 #include "Pool/SActorPool.h"
@@ -27,7 +24,6 @@
 #include "AI/SBossPatternComponent.h"
 #include "Bullet/SBulletManager.h"
 #include "RenderTimer.h"
-#include "Game/SBossEncounter.h"
 #include "Character/BossCharacter.h"
 #include "Character/EnemyCharacter.h"
 #include "Character/PlayerCharacter.h"
@@ -41,6 +37,7 @@
 
 namespace
 {
+#if !UE_BUILD_SHIPPING
 	// [측정] 측정 동안 새로 만들어진 UObject 수 (액터, 컴포넌트, 이펙트 등). 풀의 효과 = 버리는 객체가 줄어듦
 	// 비동기 로딩 스레드에서도 불릴 수 있어서 원자 변수
 	class FBenchObjectCreateCounter : public FUObjectArray::FUObjectCreateListener
@@ -84,6 +81,8 @@ namespace
 	};
 	FBenchObjectCreateCounter BenchObjectCounter;
 
+#endif
+
 	// 입력을 받을 캐릭터: 캐릭터 전용 스킬 키면 그 캐릭터, 아니면(공격·회피) 지금 캐릭터
 	ETwinSlot GetSlotForInput(const FGameplayTag& InputTag, ETwinSlot ActiveSlot)
 	{
@@ -117,6 +116,7 @@ void ASPlayerController::BeginPlay()
 		return;
 	}
 
+#if !UE_BUILD_SHIPPING
 	// [측정] 실행 인자 -Bench=60,20 이면 로딩이 가라앉도록 3초 뒤 자동으로 BenchProjectiles 60 20
 	FString BenchArgs;
 	// 쉼표에서 끊지 않게 (기본은 쉼표를 구분자로 봄)
@@ -154,6 +154,8 @@ void ASPlayerController::BeginPlay()
 			}), 3.f, false);
 		}
 	}
+
+#endif
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
@@ -273,16 +275,6 @@ void ASPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
 	UpdateQuarterCamera(DeltaTime);
-
-	if (bDrawAimPoint)
-	{
-		DrawDebugSphere(
-			GetWorld(),
-			GetAimPoint(),
-			30.f,
-			12,
-			FColor::Red);
-	}
 }
 
 void ASPlayerController::Move_Input(const FInputActionValue& InputValue)
@@ -498,46 +490,7 @@ void ASPlayerController::CycleCameraConfig()
 	ApplyCurrentCameraConfig();
 }
 
-void ASPlayerController::ShowAim()
-{
-	bDrawAimPoint = !bDrawAimPoint;
-}
-
-void ASPlayerController::DebugDamage(float Amount)
-{
-	const ASPlayerState* SPlayerState = GetPlayerState<ASPlayerState>();
-	UAbilitySystemComponent* ASC = SPlayerState ? SPlayerState->GetAbilitySystemComponent() : nullptr;
-	if (!ASC || Amount <= 0.f)
-	{
-		return;
-	}
-
-	// 체력을 직접 깎음 (0 아래로는 안 내려가게). 체력 변경 알림이 나가서 HUD·쓰러짐 처리가 실제 피격과 같이 동작
-	// ApplyModToAttribute는 GE 실행 콜백(PostGameplayEffectExecute)을 거치지 않아 IncomingDamage로는 체력이 안 줄어듦
-	const float Health = ASC->GetNumericAttribute(USAttributeSet::GetHealthAttribute());
-	ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, FMath::Max(0.f, Health - Amount));
-}
-
-void ASPlayerController::DebugBossHealth(float Ratio)
-{
-	for (TActorIterator<ABossCharacter> It(GetWorld()); It; ++It)
-	{
-		UAbilitySystemComponent* ASC = It->GetAbilitySystemComponent();
-		if (!ASC || It->IsDead())
-		{
-			continue;
-		}
-
-		// DebugDamage와 같은 방식 (체력 변경 알림 → 2페이즈·사망 처리)
-		const float MaxHealth = ASC->GetNumericAttribute(USAttributeSet::GetMaxHealthAttribute());
-		const float NewHealth = MaxHealth * FMath::Clamp(Ratio, 0.f, 1.f);
-		ASC->ApplyModToAttribute(USAttributeSet::GetHealthAttribute(), EGameplayModOp::Override, NewHealth);
-		UE_LOG(LogTemp, Display, TEXT("[디버그] %s 체력 %.0f / %.0f"), *It->GetName(), NewHealth, MaxHealth);
-		return;
-	}
-	UE_LOG(LogTemp, Warning, TEXT("[디버그] 살아 있는 보스가 없음"));
-}
-
+#if !UE_BUILD_SHIPPING
 void ASPlayerController::BossPatternSim(int32 Count)
 {
 	for (TActorIterator<ABossCharacter> It(GetWorld()); It; ++It)
@@ -550,26 +503,6 @@ void ASPlayerController::BossPatternSim(int32 Count)
 		}
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[패턴 시뮬레이션] 맵에 보스가 없음"));
-}
-
-void ASPlayerController::DebugBulletSpiral(float Seconds, int32 Arms, float Speed)
-{
-	TActorIterator<ABossCharacter> BossIt(GetWorld());
-	if (!ASBulletManager::Get(this) || !BossIt || !GetPawn())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[탄막 시험] 탄 매니저(BP_BulletManager)·보스·플레이어 중 없는 것이 있음"));
-		return;
-	}
-
-	DebugSpiralBoss = *BossIt;
-	DebugSpiralEndTime = GetWorld()->GetTimeSeconds() + Seconds;
-	DebugSpiralAngle = 0.f;
-	DebugSpiralArms = FMath::Max(Arms, 1);
-	DebugSpiralSpeed = Speed;
-
-	// 0.08초마다 한 줄씩 → 팔 하나당 초당 12.5발. 각도를 돌려서 휘어진 팔로 보임
-	GetWorldTimerManager().SetTimer(DebugSpiralTimer, this, &ThisClass::FireDebugSpiral, 0.08f, true);
-	UE_LOG(LogTemp, Log, TEXT("[탄막 시험] %.0f초, 팔 %d개, 속도 %.0f"), Seconds, DebugSpiralArms, DebugSpiralSpeed);
 }
 
 void ASPlayerController::BenchBullets(int32 Count, int32 UseActors, float Seconds)
@@ -824,84 +757,6 @@ void ASPlayerController::FinishBenchBullets()
 	}
 }
 
-void ASPlayerController::FireDebugSpiral()
-{
-	ASBulletManager* Manager = ASBulletManager::Get(this);
-	ABossCharacter* Boss = DebugSpiralBoss.Get();
-	const APawn* ControlledPawn = GetPawn();
-	// 전투가 끝났으면(승리·패배) 멈춤: 전투 진행 액터가 탄을 지워도 다음 주기에 다시 쏘지 않게
-	TActorIterator<ASBossEncounter> EncounterIt(GetWorld());
-	const bool bFightOver = EncounterIt && EncounterIt->GetState() != EBossEncounterState::Fighting;
-	if (!Manager || !Boss || !ControlledPawn || bFightOver || GetWorld()->GetTimeSeconds() >= DebugSpiralEndTime)
-	{
-		GetWorldTimerManager().ClearTimer(DebugSpiralTimer);
-		if (Manager)
-		{
-			UE_LOG(LogTemp, Log, TEXT("[탄막 시험] 끝. 남은 탄 %d"), Manager->GetBulletCount());
-		}
-		return;
-	}
-
-	// 보스 발밑 대신 플레이어 몸 가운데 높이에서 수평으로
-	FVector Origin = Boss->GetActorLocation();
-	Origin.Z = ControlledPawn->GetActorLocation().Z;
-
-	const float ArmStep = 360.f / DebugSpiralArms;
-	for (int32 Arm = 0; Arm < DebugSpiralArms; ++Arm)
-	{
-		const float Yaw = DebugSpiralAngle + Arm * ArmStep;
-		const FVector Direction = FRotator(0.f, Yaw, 0.f).Vector();
-		Manager->SpawnBullet(
-			Origin + Direction * 150.f,
-			Direction * DebugSpiralSpeed,
-			// 팔마다 색을 번갈아 (주황은 전사, 파랑은 마법사가 막음)
-			Arm % 2 == 0 ? EBulletColor::Orange : EBulletColor::Blue,
-			Boss->GetAbilitySystemComponent(),
-			1.f);
-	}
-	DebugSpiralAngle += 7.f;
-}
-
-void ASPlayerController::DebugMarkAll(const FString& MarkName)
-{
-	FGameplayTag MarkTag;
-	if (MarkName.Equals(TEXT("Crack"), ESearchCase::IgnoreCase))
-	{
-		MarkTag = SGameplayTags::Mark_Crack;
-	}
-	else if (MarkName.Equals(TEXT("Frost"), ESearchCase::IgnoreCase))
-	{
-		MarkTag = SGameplayTags::Mark_Frost;
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("DebugMarkAll: Crack 또는 Frost"));
-		return;
-	}
-
-	// 실제 스킬과 같은 방식: 공통 시간 태그 GE에 표식 태그와 시간을 넣어 적에게 스스로 적용
-	constexpr float DebugMarkDuration = 10.f;
-	int32 MarkedCount = 0;
-	for (TActorIterator<AEnemyCharacter> It(GetWorld()); It; ++It)
-	{
-		UAbilitySystemComponent* EnemyASC = It->GetAbilitySystemComponent();
-		if (!EnemyASC)
-		{
-			continue;
-		}
-		const FGameplayEffectSpecHandle Spec = EnemyASC->MakeOutgoingSpec(USGE_Cooldown::StaticClass(), 1.f, EnemyASC->MakeEffectContext());
-		if (!Spec.IsValid())
-		{
-			continue;
-		}
-		Spec.Data->DynamicGrantedTags.AddTag(MarkTag);
-		Spec.Data->SetSetByCallerMagnitude(SGameplayTags::SetByCaller_Duration, DebugMarkDuration);
-		EnemyASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-		++MarkedCount;
-	}
-	UE_LOG(LogTemp, Log, TEXT("DebugMarkAll: 적 %d명에게 %s %.0f초"), MarkedCount, *MarkTag.ToString(), DebugMarkDuration);
-}
-
 void ASPlayerController::BenchProjectiles(float PerSecond, float Seconds)
 {
 	const APawn* ControlledPawn = GetPawn();
@@ -987,7 +842,6 @@ void ASPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	GetWorldTimerManager().ClearTimer(BenchTimer);
 	GetWorldTimerManager().ClearTimer(BenchBulletTimer);
-	GetWorldTimerManager().ClearTimer(DebugSpiralTimer);
 	FCoreDelegates::OnEndFrame.Remove(BenchFrameHandle);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(BenchPreGCHandle);
 	FCoreUObjectDelegates::GetPostGarbageCollect().Remove(BenchPostGCHandle);
@@ -1084,6 +938,17 @@ void ASPlayerController::BenchFireOne()
 	BenchMaxSpawnSeconds = FMath::Max(BenchMaxSpawnSeconds, Elapsed);
 	++BenchFired;
 }
+
+#else
+void ASPlayerController::BossPatternSim(int32) {}
+void ASPlayerController::BenchBullets(int32, int32, float) {}
+void ASPlayerController::BenchProjectiles(float, float) {}
+
+void ASPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+}
+#endif
 
 void ASPlayerController::SetCameraBoss(ABossCharacter* Boss)
 {

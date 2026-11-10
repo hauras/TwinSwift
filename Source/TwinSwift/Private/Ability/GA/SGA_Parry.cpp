@@ -133,10 +133,7 @@ void USGA_Parry::OnParried(FGameplayEventData Payload)
 		{
 			CounterTarget = Attacker;
 		}
-		else
-		{
-			UE_LOG(LogTemp, Display, TEXT("[반격] %s: 막음 (멀어서 반격 없음)"), *GetNameSafe(Attacker));
-		}
+
 	}
 
 	// 몽타주가 없으면 칼이 지나갈 때를 알 수 없음 → 바로 때리고 끝
@@ -229,7 +226,6 @@ void USGA_Parry::CounterAttack(AActor* Target)
 	const float Distance = FVector::Dist2D(Avatar->GetActorLocation(), Target->GetActorLocation());
 	if (Distance > CounterRange * CounterHitRangeScale)
 	{
-		UE_LOG(LogTemp, Display, TEXT("[반격] %s: 빗나감 (베는 순간 %.0fcm, 닿는 거리 %.0fcm)"), *GetNameSafe(Target), Distance, CounterRange * CounterHitRangeScale);
 		return;
 	}
 	// 막혔으면(거울 보스의 반격 자세·회피) false → 큰 경직도 없음
@@ -240,7 +236,6 @@ void USGA_Parry::CounterAttack(AActor* Target)
 	{
 		Boss->NotifyCountered();
 	}
-	UE_LOG(LogTemp, Display, TEXT("[반격] %s → %s"), *GetNameSafe(GetAvatarActorFromActorInfo()), *GetNameSafe(Target));
 }
 
 void USGA_Parry::OnWindowEnded()

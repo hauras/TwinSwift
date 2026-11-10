@@ -423,7 +423,6 @@ void ABossCharacter::NotifyMarkBurst()
 	UAbilitySystemComponent* ASC = GetAbilitySystemComponent();
 	if (!ASC || IsDead() || !ASC->HasMatchingGameplayTag(SGameplayTags::State_Armored))
 	{
-		UE_LOG(LogTemp, Display, TEXT("[보스] 표식 폭발 받음 (갑옷 없음 → 세지 않음)"));
 		return;
 	}
 
@@ -431,13 +430,11 @@ void ABossCharacter::NotifyMarkBurst()
 	const double Now = GetWorld()->GetTimeSeconds();
 	if (Now - LastArmorHitTime < ArmorHitInterval)
 	{
-		UE_LOG(LogTemp, Display, TEXT("[보스] 표식 폭발 받음 (%.2f초 전에 셈 → 같은 폭발로 봄)"), Now - LastArmorHitTime);
 		return;
 	}
 	LastArmorHitTime = Now;
 
 	ArmorHitsLeft = FMath::Max(ArmorHitsLeft - 1, 0);
-	UE_LOG(LogTemp, Display, TEXT("[보스] 갑옷 표식 폭발 %d / %d"), ArmorHitsRequired - ArmorHitsLeft, ArmorHitsRequired);
 	if (ArmorHitsLeft > 0)
 	{
 		RefreshArmorGlow();
@@ -509,7 +506,6 @@ void ABossCharacter::NotifyCountered()
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[보스] 반격당함 → 큰 경직 %.1f초"), CounterGroggyDuration);
 	OnArmorChanged.Broadcast(EBossArmorEvent::Countered);
 	BeginGroggy(CounterGroggyDuration);
 }

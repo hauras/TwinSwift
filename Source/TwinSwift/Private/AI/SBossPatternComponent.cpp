@@ -2,16 +2,10 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
-#include "DrawDebugHelpers.h"
-#include "HAL/IConsoleManager.h"
 
+#if !UE_BUILD_SHIPPING
 namespace
 {
-	TAutoConsoleVariable<int32> CVarShowPatternScores(
-		TEXT("ts.Boss.ShowPatternScores"),
-		0,
-		TEXT("1이면 보스가 패턴을 고를 때마다 후보별 점수와 고른 패턴을 머리 위에 표시"));
-
 	// 같은 값이 가장 길게 이어진 횟수
 	int32 LongestRun(const TArray<int32>& Picks)
 	{
@@ -42,6 +36,8 @@ namespace
 	}
 }
 
+#endif
+
 USBossPatternComponent::USBossPatternComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -58,20 +54,11 @@ void USBossPatternComponent::BeginPlay()
 
 FGameplayTag USBossPatternComponent::SelectPattern(float DistanceToTarget)
 {
-	const bool bShowScores = CVarShowPatternScores.GetValueOnGameThread() != 0;
-
-	TArray<float> Scores;
-	const int32 Chosen = SelectIndex(State, DistanceToTarget, true, bShowScores ? &Scores : nullptr);
-
-	if (bShowScores)
-	{
-		DrawScores(Scores, Chosen, DistanceToTarget);
-	}
-
+	const int32 Chosen = SelectIndex(State, DistanceToTarget, true);
 	return Patterns.IsValidIndex(Chosen) ? Patterns[Chosen].AbilityTag : FGameplayTag();
 }
 
-int32 USBossPatternComponent::SelectIndex(FSelectState& InState, float DistanceToTarget, bool bCheckAbility, TArray<float>* OutScores) const
+int32 USBossPatternComponent::SelectIndex(FSelectState& InState, float DistanceToTarget, bool bCheckAbility) const
 {
 	// 1~2) 거르기 + 점수
 	TArray<float> Scores;
@@ -86,11 +73,6 @@ int32 USBossPatternComponent::SelectIndex(FSelectState& InState, float DistanceT
 			BestScore = Scores[Index];
 			BestIndex = Index;
 		}
-	}
-
-	if (OutScores)
-	{
-		*OutScores = Scores;
 	}
 
 	// 쓸 수 있는 패턴이 없음 → BT가 Move To로 넘어감
@@ -220,28 +202,6 @@ void USBossPatternComponent::RefillBag(FSelectState& InState) const
 	}
 }
 
-void USBossPatternComponent::DrawScores(const TArray<float>& Scores, int32 Chosen, float DistanceToTarget) const
-{
-	const AActor* Owner = GetOwner();
-	if (!Owner)
-	{
-		return;
-	}
-
-	// 디버그 글꼴에 한글이 없어서 영어로
-	FString Text = FString::Printf(TEXT("dist %.0f\n"), DistanceToTarget);
-	for (int32 Index = 0; Index < Patterns.Num(); ++Index)
-	{
-		Text += FString::Printf(
-			TEXT("%s %.2f%s\n"),
-			*Patterns[Index].AbilityTag.GetTagName().ToString(),
-			Scores.IsValidIndex(Index) ? Scores[Index] : 0.f,
-			Index == Chosen ? TEXT("  <<") : TEXT(""));
-	}
-
-	DrawDebugString(GetWorld(), FVector(0.f, 0.f, 320.f), Text, const_cast<AActor*>(Owner), FColor::Yellow, 2.f, true, 1.3f);
-}
-
 bool USBossPatternComponent::IsInCurrentPhase(const FSBossPattern& Pattern) const
 {
 	return CurrentPhase >= Pattern.MinPhase && (Pattern.MaxPhase <= 0 || CurrentPhase <= Pattern.MaxPhase);
@@ -261,6 +221,7 @@ UAbilitySystemComponent* USBossPatternComponent::GetASC() const
 	return UAbilitySystemBlueprintLibrary::GetAbilitySystemComponent(GetOwner());
 }
 
+#if !UE_BUILD_SHIPPING
 void USBossPatternComponent::RunSimulation(int32 Count, int32 Seed) const
 {
 	if (Patterns.IsEmpty() || Count <= 0)
@@ -351,7 +312,7 @@ void USBossPatternComponent::RunSimulation(int32 Count, int32 Seed) const
 				return;
 			}
 
-			const int32 Picked = SelectIndex(SimState, Distance, false, nullptr);
+			const int32 Picked = SelectIndex(SimState, Distance, false);
 			if (Picked != INDEX_NONE)
 			{
 				SelectorPicks.Add(Picked);
@@ -374,3 +335,4 @@ void USBossPatternComponent::RunSimulation(int32 Count, int32 Seed) const
 	RunRange(TEXT("① 고를 패턴이 2개 이상인 거리"), true);
 	RunRange(TEXT("② 전체 거리"), false);
 }
+#endif

@@ -14,6 +14,7 @@ namespace
 	const FName CosHalfAngleParam(TEXT("CosHalfAngle"));
 	const FName ProgressParam(TEXT("Progress"));
 	const FName FlashParam(TEXT("Flash"));
+	const FName ColorParam(TEXT("Color"));
 
 	// 평면 메시 한 변 길이(cm). 엔진 기본 Plane = 100
 	constexpr float PlaneSize = 100.f;
@@ -32,7 +33,7 @@ ASBossTelegraph::ASBossTelegraph()
 	Plane->SetGenerateOverlapEvents(false);
 }
 
-void ASBossTelegraph::Setup(const FVector& Center, const FRotator& Facing, float Radius, float FanAngle)
+void ASBossTelegraph::Setup(const FVector& Center, const FRotator& Facing, float Radius, float FanAngle, TOptional<FLinearColor> Color)
 {
 	// 판은 좌우로만 돌림 (기울면 바닥에서 뜸)
 	SetActorLocationAndRotation(
@@ -56,6 +57,7 @@ void ASBossTelegraph::Setup(const FVector& Center, const FRotator& Facing, float
 		Material->SetScalarParameterValue(CosHalfAngleParam, FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(FanAngle, 1.f, 360.f) * 0.5f)));
 		Material->SetScalarParameterValue(ProgressParam, 0.f);
 		Material->SetScalarParameterValue(FlashParam, 0.f);
+		Material->SetVectorParameterValue(ColorParam, Color.Get(DefaultColor));
 	}
 }
 
@@ -116,6 +118,10 @@ UMaterialInstanceDynamic* ASBossTelegraph::GetMaterial()
 	if (!MaterialInstance && Plane)
 	{
 		MaterialInstance = Plane->CreateAndSetMaterialInstanceDynamic(0);
+		if (MaterialInstance)
+		{
+			MaterialInstance->GetVectorParameterValue(FMaterialParameterInfo(ColorParam), DefaultColor);
+		}
 	}
 	return MaterialInstance;
 }

@@ -145,10 +145,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Telegraph")
 	TSubclassOf<ASBossTelegraph> TelegraphClass;
 
-	// [디버그] 판정 범위를 디버그 선으로도 그림 (바닥 예고와 실제 판정이 맞는지 비교할 때)
-	UPROPERTY(EditDefaultsOnly, Category = "Boss Attack|Debug")
-	bool bDrawDebugTelegraph = false;
-
 private:
 	// 블랙보드의 표적. 없으면 nullptr
 	AActor* GetTargetActor() const;
@@ -179,18 +175,12 @@ private:
 	// LeapArcHeight로 포물선 높이 커브를 만듦 (처음 한 번, 높이가 바뀌면 다시). 0이면 nullptr
 	UCurveVector* GetLeapArcCurve();
 
-	// 지난 타격(첫 타격이면 0초)부터 다음 타격까지 몇 % 왔는지 (예고가 가득 = 맞는 순간). 바닥 예고와 디버그 선이 같이 씀
+	// 지난 타격(첫 타격이면 0초)부터 다음 타격까지 몇 % 왔는지 (예고가 가득 = 맞는 순간).
 	float GetTelegraphProgress(float AttackTime) const;
 
 	// 바닥 예고 꺼내기 (발동할 때) / 넣기 (마지막 타격이면 번쩍 후, 취소면 바로)
 	void ShowTelegraph();
 	void HideTelegraph(bool bFlash);
-
-	// [디버그] 예고 선 그리기. 안쪽 원이 바깥에 닿는 순간 맞음
-	void DrawTelegraph(float AttackTime) const;
-
-	// 범위 모양을 디버그 선으로 그림 (원 또는 부채꼴). 예고와 맞는 순간 표시가 같이 씀
-	void DrawArea(float InRadius, const FColor& Color, float Thickness, float Duration) const;
 
 	// 몽타주 끝·끊김·취소 → EndAbility
 	UFUNCTION()

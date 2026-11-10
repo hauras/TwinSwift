@@ -52,31 +52,9 @@ public:
 	// 내 캐릭터가 맞음 (APlayerCharacter::NotifyDamaged가 부름): 빨간 숫자 + 화면 흔들림. 빨간 번쩍은 HUD가
 	void OnPawnDamaged(float Damage);
 
-	// [디버그] 겨냥 위치를 구로 표시 (콘솔: ShowAim)
-	UFUNCTION(Exec)
-	void ShowAim();
-
-	// [디버그] 지금 나와 있는 캐릭터에게 데미지 (콘솔: DebugDamage 50). 적이 아직 플레이어를 때리지 않아서 교체 규칙 시험용
-	UFUNCTION(Exec)
-	void DebugDamage(float Amount);
-
-	// [디버그] 살아 있는 보스 체력을 최대치의 Ratio로 (콘솔: DebugBossHealth 0.35). 2페이즈·처치 흐름 시험용
-	// 체력 변경 알림이 나가서 2페이즈 진입(PhaseTwoHealthRatio 아래)·사망이 실제 피격과 같이 동작
-	UFUNCTION(Exec)
-	void DebugBossHealth(float Ratio = 0.35f);
-
-	// [디버그] 맵의 모든 적에게 표식 10초 (콘솔: DebugMarkAll Crack / DebugMarkAll Frost). 연쇄 폭발·산산조각 시험용
-	UFUNCTION(Exec)
-	void DebugMarkAll(const FString& MarkName);
-
 	// [측정] 맵의 첫 보스 패턴 선택기로 Count번 고르기 시뮬레이션 → 선택기 vs 완전 무작위 (콘솔: BossPatternSim 1000)
 	UFUNCTION(Exec)
 	void BossPatternSim(int32 Count = 1000);
-
-	// [시험] 맵의 첫 보스 위치에서 Seconds초 동안 나선 탄막 (콘솔: DebugBulletSpiral 5 6 500). 탄 매니저 표시·피해·교체 무적 통과 확인용
-	// 팔 Arms개가 일정 간격으로 돌며 Speed(cm/초)로 쏨. 높이는 플레이어 몸 가운데 (보스 캡슐 높이로 쏘면 머리 위로 지나감)
-	UFUNCTION(Exec)
-	void DebugBulletSpiral(float Seconds = 5.f, int32 Arms = 6, float Speed = 500.f);
 
 	// [측정] 탄 Count발이 계속 떠 있게 나선으로 쏘며 Seconds초 동안 잼 (콘솔: BenchBullets 1000 0 / BenchBullets 1000 1)
 	// UseActors 0 = 탄 매니저(배열), 1 = 액터 풀 탄(BenchBulletActorClass: 같은 외형·속도·수명), 2 = 실제 화염탄(BenchProjectileClass, 참고용)
@@ -189,9 +167,6 @@ private:
 	// 측정 끝: 알림 해제, 결과 로그, -BenchQuit이면 게임 종료
 	void FinishBench();
 
-	// [시험] DebugBulletSpiral: 한 번 쏠 때마다 팔 수만큼, 각도를 조금씩 돌림. 시간이 다 되면 멈춤
-	void FireDebugSpiral();
-
 	// [측정] BenchBullets: 0.05초마다 한 묶음 발사 / 끝
 	void FireBenchBullets();
 	void FinishBenchBullets();
@@ -226,13 +201,6 @@ private:
 
 	// 기록 구간의 게임 스레드 시간 합계(ms). 프레임 시간은 가장 느린 쪽(GPU·편집기 포함)에 묶여 탄 처리 차이가 가려짐
 	double BenchGameThreadMs = 0.0;
-
-	FTimerHandle DebugSpiralTimer;
-	TWeakObjectPtr<ABossCharacter> DebugSpiralBoss;
-	double DebugSpiralEndTime = 0.0;
-	float DebugSpiralAngle = 0.f;
-	int32 DebugSpiralArms = 6;
-	float DebugSpiralSpeed = 500.f;
 
 	void Move_Input(const FInputActionValue& InputValue);
 	void MoveCompleted_Input();
@@ -295,5 +263,4 @@ private:
 
 	int32 CurrentCameraIndex = 0;
 
-	bool bDrawAimPoint = false;
 };

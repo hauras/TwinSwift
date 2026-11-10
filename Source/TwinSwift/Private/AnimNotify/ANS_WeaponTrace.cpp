@@ -1,7 +1,6 @@
 #include "AnimNotify/ANS_WeaponTrace.h"
 
 #include "AbilitySystemBlueprintLibrary.h"
-#include "DrawDebugHelpers.h"
 #include "SGameplayTags.h"
 #include "Character/CharacterBase.h"
 #include "Components/StaticMeshComponent.h"
@@ -75,19 +74,6 @@ void UANS_WeaponTrace::NotifyTick(
 		}
 	}
 	LastBladeByMesh.Add(MeshComp, TPair<FVector, FVector>(BladeStart, BladeEnd));
-
-	if (bDrawDebug)
-	{
-		DrawDebugCapsule(
-			World,
-			(BladeStart + BladeEnd) * 0.5f,
-			FVector::Dist(BladeStart, BladeEnd) * 0.5f + TraceRadius,
-			TraceRadius,
-			FRotationMatrix::MakeFromZ(BladeEnd - BladeStart).ToQuat(),
-			Hits.Num() > 0 ? FColor::Red : FColor::Green,
-			false,
-			0.5f);
-	}
 
 	TSet<TWeakObjectPtr<AActor>>& AlreadyHit = HitActorsByMesh.FindOrAdd(MeshComp);
 	for (const FHitResult& Hit : Hits)

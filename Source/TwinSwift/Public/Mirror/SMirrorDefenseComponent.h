@@ -65,7 +65,7 @@ private:
 		FVector& OutDirection) const;
 
 	// 방향을 넣고 회피 능력 실행 (방향은 ActivateAbility 안에서 읽어서 바로 비움)
-	bool ActivateDodge(ASMirrorBoss* Boss, const FGameplayAbilitySpecHandle& Handle, const USGA_Dodge* Dodge, const FVector& Direction);
+	bool ActivateDodge(ASMirrorBoss* Boss, const FGameplayAbilitySpecHandle& Handle, const FVector& Direction);
 
 	bool bEvadePending = false;
 	bool bTrackSourceAbility = false;
